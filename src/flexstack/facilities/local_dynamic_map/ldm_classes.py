@@ -70,7 +70,7 @@ class TimestampIts:
         timestamp : int
             Converted ITS timestamp.
         """
-        self.timestamp = (timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+        self.timestamp = timestamp - REFERENCE_ITS_TIMESTAMP
         return timestamp
 
     def convert_epoch_to_its_timestamp(self, timestamp: int = None) -> int:
@@ -88,9 +88,9 @@ class TimestampIts:
             Converted timestamp.
         """
         if timestamp is None:
-            self.timestamp = (self.timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+            self.timestamp = self.timestamp - REFERENCE_ITS_TIMESTAMP
             return self.timestamp
-        return (timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+        return timestamp - REFERENCE_ITS_TIMESTAMP
 
 
 class TimeValidity:
@@ -108,9 +108,9 @@ class TimeValidity:
         Returns
         -------
         int
-            Converted timestamp.
+            Converted timestamp in ETSI ITS format.
         """
-        return ((self.time - REFERENCE_ITS_TIMESTAMP) % 65536) * 1000
+        return ((self.time - REFERENCE_ITS_TIMESTAMP)) * 1000
 
 
 class DataContainer:
@@ -171,9 +171,7 @@ class AuthorizationResult:
             return "authentiticaionFailure"
         if self.result == 3:
             return "applicationNotAuthorized"
-        raise ValueError(
-            "AuthorizationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("AuthorizationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class AuthorizeReg:
@@ -181,9 +179,7 @@ class AuthorizeReg:
     Class that represents an authorization request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, application_id: int, access_permissions: list[DataContainer]
-    ) -> None:
+    def __init__(self, application_id: int, access_permissions: list[DataContainer]) -> None:
         self.application_id = application_id
         self.access_permissions = access_permissions
 
@@ -217,9 +213,7 @@ class RevocationReason:
             return "registratioRevokedByRegistrationAuthority"
         if self.reason == 1:
             return "registrationPeriodExpired"
-        raise ValueError(
-            "RevocationReason string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("RevocationReason string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class RevocationResult:
@@ -237,9 +231,7 @@ class RevocationResult:
             return "invalidITS-AID"
         if self.result == 2:
             return "unknownITS-AID"
-        raise ValueError(
-            "RevocationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("RevocationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class RevokeAuthorizationReg:
@@ -400,9 +392,7 @@ class PositionConfidenceEllipse:
     Class that represents Position Confidence Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, semi_major_confidence, semi_minor_confidence, semi_major_orientation
-    ) -> None:
+    def __init__(self, semi_major_confidence, semi_minor_confidence, semi_major_orientation) -> None:
         self.semi_major_confidence = semi_major_confidence
         self.semi_minor_confidence = semi_minor_confidence
         self.semi_major_orientation = semi_major_orientation
@@ -601,9 +591,7 @@ class Rectangle:
     Class that represents Rectangle as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction
-    ) -> None:
+    def __init__(self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction) -> None:
         self.a_semi_axis = a_semi_axis
         self.b_semi_axis = b_semi_axis
         self.azimuth_angle = azimuth_angle
@@ -614,9 +602,7 @@ class Ellipse:
     Class that represents Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction
-    ) -> None:
+    def __init__(self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction) -> None:
         self.a_semi_axis = a_semi_axis
         self.b_semi_axis = b_semi_axis
         self.azimuth_angle = azimuth_angle
@@ -727,9 +713,7 @@ class ReferenceArea:
     Class that represents Reference Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, geometric_area: GeometricArea, relevance_area: RelevanceArea
-    ) -> None:
+    def __init__(self, geometric_area: GeometricArea, relevance_area: RelevanceArea) -> None:
         self.geometric_area = geometric_area
         self.relevance_area = relevance_area
 
@@ -739,9 +723,7 @@ class Location:
     Class that represents Location as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, reference_position: ReferencePosition, reference_area: ReferenceArea
-    ) -> None:
+    def __init__(self, reference_position: ReferencePosition, reference_area: ReferenceArea) -> None:
         self.reference_position = reference_position
         self.reference_area = reference_area
 
@@ -771,18 +753,12 @@ class Location:
                 semi_major_orientation=semi_major_orientation,
                 semi_minor_confidence=semi_minor_condifence,
             ),
-            altitude=Altitude(
-                altitude_value=altitude_value, altitude_confidence=altitude_confidence
-            ),
+            altitude=Altitude(altitude_value=altitude_value, altitude_confidence=altitude_confidence),
         )
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(
-                circle=Circle(radius=radius), rectangle=rectangle, ellipse=ellipse
-            ),
+            geometric_area=GeometricArea(circle=Circle(radius=radius), rectangle=rectangle, ellipse=ellipse),
             relevance_area=RelevanceArea(
-                relevance_distance=RelevanceDistance(
-                    relevance_distance=relevance_distance
-                ),
+                relevance_distance=RelevanceDistance(relevance_distance=relevance_distance),
                 relevance_traffic_direction=RelevanceTrafficDirection(
                     relevance_traffic_direction=relevance_traffic_direction
                 ),
@@ -804,9 +780,7 @@ class Location:
         self.reference_position.update_with_gpsd_tpv(tpv)
 
     @staticmethod
-    def location_builder_circle(
-        latitude: int, longitude: int, altitude: int, radius: int
-    ) -> "Location":
+    def location_builder_circle(latitude: int, longitude: int, altitude: int, radius: int) -> "Location":
         """
         Static method to create a location, ETSI class, with a circle as the geometric area as defined
         in ETSI TS 102 894-2 V2.2.1 (2023-10).
@@ -839,19 +813,13 @@ class Location:
         )
 
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(
-                circle=Circle(radius=radius), rectangle=None, ellipse=None
-            ),
+            geometric_area=GeometricArea(circle=Circle(radius=radius), rectangle=None, ellipse=None),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(relevance_distance=1),
-                relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=0
-                ),
+                relevance_traffic_direction=RelevanceTrafficDirection(relevance_traffic_direction=0),
             ),
         )
-        return Location(
-            reference_area=reference_area, reference_position=reference_position
-        )
+        return Location(reference_area=reference_area, reference_position=reference_position)
 
 
 class AddDataProviderReq:
@@ -894,11 +862,8 @@ class AddDataProviderReq:
             "referenceArea": {
                 "geometricArea": {
                     "circle": (
-                        {
-                            "radius": self.location.reference_area.geometric_area.circle.radius
-                        }
-                        if self.location.reference_area.geometric_area.circle
-                        is not None
+                        {"radius": self.location.reference_area.geometric_area.circle.radius}
+                        if self.location.reference_area.geometric_area.circle is not None
                         else None
                     ),
                     "rectangle": (
@@ -907,8 +872,7 @@ class AddDataProviderReq:
                             "bSemiAxis": self.location.reference_area.geometric_area.rectangle.b_semi_axis,
                             "azimuthAngle": self.location.reference_area.geometric_area.rectangle.azimuth_angle,
                         }
-                        if self.location.reference_area.geometric_area.rectangle
-                        is not None
+                        if self.location.reference_area.geometric_area.rectangle is not None
                         else None
                     ),
                     "ellipse": (
@@ -917,8 +881,7 @@ class AddDataProviderReq:
                             "bSemiAxis": self.location.reference_area.geometric_area.ellipse.b_semi_axis,
                             "azimuthAngle": self.location.reference_area.geometric_area.ellipse.azimuth_angle,
                         }
-                        if self.location.reference_area.geometric_area.ellipse
-                        is not None
+                        if self.location.reference_area.geometric_area.ellipse is not None
                         else None
                     ),
                 },
@@ -966,11 +929,8 @@ class AddDataProviderReq:
                 "referenceArea": {
                     "geometricArea": {
                         "circle": (
-                            {
-                                "radius": self.location.reference_area.geometric_area.circle.radius
-                            }
-                            if self.location.reference_area.geometric_area.circle
-                            is not None
+                            {"radius": self.location.reference_area.geometric_area.circle.radius}
+                            if self.location.reference_area.geometric_area.circle is not None
                             else None
                         ),
                         "rectangle": (
@@ -979,8 +939,7 @@ class AddDataProviderReq:
                                 "bSemiAxis": self.location.reference_area.geometric_area.rectangle.b_semi_axis,
                                 "azimuthAngle": self.location.reference_area.geometric_area.rectangle.azimuth_angle,
                             }
-                            if self.location.reference_area.geometric_area.rectangle
-                            is not None
+                            if self.location.reference_area.geometric_area.rectangle is not None
                             else None
                         ),
                         "ellipse": (
@@ -989,8 +948,7 @@ class AddDataProviderReq:
                                 "bSemiAxis": self.location.reference_area.geometric_area.ellipse.b_semi_axis,
                                 "azimuthAngle": self.location.reference_area.geometric_area.ellipse.azimuth_angle,
                             }
-                            if self.location.reference_area.geometric_area.ellipse
-                            is not None
+                            if self.location.reference_area.geometric_area.ellipse is not None
                             else None
                         ),
                     },
@@ -1033,59 +991,37 @@ class AddDataProviderReq:
             latitude=reference_position_data.get("latitude"),
             longitude=reference_position_data.get("longitude"),
             position_confidence_ellipse=PositionConfidenceEllipse(
-                semi_major_confidence=reference_position_data[
-                    "positionConfidenceEllipse"
-                ]["semiMajorConfidence"],
-                semi_minor_confidence=reference_position_data[
-                    "positionConfidenceEllipse"
-                ]["semiMinorConfidence"],
-                semi_major_orientation=reference_position_data[
-                    "positionConfidenceEllipse"
-                ]["semiMajorOrientation"],
+                semi_major_confidence=reference_position_data["positionConfidenceEllipse"]["semiMajorConfidence"],
+                semi_minor_confidence=reference_position_data["positionConfidenceEllipse"]["semiMinorConfidence"],
+                semi_major_orientation=reference_position_data["positionConfidenceEllipse"]["semiMajorOrientation"],
             ),
             altitude=Altitude(
                 altitude_value=reference_position_data["altitude"]["altitudeValue"],
-                altitude_confidence=reference_position_data["altitude"][
-                    "altitudeConfidence"
-                ],
+                altitude_confidence=reference_position_data["altitude"]["altitudeConfidence"],
             ),
         )
         reference_area_data = location_data.get("referenceArea")
         reference_area = ReferenceArea(
             geometric_area=GeometricArea(
                 circle=(
-                    Circle(
-                        radius=reference_area_data["geometricArea"]["circle"]["radius"]
-                    )
+                    Circle(radius=reference_area_data["geometricArea"]["circle"]["radius"])
                     if reference_area_data["geometricArea"]["circle"]
                     else None
                 ),
                 rectangle=(
                     Rectangle(
-                        a_semi_axis=reference_area_data["geometricArea"]["rectangle"][
-                            "aSemiAxis"
-                        ],
-                        b_semi_axis=reference_area_data["geometricArea"]["rectangle"][
-                            "bSemiAxis"
-                        ],
-                        azimuth_angle=reference_area_data["geometricArea"]["rectangle"][
-                            "azimuthAngle"
-                        ],
+                        a_semi_axis=reference_area_data["geometricArea"]["rectangle"]["aSemiAxis"],
+                        b_semi_axis=reference_area_data["geometricArea"]["rectangle"]["bSemiAxis"],
+                        azimuth_angle=reference_area_data["geometricArea"]["rectangle"]["azimuthAngle"],
                     )
                     if reference_area_data["geometricArea"]["rectangle"]
                     else None
                 ),
                 ellipse=(
                     Ellipse(
-                        a_semi_axis=reference_area_data["geometricArea"]["ellipse"][
-                            "aSemiAxis"
-                        ],
-                        b_semi_axis=reference_area_data["geometricArea"]["ellipse"][
-                            "bSemiAxis"
-                        ],
-                        azimuth_angle=reference_area_data["geometricArea"]["ellipse"][
-                            "azimuthAngle"
-                        ],
+                        a_semi_axis=reference_area_data["geometricArea"]["ellipse"]["aSemiAxis"],
+                        b_semi_axis=reference_area_data["geometricArea"]["ellipse"]["bSemiAxis"],
+                        azimuth_angle=reference_area_data["geometricArea"]["ellipse"]["azimuthAngle"],
                     )
                     if reference_area_data["geometricArea"]["ellipse"]
                     else None
@@ -1093,20 +1029,14 @@ class AddDataProviderReq:
             ),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(
-                    relevance_distance=reference_area_data["relevanceArea"][
-                        "relevanceDistance"
-                    ]
+                    relevance_distance=reference_area_data["relevanceArea"]["relevanceDistance"]
                 ),
                 relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=reference_area_data["relevanceArea"][
-                        "relevaneTrafficDirection"
-                    ]
+                    relevance_traffic_direction=reference_area_data["relevanceArea"]["relevaneTrafficDirection"]
                 ),
             ),
         )
-        location = Location(
-            reference_position=reference_position, reference_area=reference_area
-        )
+        location = Location(reference_position=reference_position, reference_area=reference_area)
 
         return AddDataProviderReq(
             application_id=application_id,
@@ -1162,9 +1092,7 @@ class AddDataProviderResp:
         application_id = data.get("application_id")
         data_object_id = data.get("data_object_id")
 
-        return AddDataProviderResp(
-            application_id=application_id, data_object_id=data_object_id
-        )
+        return AddDataProviderResp(application_id=application_id, data_object_id=data_object_id)
 
 
 class UpdateDataProviderReq:
@@ -1215,9 +1143,7 @@ class UpdateDataProviderResp:
     Class that represents Update Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, application_id: int, data_object_id: int, result: UpdateDataProviderResult
-    ) -> None:
+    def __init__(self, application_id: int, data_object_id: int, result: UpdateDataProviderResult) -> None:
         self.application_id = application_id
         self.data_object_id = data_object_id
         self.result = result
@@ -1228,9 +1154,7 @@ class DeleteDataProviderReq:
     Class that represents Delete Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, application_id: int, data_object_id: int, time_stamp: TimestampIts
-    ) -> None:
+    def __init__(self, application_id: int, data_object_id: int, time_stamp: TimestampIts) -> None:
         self.application_id = application_id
         self.data_object_id = data_object_id
         self.time_stamp = time_stamp
@@ -1260,9 +1184,7 @@ class DeleteDataProviderResp:
     Class that represents Delete Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, application_id: int, data_object_id: int, result: DeleteDataProviderResult
-    ) -> None:
+    def __init__(self, application_id: int, data_object_id: int, result: DeleteDataProviderResult) -> None:
         self.application_id = application_id
         self.data_object_id = data_object_id
         self.result = result
@@ -1426,9 +1348,7 @@ class OrderingDirection:
             return "ascending"
         if self.direction == 1:
             return "descending"
-        raise ValueError(
-            "OrderingDirection string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("OrderingDirection string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class OrderTuple:
@@ -1464,9 +1384,7 @@ class LogicalOperators:
             return "and"
         if self.operator == 1:
             return "or"
-        raise ValueError(
-            "LogicalOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("LogicalOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class ComparisonOperators:
@@ -1492,9 +1410,7 @@ class ComparisonOperators:
         if self.operator in operator_mapping:
             return operator_mapping[self.operator]
 
-        raise ValueError(
-            "ComparisonOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        raise ValueError("ComparisonOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class FilterStatement:
@@ -1544,9 +1460,7 @@ class RequestDataObjectsReq:
         self.filter = filter
 
     @staticmethod
-    def filter_out_by_data_object_type(
-        search_result: list[dict], data_object_types: list[int]
-    ) -> list[dict]:
+    def filter_out_by_data_object_type(search_result: list[dict], data_object_types: list[int]) -> list[dict]:
         """
         Function that filters out all packets that are not part of the specified data object type list given
         in the RequestDataObjectReq
@@ -1564,12 +1478,7 @@ class RequestDataObjectsReq:
         """
         filtered_search_result = []
         for result in search_result:
-            if (
-                RequestDataObjectsReq.get_object_type_from_data_object(
-                    result["dataObject"]
-                )
-                in data_object_types
-            ):
+            if RequestDataObjectsReq.get_object_type_from_data_object(result["dataObject"]) in data_object_types:
                 filtered_search_result.append(result)
         return filtered_search_result
 
@@ -1584,9 +1493,7 @@ class RequestDataObjectsReq:
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[
-                    list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)
-                ]
+                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]
         return None
 
 
@@ -1832,9 +1739,7 @@ class UnsubscribeDataobjectsResp:
     Class that represents Unsubscribe Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(
-        self, application_id: int, result: UnsubscribeDataobjectsResult
-    ) -> None:
+    def __init__(self, application_id: int, result: UnsubscribeDataobjectsResult) -> None:
         self.application_id = application_id
         self.result = result
 
@@ -1872,9 +1777,7 @@ class ReferenceValue:
         result = value_mapping.get(self.reference_value)
 
         if result is None:
-            raise ValueError(
-                "ReferenceValue string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-            )
+            raise ValueError("ReferenceValue string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
         return result
 
@@ -1906,10 +1809,7 @@ class Utils:
         float
             Haversine value.
         """
-        return (
-            math.sin(dlat / 2) ** 2
-            + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-        )
+        return math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
 
     @staticmethod
     def haversine_c(a: float) -> float:
@@ -2032,13 +1932,9 @@ class Utils:
         int
             The station id.
         """
-        station_id = Utils.get_nested(
-            data_object, Utils.find_attribute("stationID", data_object)
-        )
+        station_id = Utils.get_nested(data_object, Utils.find_attribute("stationID", data_object))
         if station_id is None:
-            station_id = Utils.get_nested(
-                data_object, Utils.find_attribute("stationId", data_object)
-            )
+            station_id = Utils.get_nested(data_object, Utils.find_attribute("stationId", data_object))
         return station_id
 
     @staticmethod

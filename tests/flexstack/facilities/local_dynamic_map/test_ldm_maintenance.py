@@ -365,7 +365,7 @@ class Test_ldm_maintenance(unittest.TestCase):
         self.assertEqual(search_result, [1])
 
     @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.TimestampIts.convert_epoch_to_its_timestamp"
+        "flexstack.facilities.local_dynamic_map.ldm_classes.TimestampIts.insert_unix_timestamp"
     )
     @patch("time.time")
     @patch("builtins.print")
