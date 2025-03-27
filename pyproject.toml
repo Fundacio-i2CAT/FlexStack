@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "v2xflexstack"
-version = "0.9.5"
+version = "0.9.6"
 authors = [
   { name = "Jordi Marias-i-Parella", email = "jordi.marias@i2cat.net" },
   { name = "Daniel Ulied Guevara", email = "daniel.ulied@i2cat.net" },
   { name = "Adria Pons Serra", email = "adria.pons@i2cat.net" },
-  { name = "Marc Codina Bartomeus", email = "marc.codina@i2cat.net" },
+  { name = "Marc Codina Bartumeus", email = "marc.codina@i2cat.net" },
 ]
 description = "Implementation of the ETSI C-ITS protocol stack"
 keywords = [

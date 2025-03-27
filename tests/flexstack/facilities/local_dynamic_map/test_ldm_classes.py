@@ -113,19 +113,19 @@ class TestTimestampIts(unittest.TestCase):
 
     def test_insert_unix_timestamp(self) -> None:
         timestamp = 2000000000
-        result = (timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+        result = (timestamp - REFERENCE_ITS_TIMESTAMP)
         self.timestamp_its.insert_unix_timestamp(timestamp)
         self.assertEqual(self.timestamp_its.timestamp, result)
 
     def test_convert_epoch_to_its_timestamp_timestamp_is_none(self) -> None:
         timestamp = None
-        result = (self.timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+        result = (self.timestamp - REFERENCE_ITS_TIMESTAMP)
         self.timestamp_its.convert_epoch_to_its_timestamp(timestamp)
         self.assertEqual(self.timestamp_its.timestamp, result)
 
     def test_convert_epoch_to_its_timestamp_timestamp_not_none(self) -> None:
         timestamp = 2000000000
-        result = (timestamp - REFERENCE_ITS_TIMESTAMP) % 65536
+        result = (timestamp - REFERENCE_ITS_TIMESTAMP)
         self.assertEqual(
             self.timestamp_its.convert_epoch_to_its_timestamp(timestamp), result
         )
@@ -355,7 +355,7 @@ class TestTimeValidity(unittest.TestCase):
 
     def test_to_etsi_its(self) -> None:
         timestamp = 2000000000
-        result = ((timestamp - REFERENCE_ITS_TIMESTAMP) % 65536) * 1000
+        result = ((timestamp - REFERENCE_ITS_TIMESTAMP)) * 1000
         self.assertEqual(TimeValidity(timestamp).to_etsi_its(), result)
 
 

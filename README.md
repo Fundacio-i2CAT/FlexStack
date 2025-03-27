@@ -1,6 +1,6 @@
 # FlexStack(R) Community Edition
 
-<!--<img src="doc/img/logo.png" alt="V2X Flex Stack" width="200"/>--> <img src="doc/img/i2cat_logo.png" alt="i2CAT Logo" width="200"/>
+<!--<img src="doc/img/logo.png" alt="V2X Flex Stack" width="200"/>--> <img src="https://raw.githubusercontent.com/Fundacio-i2CAT/FlexStack/refs/heads/master/doc/img/i2cat_logo.png" alt="i2CAT Logo" width="200"/>
 
 
 # Short description
@@ -61,7 +61,7 @@ External dependencies-->
 - Jordi Marias-i-Parella (jordi.marias@i2cat.net)
 - Daniel Ulied Guevara (daniel.ulied@i2cat.net)
 - Adrià Pons Serra (adria.pons@i2cat.net)
-- Marc Codina Bartomeus (marc.codina@i2cat.net)
+- Marc Codina Bartumeus (marc.codina@i2cat.net)
 
 
 
