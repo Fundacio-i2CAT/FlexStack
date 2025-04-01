@@ -68,5 +68,5 @@ class CAMReceptionManagement:
         self.logging.debug(
             "Received CAM with timestamp: %s, station_id: %s",
             cam["cam"]["generationDeltaTime"],
-            cam["header"]["stationID"],
+            cam["header"]["stationId"],
         )
