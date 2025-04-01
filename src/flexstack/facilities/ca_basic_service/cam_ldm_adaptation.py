@@ -50,9 +50,11 @@ class CABasicServiceLDM:
         cam: dict
             Cooperative Awareness Message in a python dictionary format.
         """
+        timestamp = TimestampIts()
+        timestamp.insert_unix_timestamp(time.time())
         data = AddDataProviderReq(
             application_id=CAM,
-            time_stamp=TimestampIts().insert_unix_timestamp(time.time()),
+            time_stamp=timestamp,
             location=Location.location_builder_circle(
                 latitude=cam["cam"]["camParameters"]["basicContainer"][
                     "referencePosition"
