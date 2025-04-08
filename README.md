@@ -62,6 +62,7 @@ External dependencies-->
 - Daniel Ulied Guevara (daniel.ulied@i2cat.net)
 - Adrià Pons Serra (adria.pons@i2cat.net)
 - Marc Codina Bartumeus (marc.codina@i2cat.net)
+- Lluc Feixa Morancho (lluc.feixa@i2cat.net)
 
 
 

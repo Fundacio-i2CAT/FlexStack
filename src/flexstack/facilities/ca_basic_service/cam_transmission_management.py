@@ -109,7 +109,7 @@ class GenerationDeltaTime:
     def __init__(self) -> None:
         self.msec = 0
 
-    def set_in_normal_timestamp(self, timestamp: float) -> None:
+    def set_in_normal_timestamp(self, timestamp_seconds: float) -> None:
         """
         Set the Generation Delta Time in normal timestamp. [Seconds]
 
@@ -118,9 +118,9 @@ class GenerationDeltaTime:
         timestamp : int
             Timestamp in milliseconds.
         """
-        self.msec = (timestamp - 1072911600000) % 65536
+        self.msec = (timestamp_seconds*1000 - 1072911600000) % 65536
 
-    def as_timestamp_in_certain_point(self, point_in_time: int) -> float:
+    def as_timestamp_in_certain_point(self, point_in_time_millis: int) -> float:
         """
         Returns the generation delta time as timestamp as it would be if received at
         certain point in time.
@@ -135,9 +135,9 @@ class GenerationDeltaTime:
         float
             Timestamp of the generation delta time in milliseconds
         """
-        number_of_cycles = trunc((point_in_time - 1072911600000) / 65536)
+        number_of_cycles = trunc((point_in_time_millis - 1072911600000) / 65536)
         transformed_timestamp = self.msec + 65536 * number_of_cycles + 1072911600000
-        if transformed_timestamp < point_in_time:
+        if transformed_timestamp <= point_in_time_millis:
             return transformed_timestamp
         return self.msec + 65536 * (number_of_cycles - 1) + 1072911600000
 
