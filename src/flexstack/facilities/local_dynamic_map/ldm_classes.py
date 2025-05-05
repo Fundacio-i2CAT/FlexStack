@@ -991,7 +991,7 @@ class AddDataProviderReq:
     def __iter__(self):
         # pylint: disable=line-too-long
         yield "application_id", self.application_id
-        yield "timeStamp", self.time_stamp
+        yield "timeStamp", self.time_stamp.timestamp
         yield "location", {
             "referencePosition": {
                 "latitude": self.location.reference_position.latitude,
