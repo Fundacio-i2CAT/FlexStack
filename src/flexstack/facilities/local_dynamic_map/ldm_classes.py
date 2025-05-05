@@ -17,7 +17,7 @@ A few expeptions:
 """
 
 from __future__ import annotations
-
+import time
 import math
 
 from .ldm_constants import (
@@ -54,43 +54,181 @@ class TimestampIts:
     """
 
     def __init__(self, timestamp: int = None) -> None:
-        self.timestamp = timestamp
-
-    def insert_unix_timestamp(self, timestamp: int) -> None:
         """
-        Method to insert a unix timestamp, it will be then saved as a ETSI Timestamp.
+        Initializes the TimestampIts class.
 
         Parameters
         ----------
         timestamp : int
-            Unix timestamp to be saved.
+            The timestamp in seconds since the epoch (UTC). If None, it will be set to the current time.
+        """
+        self.timestamp = None
+        if timestamp:
+            self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
+                timestamp)
+        else:
+            self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
+                int(time.time()))
+
+    def initialize_with_timestamp_its(timestamp_its: int) -> TimestampIts:
+        """
+        Initializes the TimestampIts class with a given ETSI ITS timestamp.
+
+        Parameters
+        ----------
+        timestamp_its : int
+            The timestamp in ETSI ITS format.
 
         Returns
         -------
-        timestamp : int
-            Converted ITS timestamp.
+        TimestampIts
+            An instance of the TimestampIts class.
         """
-        self.timestamp = timestamp - REFERENCE_ITS_TIMESTAMP
-        return timestamp
+        to_return: TimestampIts = TimestampIts(REFERENCE_ITS_TIMESTAMP+5)
+        to_return.timestamp = timestamp_its
+        return to_return
 
-    def convert_epoch_to_its_timestamp(self, timestamp: int = None) -> int:
+    def __transform_utc_seconds_timestamp_to_timestamp_its(self, timestamp: int) -> int:
         """
-        Method to convert epoch timestamp (normal unix timestamp) into its its timestamp.
+        Method to transform a UTC timestamp to a ETSI ITS timestamp.
 
         Parameters
         ----------
         timestamp : int
-            Unix timestamp to be converted.
+            UTC timestamp to be converted.
 
         Returns
         -------
         int
-            Converted timestamp.
+            Converted ITS timestamp.
         """
-        if timestamp is None:
-            self.timestamp = self.timestamp - REFERENCE_ITS_TIMESTAMP
-            return self.timestamp
-        return timestamp - REFERENCE_ITS_TIMESTAMP
+        return (timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000  # The 5 correspond to leap seconds
+
+    def __add__(self, other: TimestampIts) -> TimestampIts:
+        """
+        Overloads the addition operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        TimestampIts
+            A new TimestampIts object with the combined timestamp.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return TimestampIts.initialize_with_timestamp_its(self.timestamp + other.timestamp)
+
+    def __sub__(self, other: TimestampIts) -> TimestampIts:
+        """
+        Overloads the subtraction operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        TimestampIts
+            A new TimestampIts object with the subtracted timestamp.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return TimestampIts.initialize_with_timestamp_its(self.timestamp - other.timestamp)
+
+    def __eq__(self, other: TimestampIts) -> bool:
+        """
+        Overloads the equality operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        bool
+            True if timestamps are equal, False otherwise.
+        """
+        if not isinstance(other, TimestampIts):
+            return False
+        return self.timestamp == other.timestamp
+
+    def __lt__(self, other: TimestampIts) -> bool:
+        """
+        Overloads the less-than operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        bool
+            True if self.timestamp is less than other.timestamp, False otherwise.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return self.timestamp < other.timestamp
+
+    def __le__(self, other: TimestampIts) -> bool:
+        """
+        Overloads the less-than-or-equal-to operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        bool
+            True if self.timestamp is less than or equal to other.timestamp, False otherwise.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return self.timestamp <= other.timestamp
+
+    def __gt__(self, other: TimestampIts) -> bool:
+        """
+        Overloads the greater-than operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        bool
+            True if self.timestamp is greater than other.timestamp, False otherwise.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return self.timestamp > other.timestamp
+
+    def __ge__(self, other: TimestampIts) -> bool:
+        """
+        Overloads the greater-than-or-equal-to operator for TimestampIts objects.
+
+        Parameters
+        ----------
+        other : TimestampIts
+            Another TimestampIts object.
+
+        Returns
+        -------
+        bool
+            True if self.timestamp is greater than or equal to other.timestamp, False otherwise.
+        """
+        if not isinstance(other, TimestampIts):
+            raise TypeError("Operand must be of type TimestampIts")
+        return self.timestamp >= other.timestamp
 
 
 class TimeValidity:
@@ -171,7 +309,8 @@ class AuthorizationResult:
             return "authentiticaionFailure"
         if self.result == 3:
             return "applicationNotAuthorized"
-        raise ValueError("AuthorizationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "AuthorizationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class AuthorizeReg:
@@ -213,7 +352,8 @@ class RevocationReason:
             return "registratioRevokedByRegistrationAuthority"
         if self.reason == 1:
             return "registrationPeriodExpired"
-        raise ValueError("RevocationReason string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "RevocationReason string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class RevocationResult:
@@ -231,7 +371,8 @@ class RevocationResult:
             return "invalidITS-AID"
         if self.result == 2:
             return "unknownITS-AID"
-        raise ValueError("RevocationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "RevocationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class RevokeAuthorizationReg:
@@ -526,7 +667,8 @@ class ReferencePosition:
         TODO: In the future the altitude and the confidence ellipses should be updated as well.
         """
         self.latitude = Latitude.convert_latitude_to_its_latitude(tpv["lat"])
-        self.longitude = Longitude.convert_longitude_to_its_longitude(tpv["lon"])
+        self.longitude = Longitude.convert_longitude_to_its_longitude(
+            tpv["lon"])
 
 
 class StationType:
@@ -753,12 +895,15 @@ class Location:
                 semi_major_orientation=semi_major_orientation,
                 semi_minor_confidence=semi_minor_condifence,
             ),
-            altitude=Altitude(altitude_value=altitude_value, altitude_confidence=altitude_confidence),
+            altitude=Altitude(altitude_value=altitude_value,
+                              altitude_confidence=altitude_confidence),
         )
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(circle=Circle(radius=radius), rectangle=rectangle, ellipse=ellipse),
+            geometric_area=GeometricArea(circle=Circle(
+                radius=radius), rectangle=rectangle, ellipse=ellipse),
             relevance_area=RelevanceArea(
-                relevance_distance=RelevanceDistance(relevance_distance=relevance_distance),
+                relevance_distance=RelevanceDistance(
+                    relevance_distance=relevance_distance),
                 relevance_traffic_direction=RelevanceTrafficDirection(
                     relevance_traffic_direction=relevance_traffic_direction
                 ),
@@ -813,10 +958,12 @@ class Location:
         )
 
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(circle=Circle(radius=radius), rectangle=None, ellipse=None),
+            geometric_area=GeometricArea(circle=Circle(
+                radius=radius), rectangle=None, ellipse=None),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(relevance_distance=1),
-                relevance_traffic_direction=RelevanceTrafficDirection(relevance_traffic_direction=0),
+                relevance_traffic_direction=RelevanceTrafficDirection(
+                    relevance_traffic_direction=0),
             ),
         )
         return Location(reference_area=reference_area, reference_position=reference_position)
@@ -991,9 +1138,12 @@ class AddDataProviderReq:
             latitude=reference_position_data.get("latitude"),
             longitude=reference_position_data.get("longitude"),
             position_confidence_ellipse=PositionConfidenceEllipse(
-                semi_major_confidence=reference_position_data["positionConfidenceEllipse"]["semiMajorConfidence"],
-                semi_minor_confidence=reference_position_data["positionConfidenceEllipse"]["semiMinorConfidence"],
-                semi_major_orientation=reference_position_data["positionConfidenceEllipse"]["semiMajorOrientation"],
+                semi_major_confidence=reference_position_data[
+                    "positionConfidenceEllipse"]["semiMajorConfidence"],
+                semi_minor_confidence=reference_position_data[
+                    "positionConfidenceEllipse"]["semiMinorConfidence"],
+                semi_major_orientation=reference_position_data[
+                    "positionConfidenceEllipse"]["semiMajorOrientation"],
             ),
             altitude=Altitude(
                 altitude_value=reference_position_data["altitude"]["altitudeValue"],
@@ -1004,7 +1154,8 @@ class AddDataProviderReq:
         reference_area = ReferenceArea(
             geometric_area=GeometricArea(
                 circle=(
-                    Circle(radius=reference_area_data["geometricArea"]["circle"]["radius"])
+                    Circle(
+                        radius=reference_area_data["geometricArea"]["circle"]["radius"])
                     if reference_area_data["geometricArea"]["circle"]
                     else None
                 ),
@@ -1032,11 +1183,13 @@ class AddDataProviderReq:
                     relevance_distance=reference_area_data["relevanceArea"]["relevanceDistance"]
                 ),
                 relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=reference_area_data["relevanceArea"]["relevaneTrafficDirection"]
+                    relevance_traffic_direction=reference_area_data[
+                        "relevanceArea"]["relevaneTrafficDirection"]
                 ),
             ),
         )
-        location = Location(reference_position=reference_position, reference_area=reference_area)
+        location = Location(
+            reference_position=reference_position, reference_area=reference_area)
 
         return AddDataProviderReq(
             application_id=application_id,
@@ -1348,7 +1501,8 @@ class OrderingDirection:
             return "ascending"
         if self.direction == 1:
             return "descending"
-        raise ValueError("OrderingDirection string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "OrderingDirection string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class OrderTuple:
@@ -1384,7 +1538,8 @@ class LogicalOperators:
             return "and"
         if self.operator == 1:
             return "or"
-        raise ValueError("LogicalOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "LogicalOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class ComparisonOperators:
@@ -1410,7 +1565,8 @@ class ComparisonOperators:
         if self.operator in operator_mapping:
             return operator_mapping[self.operator]
 
-        raise ValueError("ComparisonOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        raise ValueError(
+            "ComparisonOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
 
 class FilterStatement:
@@ -1599,7 +1755,8 @@ class RequestDataObjectsResp:
             if key == attribute:
                 return [key]
             if isinstance(value, dict):
-                path = RequestDataObjectsResp.find_attribute_static(attribute, value)
+                path = RequestDataObjectsResp.find_attribute_static(
+                    attribute, value)
                 if path:
                     return [key] + path
         return []
@@ -1777,7 +1934,8 @@ class ReferenceValue:
         result = value_mapping.get(self.reference_value)
 
         if result is None:
-            raise ValueError("ReferenceValue string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+            raise ValueError(
+                "ReferenceValue string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
 
         return result
 
@@ -1932,9 +2090,11 @@ class Utils:
         int
             The station id.
         """
-        station_id = Utils.get_nested(data_object, Utils.find_attribute("stationID", data_object))
+        station_id = Utils.get_nested(
+            data_object, Utils.find_attribute("stationID", data_object))
         if station_id is None:
-            station_id = Utils.get_nested(data_object, Utils.find_attribute("stationId", data_object))
+            station_id = Utils.get_nested(
+                data_object, Utils.find_attribute("stationId", data_object))
         return station_id
 
     @staticmethod

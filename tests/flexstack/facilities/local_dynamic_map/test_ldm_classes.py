@@ -105,30 +105,90 @@ white_vam = {
 
 class TestTimestampIts(unittest.TestCase):
     def setUp(self) -> None:
-        self.timestamp = 3
+        self.timestamp = 1746018271
         self.timestamp_its = TimestampIts(self.timestamp)
+        self.timestamp1 = TimestampIts(1000+REFERENCE_ITS_TIMESTAMP)
+        self.timestamp2 = TimestampIts(2000+REFERENCE_ITS_TIMESTAMP)
 
-    def test__init__(self) -> None:
-        self.assertEqual(self.timestamp_its.timestamp, self.timestamp)
-
-    def test_insert_unix_timestamp(self) -> None:
-        timestamp = 2000000000
-        result = (timestamp - REFERENCE_ITS_TIMESTAMP)
-        self.timestamp_its.insert_unix_timestamp(timestamp)
-        self.assertEqual(self.timestamp_its.timestamp, result)
-
-    def test_convert_epoch_to_its_timestamp_timestamp_is_none(self) -> None:
-        timestamp = None
-        result = (self.timestamp - REFERENCE_ITS_TIMESTAMP)
-        self.timestamp_its.convert_epoch_to_its_timestamp(timestamp)
-        self.assertEqual(self.timestamp_its.timestamp, result)
-
-    def test_convert_epoch_to_its_timestamp_timestamp_not_none(self) -> None:
-        timestamp = 2000000000
-        result = (timestamp - REFERENCE_ITS_TIMESTAMP)
+    def test_initialization(self) -> None:
         self.assertEqual(
-            self.timestamp_its.convert_epoch_to_its_timestamp(timestamp), result
+            self.timestamp_its.timestamp,
+            (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
         )
+        with unittest.mock.patch("time.time", return_value=self.timestamp):
+            test_none_ts = TimestampIts()
+            self.assertEqual(
+                test_none_ts.timestamp,
+                (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
+            )
+
+    def test_transform_utc_seconds_timestamp_to_timestamp_its(self) -> None:
+        transformed_timestamp = self.timestamp_its._TimestampIts__transform_utc_seconds_timestamp_to_timestamp_its(
+            self.timestamp
+        )
+        self.assertEqual(
+            transformed_timestamp,
+            (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
+        )
+
+    def test_addition(self) -> None:
+        result = self.timestamp1 + self.timestamp2
+        self.assertEqual(result.timestamp, 2990000)
+        self.assertIsInstance(result, TimestampIts)
+
+    def test_addition_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 + 1000
+
+    def test_subtraction(self) -> None:
+        result = self.timestamp2 - self.timestamp1
+        self.assertEqual(result.timestamp, 1000000)
+        self.assertIsInstance(result, TimestampIts)
+
+    def test_subtraction_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 - 1000
+
+    def test_equality(self) -> None:
+        self.assertTrue(self.timestamp1 == TimestampIts(1000+REFERENCE_ITS_TIMESTAMP))
+        self.assertFalse(self.timestamp1 == self.timestamp2)
+
+    def test_equality_invalid_type(self) -> None:
+        self.assertFalse(self.timestamp1 == 1000)
+
+    def test_less_than(self) -> None:
+        self.assertTrue(self.timestamp1 < self.timestamp2)
+        self.assertFalse(self.timestamp2 < self.timestamp1)
+
+    def test_less_than_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 < 1000
+
+    def test_less_than_or_equal(self) -> None:
+        self.assertTrue(self.timestamp1 <= self.timestamp2)
+        self.assertTrue(self.timestamp1 <= TimestampIts(1000+REFERENCE_ITS_TIMESTAMP))
+        self.assertFalse(self.timestamp2 <= self.timestamp1)
+
+    def test_less_than_or_equal_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 <= 1000
+
+    def test_greater_than(self) -> None:
+        self.assertTrue(self.timestamp2 > self.timestamp1)
+        self.assertFalse(self.timestamp1 > self.timestamp2)
+
+    def test_greater_than_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 > 1000
+
+    def test_greater_than_or_equal(self) -> None:
+        self.assertTrue(self.timestamp2 >= self.timestamp1)
+        self.assertTrue(self.timestamp1 >= TimestampIts(1000))
+        self.assertFalse(self.timestamp1 >= self.timestamp2)
+
+    def test_greater_than_or_equal_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            _ = self.timestamp1 >= 1000
 
 
 class TestDataContainer(unittest.TestCase):

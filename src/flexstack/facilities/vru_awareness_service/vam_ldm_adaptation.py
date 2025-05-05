@@ -1,4 +1,3 @@
-import time
 import logging
 
 from ...facilities.local_dynamic_map.ldm_classes import (
@@ -56,7 +55,6 @@ class VRUBasicServiceLDM:
         None
         """
         timestamp = TimestampIts()
-        timestamp.insert_unix_timestamp(time.time())
         data = AddDataProviderReq(
             application_id=VAM,
             time_stamp=timestamp,
@@ -73,7 +71,7 @@ class VRUBasicServiceLDM:
         )
         self.logging.debug(
             "Adding VAM message to LDM with; time_stamp=%d latitude=%f longitude=%f altitude=%d time_validity=%d",
-            int(TimestampIts().insert_unix_timestamp(time.time())),
+            int(TimestampIts().timestamp),
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["latitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["longitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["altitude"]["altitudeValue"],
