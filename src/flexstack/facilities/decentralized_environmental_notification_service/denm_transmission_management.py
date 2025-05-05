@@ -88,7 +88,7 @@ class DecentralizedEnvironmentalNotificationMessage:
         # Add Management Container
         self.denm["denm"]["management"]["detectionTime"] = request.detection_time
         self.denm["denm"]["management"]["referenceTime"] = int(
-            (time.time() - 1072911600) * 1000
+            (time.time() - 1072911600 - 5) * 1000
         )
         self.denm["denm"]["management"]["TransmissionInterval"] = request.denm_interval
 
@@ -146,7 +146,7 @@ class DecentralizedEnvironmentalNotificationMessage:
         # Add Management Container
         self.denm["denm"]["management"]["detectionTime"] = request.detection_time
         self.denm["denm"]["management"]["referenceTime"] = int(
-            (time.time() - 1072911600) % 65536
+            (time.time() - 1072911600-5) % 65536
         )
         self.denm["denm"]["management"]["TransmissionInterval"] = request.denm_interval
 

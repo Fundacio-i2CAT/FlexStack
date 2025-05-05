@@ -13,7 +13,7 @@ class TestGenerationDeltaTime(unittest.TestCase):
         generation_delta_time = GenerationDeltaTime()
         generation_delta_time.set_in_normal_timestamp(timestamp)
         self.assertEqual(generation_delta_time.msec,
-                         (((timestamp*1000)-1072911600000) % 65536))
+                         (((timestamp*1000)-1072911600000 - 5000) % 65536))
 
     def test_as_timestamp_in_certain_point(self):
         timestamp = 1675871599
@@ -21,7 +21,7 @@ class TestGenerationDeltaTime(unittest.TestCase):
         generation_delta_time.set_in_normal_timestamp(timestamp)
         self.assertEqual(generation_delta_time.as_timestamp_in_certain_point(
             1675871599022), 1675871599000)
-        
+
     def test__gt__(self):
         timestamp = 1675871599
         timestamp2 = timestamp + 1
@@ -121,7 +121,7 @@ class TestCooperativeAwarenessMessage(unittest.TestCase):
         cooperative_awareness_message = CooperativeAwarenessMessage()
         cooperative_awareness_message.fullfill_with_tpv_data(tpv_data)
         self.assertEqual(
-            cooperative_awareness_message.cam['cam']['generationDeltaTime'], 15376)
+            cooperative_awareness_message.cam['cam']['generationDeltaTime'], 10376)
         self.assertEqual(cooperative_awareness_message.cam['cam']['camParameters']
                          ['basicContainer']['referencePosition']['latitude'], int(tpv_data['lat']*10000000))
         self.assertEqual(cooperative_awareness_message.cam['cam']['camParameters']

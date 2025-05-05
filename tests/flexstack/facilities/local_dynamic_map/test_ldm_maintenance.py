@@ -1,7 +1,6 @@
 import json
 import unittest
 from unittest.mock import MagicMock, patch
-import time
 
 from flexstack.facilities.local_dynamic_map.ldm_maintenance import (
     LDMMaintenance,
@@ -268,9 +267,10 @@ class Test_ldm_maintenance(unittest.TestCase):
         self.stop_event.is_set = MagicMock(return_value=False)
         self.database = MagicMock()
 
-        self.ldm_maintenance = LDMMaintenance(self.area_of_maintenance, self.database)
+        self.ldm_maintenance = LDMMaintenance(
+            self.area_of_maintenance, self.database)
 
-        timestampits = TimestampIts().insert_unix_timestamp(time.time())
+        timestampits = TimestampIts()
         latitude = Latitude.convert_latitude_to_its_latitude(40.7143528)
         longitude = Longitude.convert_longitude_to_its_longitude(-74.0059731)
         reference_position = ReferencePosition(
@@ -364,16 +364,12 @@ class Test_ldm_maintenance(unittest.TestCase):
         assert self.database.search.called
         self.assertEqual(search_result, [1])
 
-    @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.TimestampIts.insert_unix_timestamp"
-    )
     @patch("time.time")
     @patch("builtins.print")
     def test_check_and_delete_time_validity(
-        self, mock_print, mock_time, mock_timestampits
+        self, mock_print, mock_time
     ):
-        mock_time.return_value = 1000
-        mock_timestampits.return_value = 3000
+        mock_time.return_value = 1746022691.851343
 
         self.ldm_maintenance.get_all_data_containers = MagicMock(
             return_value=list_database_example
@@ -383,9 +379,11 @@ class Test_ldm_maintenance(unittest.TestCase):
             self.ldm_maintenance.check_and_delete_time_validity()
         )
         self.ldm_maintenance.del_provider_data.assert_called()
-        self.assertEqual(time_invalidity_data_containers, list_database_example)
+        mock_time.assert_called()
+        self.assertEqual(time_invalidity_data_containers,
+                         list_database_example)
 
-        mock_timestampits.return_value = -452011700.8018279
+        mock_time.return_value = -100
         self.ldm_maintenance.del_provider_data = MagicMock()
         time_invalidity_data_containers = (
             self.ldm_maintenance.check_and_delete_time_validity()
@@ -393,7 +391,7 @@ class Test_ldm_maintenance(unittest.TestCase):
         self.ldm_maintenance.del_provider_data.assert_not_called()
         self.assertEqual(time_invalidity_data_containers, [])
 
-        mock_timestampits.return_value = 3000
+        mock_time.return_value = 1746022691.851343
         self.ldm_maintenance.get_all_data_containers = MagicMock(
             return_value=list_database_example
         )
@@ -404,10 +402,10 @@ class Test_ldm_maintenance(unittest.TestCase):
             self.ldm_maintenance.check_and_delete_time_validity()
         )
         self.ldm_maintenance.del_provider_data.assert_called()
+        mock_print.assert_called()
 
     @patch("flexstack.facilities.local_dynamic_map.ldm_classes.Utils")
-    @patch("builtins.print")
-    def test_check_and_delete_area_of_maintenance(self, mock_print, mock_utils):
+    def test_check_and_delete_area_of_maintenance(self, mock_utils):
         mock_utils.euclidian_distance = MagicMock(return_value=1)
         self.ldm_maintenance.get_all_data_containers = MagicMock(
             return_value=list_database_example
@@ -454,7 +452,8 @@ class Test_ldm_maintenance(unittest.TestCase):
         patch_check_time_validity.assert_called()
 
     def test_update_area_of_maintenance(self):
-        self.ldm_maintenance.update_area_of_maintenance(self.area_of_maintenance)
+        self.ldm_maintenance.update_area_of_maintenance(
+            self.area_of_maintenance)
         self.assertEqual(
             self.ldm_maintenance.area_of_maintenance, self.area_of_maintenance
         )

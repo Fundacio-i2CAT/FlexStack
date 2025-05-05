@@ -1,4 +1,3 @@
-import time
 import logging
 from ...facilities.local_dynamic_map.ldm_classes import (
     AddDataProviderReq,
@@ -51,7 +50,6 @@ class CABasicServiceLDM:
             Cooperative Awareness Message in a python dictionary format.
         """
         timestamp = TimestampIts()
-        timestamp.insert_unix_timestamp(time.time())
         data = AddDataProviderReq(
             application_id=CAM,
             time_stamp=timestamp,
@@ -74,7 +72,7 @@ class CABasicServiceLDM:
         self.logging.debug(
             "Adding CAM message to LDM with; "
             "time_stamp=%d latitude=%d longitude=%d altitude=%d time_validity=%d",
-            int(TimestampIts().insert_unix_timestamp(time.time())),
+            int(TimestampIts().timestamp),
             cam["cam"]["camParameters"]["basicContainer"]["referencePosition"][
                 "latitude"
             ],

@@ -80,19 +80,14 @@ class TestCABasicServiceLDM(unittest.TestCase):
     @patch(
         "flexstack.facilities.local_dynamic_map.ldm_classes.Location.location_builder_circle"
     )
-    @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.TimestampIts.insert_unix_timestamp"
-    )
     @patch("time.time")
     def test_add_provider_data_to_ldm(
         self,
         mock_time,
-        mock_insert_unix_timestamp,
         mock_location_builer_circle,
         mock_time_validity,
     ):
         mock_time.return_value = 1
-        mock_insert_unix_timestamp.return_value = 1000
         mock_location_builer_circle.return_value = MagicMock()
         mock_time_validity.return_value = MagicMock()
 
@@ -102,7 +97,6 @@ class TestCABasicServiceLDM(unittest.TestCase):
         cam = white_cam
         self.cam_basic_service_ldm.add_provider_data_to_ldm(cam)
         mock_time.assert_called()
-        mock_insert_unix_timestamp.assert_called()
         mock_location_builer_circle.assert_called()
 
         # Add provder fails
