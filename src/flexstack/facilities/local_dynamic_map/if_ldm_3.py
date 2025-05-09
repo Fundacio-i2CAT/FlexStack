@@ -133,7 +133,7 @@ class InterfaceLDM3:
         self.logging.debug("Adding provider data to LDM from application_id: %d", data_provider.application_id)
 
         if data_provider.application_id in self.ldm_service.get_data_provider_its_aid():
-            data_object_id = self.ldm_service.add_provider_data(data_provider)  # Add data to LDM
+            data_object_id = self.ldm_service.add_provider_data(data_provider.to_dict())  # Add data to LDM
             return AddDataProviderResp(data_provider.application_id, data_object_id)
         return AddDataProviderResp(data_provider.application_id, ADD_DATA_PROVIDER_RESULT_REJECTED)
 

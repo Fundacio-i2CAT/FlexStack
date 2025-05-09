@@ -14,6 +14,9 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
     RegisterDataProviderResp,
     UpdateDataProviderReq,
     UpdateDataProviderResp,
+    TimestampIts,
+    TimeValidity,
+    Location
 )
 from flexstack.facilities.local_dynamic_map.ldm_constants import (
     DELETE_DATA_PROVIDER_RESULT_ACCEPTED,
@@ -111,26 +114,31 @@ class Test_if_ldm_3(unittest.TestCase):
     def test_check_permissions(self):
         access_permisions = [DENM, CAM]
         data_object_id = VAM
-        self.assertEqual(self.if_ldm_3.check_permissions(1, data_object_id), False)
+        self.assertEqual(self.if_ldm_3.check_permissions(
+            1, data_object_id), False)
         self.assertEqual(
-            self.if_ldm_3.check_permissions(access_permisions, data_object_id), False
+            self.if_ldm_3.check_permissions(
+                access_permisions, data_object_id), False
         )
 
         access_permisions = [VAM]
         data_object_id = VAM
         self.assertEqual(
-            self.if_ldm_3.check_permissions(access_permisions, data_object_id), True
+            self.if_ldm_3.check_permissions(
+                access_permisions, data_object_id), True
         )
 
         access_permisions = [VAM, CAM, DENM, MAPEM]
         data_object_id = DENM
         self.assertEqual(
-            self.if_ldm_3.check_permissions(access_permisions, data_object_id), True
+            self.if_ldm_3.check_permissions(
+                access_permisions, data_object_id), True
         )
 
     def test_register_data_provider(self):
         permission_list = [CAM]
-        data_provider_correct = RegisterDataProviderReq(CAM, permission_list, None)
+        data_provider_correct = RegisterDataProviderReq(
+            CAM, permission_list, None)
         data_provider_incorrect = RegisterDataProviderReq(CAM, None, None)
         self.assertIsInstance(
             self.if_ldm_3.register_data_provider(data_provider_correct),
@@ -142,12 +150,14 @@ class Test_if_ldm_3(unittest.TestCase):
             "accepted",
         )
         self.assertEqual(
-            self.if_ldm_3.register_data_provider(data_provider_incorrect).result,
+            self.if_ldm_3.register_data_provider(
+                data_provider_incorrect).result,
             "rejected",
         )
 
     def test_deregister_data_provider(self):
-        self.ldm_service.del_data_provider_its_aid = MagicMock(return_value=None)
+        self.ldm_service.del_data_provider_its_aid = MagicMock(
+            return_value=None)
         self.ldm_service.get_data_provider_its_aid = MagicMock(
             return_value=[
                 2,
@@ -162,7 +172,8 @@ class Test_if_ldm_3(unittest.TestCase):
         )
 
         self.assertEqual(
-            self.if_ldm_3.deregister_data_provider(data_provider_correct).result.result,
+            self.if_ldm_3.deregister_data_provider(
+                data_provider_correct).result.result,
             0,
         )
         self.assertEqual(
@@ -173,12 +184,14 @@ class Test_if_ldm_3(unittest.TestCase):
         )
 
     def test_add_provider_data(self):
-        data_provider = AddDataProviderReq(CAM, None, None, white_cam, None)
+        data_provider = AddDataProviderReq(CAM, TimestampIts.initialize_with_timestamp_its(
+            5000), Location.initializer(latitude=2.3, longitude=41.0), white_cam, TimeValidity(5))
         self.assertIsInstance(
             self.if_ldm_3.add_provider_data(data_provider), AddDataProviderResp
         )
         self.assertEqual(
-            self.if_ldm_3.add_provider_data(data_provider).data_object_id, "unsuccessful"
+            self.if_ldm_3.add_provider_data(
+                data_provider).data_object_id, "unsuccessful"
         )
 
         self.ldm_service.get_data_provider_its_aid = MagicMock(
@@ -205,7 +218,8 @@ class Test_if_ldm_3(unittest.TestCase):
             35, DataContainer(35), None, None, white_cam, None
         )
         self.assertIsInstance(
-            self.if_ldm_3.update_provider_data(data_provider), UpdateDataProviderResp
+            self.if_ldm_3.update_provider_data(
+                data_provider), UpdateDataProviderResp
         )
         self.assertEqual(
             self.if_ldm_3.update_provider_data(data_provider).result.result, 1
@@ -231,7 +245,8 @@ class Test_if_ldm_3(unittest.TestCase):
 
         data_provider = DeleteDataProviderReq(2, 2, None)
         self.assertIsInstance(
-            self.if_ldm_3.delete_provider_data(data_provider), DeleteDataProviderResp
+            self.if_ldm_3.delete_provider_data(
+                data_provider), DeleteDataProviderResp
         )
         self.assertEqual(
             self.if_ldm_3.delete_provider_data(data_provider).result,

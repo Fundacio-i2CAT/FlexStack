@@ -416,7 +416,7 @@ class RegisterDataProviderReq:
 
         return {
             "application_id": self.application_id,
-            "access_permisions": self.access_permisions,
+            "access_permissions": self.access_permisions,
             "time_validity": self.time_validity.time,
         }
 
@@ -437,7 +437,7 @@ class RegisterDataProviderReq:
         """
         application_id = data.get("application_id")
         access_permissions = data.get("access_permissions")
-        time_validity = data.get("time_validity")
+        time_validity = TimeValidity(data.get("time_validity"))
 
         return RegisterDataProviderReq(
             application_id=application_id,
@@ -991,7 +991,7 @@ class AddDataProviderReq:
     def __iter__(self):
         # pylint: disable=line-too-long
         yield "application_id", self.application_id
-        yield "timeStamp", self.time_stamp.timestamp
+        yield "timestamp", self.time_stamp.timestamp
         yield "location", {
             "referencePosition": {
                 "latitude": self.location.reference_position.latitude,
@@ -1058,7 +1058,7 @@ class AddDataProviderReq:
         # pylint: disable=line-too-long
         data = {
             "application_id": self.application_id,
-            "timeStamp": self.time_stamp.timestamp,
+            "timestamp": self.time_stamp.timestamp,
             "location": {
                 "referencePosition": {
                     "latitude": self.location.reference_position.latitude,
@@ -1127,10 +1127,10 @@ class AddDataProviderReq:
             An instance of the AddDataProviderReq class.
         """
         application_id = data.get("application_id")
-        time_stamp = data.get("timeStamp")
+        time_stamp = TimestampIts.initialize_with_timestamp_its(data.get("timestamp"))
         location_data = data.get("location")
         data_object = data.get("dataObject")
-        time_validity = data.get("timeValidity")
+        time_validity = TimeValidity(data.get("timeValidity"))
 
         # Extracting location data
         reference_position_data = location_data.get("referencePosition")

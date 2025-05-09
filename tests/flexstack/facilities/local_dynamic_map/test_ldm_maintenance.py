@@ -30,7 +30,7 @@ from flexstack.facilities.local_dynamic_map.ldm_constants import (
 list_database_example = [
     {
         "applicationId": 36,
-        "timeStamp": -452001707.8018279,
+        "timestamp": -452001707.8018279,
         "location": {
             "referencePosition": {
                 "latitude": 407143528,
@@ -113,7 +113,7 @@ database_example = {
     "_default": {
         "1": {
             "applicationId": 36,
-            "timeStamp": -452001707.8018279,
+            "timestamp": -452001707.8018279,
             "location": {
                 "referencePostion": {
                     "latitude": 407143528,

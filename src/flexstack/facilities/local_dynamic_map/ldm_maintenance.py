@@ -66,7 +66,7 @@ class LDMMaintenance:
         data : dict
         """
         try:
-            doc_id = self.data_containers.insert(dict(data))
+            doc_id = self.data_containers.insert(data)
             self.new_data_recieved_flag = NEW_DATA_RECIEVED
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error adding data container: {str(e)}")
@@ -171,7 +171,7 @@ class LDMMaintenance:
         time_invalidity_data_containers = []
         try:
             for data_container in self.get_all_data_containers():
-                if TimestampIts.initialize_with_timestamp_its(data_container["timeValidity"] + data_container["timeStamp"]) < TimestampIts():
+                if TimestampIts.initialize_with_timestamp_its(data_container["timeValidity"] + data_container["timestamp"]) < TimestampIts():
                     self.del_provider_data(data_container)
                     time_invalidity_data_containers.append(data_container)
         except json.decoder.JSONDecodeError as e:
