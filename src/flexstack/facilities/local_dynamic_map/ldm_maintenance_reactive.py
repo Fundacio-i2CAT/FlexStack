@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .ldm_maintenance import LDMMaintenance
+from .ldm_classes import AddDataProviderReq
 
 
 class LDMMaintenanceReactive(LDMMaintenance):
@@ -12,8 +13,8 @@ class LDMMaintenanceReactive(LDMMaintenance):
 
     """
 
-    def add_provider_data(self, data: dict) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int:
         index = super().add_provider_data(data)
-        self.logging.debug("Adding provider data; %s", data["dataObject"])
+        self.logging.debug("Adding provider data; %s", data.data_object)
         self.collect_trash()
         return index

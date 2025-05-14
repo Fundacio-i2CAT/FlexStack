@@ -3,7 +3,7 @@ import time
 import json
 import logging
 
-from .ldm_classes import Location, RequestDataObjectsReq, TimestampIts
+from .ldm_classes import Location, RequestDataObjectsReq, TimestampIts, AddDataProviderReq
 from .ldm_constants import (
     MAINTENANCE_AREA_MAX_ALTITUDE_DIFFERENCE,
     NEW_DATA_RECIEVED,
@@ -57,7 +57,7 @@ class LDMMaintenance:
         """
         self.data_containers.delete()
 
-    def add_provider_data(self, data: dict) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int:
         """
         Method created in order to add data into the data containers.
 
