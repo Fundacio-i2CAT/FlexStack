@@ -66,7 +66,7 @@ class LDMMaintenance:
         data : dict
         """
         try:
-            doc_id = self.data_containers.insert(data)
+            doc_id = self.data_containers.insert(data.to_dict())
             self.new_data_recieved_flag = NEW_DATA_RECIEVED
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error adding data container: {str(e)}")

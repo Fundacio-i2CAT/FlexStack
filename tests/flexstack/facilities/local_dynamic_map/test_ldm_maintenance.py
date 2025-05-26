@@ -304,6 +304,7 @@ class Test_ldm_maintenance(unittest.TestCase):
         self.database.insert = MagicMock()
         self.ldm_maintenance.add_provider_data(self.data)
         self.database.insert.assert_called_once()
+        self.database.insert.assert_called_with(self.data.to_dict())
 
         self.database.insert = MagicMock(side_effect=KeyError)
         self.ldm_maintenance.add_provider_data(self.data)

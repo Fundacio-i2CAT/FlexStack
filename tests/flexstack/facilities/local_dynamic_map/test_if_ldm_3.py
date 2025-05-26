@@ -184,8 +184,10 @@ class Test_if_ldm_3(unittest.TestCase):
         )
 
     def test_add_provider_data(self):
+
         data_provider = AddDataProviderReq(CAM, TimestampIts.initialize_with_timestamp_its(
             5000), Location.initializer(latitude=2.3, longitude=41.0), white_cam, TimeValidity(5))
+        
         self.assertIsInstance(
             self.if_ldm_3.add_provider_data(data_provider), AddDataProviderResp
         )
@@ -199,11 +201,14 @@ class Test_if_ldm_3(unittest.TestCase):
                 2,
             ]
         )
+
         self.ldm_service.add_provider_data = MagicMock(return_value=2)
 
         self.assertIsInstance(
             self.if_ldm_3.add_provider_data(data_provider).data_object_id, int
         )
+        self.ldm_service.add_provider_data.assert_called_once_with(data_provider)
+
 
     def test_update_provider_data(self):
         self.ldm_service.update_provider_data = MagicMock(return_value=2)
