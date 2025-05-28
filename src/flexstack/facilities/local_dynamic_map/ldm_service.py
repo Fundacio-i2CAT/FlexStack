@@ -6,6 +6,7 @@ import json
 
 from .ldm_classes import (
     Filter,
+    AddDataProviderReq,
     RequestDataObjectsResp,
     RequestedDataObjectsResult,
     RequestDataObjectsReq,
@@ -249,7 +250,7 @@ class LDMService:
             results.append(result)
         return results
 
-    def add_provider_data(self, data: dict) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int:
         """
         Method created in order to add provider data into the data containers.
 
