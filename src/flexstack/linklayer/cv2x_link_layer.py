@@ -4,7 +4,7 @@ import multiprocessing
 import threading
 
 # pylint: disable=import-error
-from cv2xlinklayer import CV2XLinkLayer
+from .cv2xlinklayer import CV2XLinkLayer
 from .link_layer import LinkLayer
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "v2xflexstack"
-version = "0.9.14"
+version = "0.9.15"
 authors = [
   { name = "Jordi Marias-i-Parella", email = "jordi.marias@i2cat.net" },
   { name = "Daniel Ulied Guevara", email = "daniel.ulied@i2cat.net" },
@@ -51,7 +51,16 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://www.flexstack.eu"
+Homepage = "https://flexstack.eu"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.so"]
 
 [bdist_wheel]
 universal = 1
