@@ -356,7 +356,7 @@ class CooperativeAwarenessMessage:
         if "track" in tpv.keys():
             self.cam["cam"]["camParameters"]["highFrequencyContainer"][1]["heading"][
                 "headingValue"
-            ] = int(tpv["track"])
+            ] = int(tpv["track"]*10)
         if "epd" in tpv.keys():
             self.cam["cam"]["camParameters"]["highFrequencyContainer"][1]["heading"][
                 "headingConfidence"

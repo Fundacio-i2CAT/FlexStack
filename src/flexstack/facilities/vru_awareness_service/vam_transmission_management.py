@@ -475,7 +475,7 @@ class VAMMessage(CooperativeAwarenessMessage):
         if "track" in tpv.keys():
             self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"][
                 "headingValue"
-            ] = int(tpv["track"])
+            ] = int(tpv["track"]*10)
         if "epd" in tpv.keys():
             self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"][
                 "headingConfidence"
