@@ -113,13 +113,13 @@ class TestTimestampIts(unittest.TestCase):
     def test_initialization(self) -> None:
         self.assertEqual(
             self.timestamp_its.timestamp,
-            (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
+            (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
         )
-        with unittest.mock.patch("time.time", return_value=self.timestamp):
+        with unittest.mock.patch("flexstack.utils.time_service.TimeService.time", return_value=self.timestamp):
             test_none_ts = TimestampIts()
             self.assertEqual(
                 test_none_ts.timestamp,
-                (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
+                (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
             )
 
     def test_transform_utc_seconds_timestamp_to_timestamp_its(self) -> None:
@@ -128,12 +128,12 @@ class TestTimestampIts(unittest.TestCase):
         )
         self.assertEqual(
             transformed_timestamp,
-            (self.timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000,
+            (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
         )
 
     def test_addition(self) -> None:
         result = self.timestamp1 + self.timestamp2
-        self.assertEqual(result.timestamp, 2990000)
+        self.assertEqual(result.timestamp, 3010000)
         self.assertIsInstance(result, TimestampIts)
 
     def test_addition_invalid_type(self) -> None:

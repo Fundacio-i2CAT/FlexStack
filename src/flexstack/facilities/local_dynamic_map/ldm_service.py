@@ -1,9 +1,8 @@
 from __future__ import annotations
 from collections.abc import Callable
-import time
 import json
 
-
+from ...utils.time_service import TimeService
 from .ldm_classes import (
     Filter,
     AddDataProviderReq,
@@ -147,7 +146,7 @@ class LDMService:
         -------
         None
         """
-        current_time = time.time()
+        current_time = TimeService.time()
         if (
             subscription["last_checked"] + subscription["notification_interval"]
             > current_time
@@ -404,7 +403,7 @@ class LDMService:
                 "multiplicity": multiplicity,
                 "order": order,
                 "callback": callback,
-                "last_checked": time.time(),
+                "last_checked": TimeService.time(),
                 "doc_id": len(self.subscriptions),
             }
         )

@@ -26,7 +26,8 @@ class TestCamReceptionManagement(unittest.TestCase):
     def test_reception_callback(self):
         # Arrange
         cam_coder = MagicMock()
-        cam = MagicMock()
+        cam = {"cam": {"generationDeltaTime": 24856},
+               "header": {"stationId": 1}}
         cam_coder.decode = MagicMock(return_value=cam)
         btp_router = MagicMock()
         btp_router.register_indication_callback_btp = MagicMock()

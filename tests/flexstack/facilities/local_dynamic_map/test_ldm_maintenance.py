@@ -365,7 +365,7 @@ class Test_ldm_maintenance(unittest.TestCase):
         assert self.database.search.called
         self.assertEqual(search_result, [1])
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     @patch("builtins.print")
     def test_check_and_delete_time_validity(
         self, mock_print, mock_time

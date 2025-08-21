@@ -1,4 +1,4 @@
-import time
+import datetime
 
 
 class TimeService:
@@ -19,4 +19,4 @@ class TimeService:
         float
             The current time.
         """
-        return time.time()
+        return datetime.datetime.now(datetime.timezone.utc).timestamp()

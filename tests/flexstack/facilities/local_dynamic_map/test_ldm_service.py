@@ -195,7 +195,7 @@ class Test_ldm_service(unittest.TestCase):
         self.filter = Filter(None, 0, None)
         self.filter.parse_filter_statement = MagicMock(return_value="")
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_no_results(self, patch_time):
         self.ldm_service.order_search_results = MagicMock(return_value=database_example)
         patch_time.return_value = 1
@@ -216,7 +216,7 @@ class Test_ldm_service(unittest.TestCase):
         self.ldm_service.attend_subscriptions()
         self.callback.assert_not_called()
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_multiplicity(self, patch_time):
         patch_time.return_value = 1
         self.ldm_service.order_search_results = MagicMock(return_value=database_example)
@@ -243,7 +243,7 @@ class Test_ldm_service(unittest.TestCase):
         self.ldm_service.attend_subscriptions()
         self.callback.assert_not_called()
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_order(self, patch_time):
         patch_time.return_value = 3
 
@@ -270,7 +270,7 @@ class Test_ldm_service(unittest.TestCase):
         self.callback.assert_called()
         self.ldm_service.order_search_results.assert_called()
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_notification_interval_invalid(
         self, patch_time: MagicMock
     ):
@@ -300,7 +300,7 @@ class Test_ldm_service(unittest.TestCase):
         self.callback.assert_not_called()
         patch_time.assert_called()
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_notification_interval_valid(
         self, patch_time: MagicMock
     ):
@@ -329,7 +329,7 @@ class Test_ldm_service(unittest.TestCase):
         self.callback.assert_called()
         patch_time.assert_called()
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_attend_subscriptions_subscription(self, patch_time):
         patch_time.return_value = 3
         self.ldm_service.order_search_results = MagicMock(return_value=database_example)
@@ -584,7 +584,7 @@ class Test_ldm_service(unittest.TestCase):
 
         self.assertEqual(None, self.ldm_service.get_object_type_from_data_object({}))
 
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_store_new_subscription_petition(self, patch_time):
         self.ldm_service.subscriptions = []
         patch_time.return_value = 1

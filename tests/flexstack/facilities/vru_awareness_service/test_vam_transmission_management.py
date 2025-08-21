@@ -182,7 +182,7 @@ class TestVAMMessage(unittest.TestCase):
         }
         vam_message = VAMMessage()
         vam_message.fullfill_with_tpv_data(tpv_data)
-        self.assertEqual(vam_message.vam["vam"]["generationDeltaTime"], 15376)
+        self.assertEqual(vam_message.vam["vam"]["generationDeltaTime"], 24856)
         self.assertEqual(
             vam_message.vam["vam"]["vamParameters"]["basicContainer"][
                 "referencePosition"

@@ -17,7 +17,7 @@ A few expeptions:
 """
 
 from __future__ import annotations
-import time
+from ...utils.time_service import TimeService
 import math
 
 from .ldm_constants import (
@@ -68,7 +68,7 @@ class TimestampIts:
                 timestamp)
         else:
             self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
-                int(time.time()))
+                int(TimeService.time()))
 
     def initialize_with_timestamp_its(timestamp_its: int) -> TimestampIts:
         """
@@ -102,7 +102,7 @@ class TimestampIts:
         int
             Converted ITS timestamp.
         """
-        return (timestamp - REFERENCE_ITS_TIMESTAMP - 5) * 1000  # The 5 correspond to leap seconds
+        return (timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000  # The 5 correspond to leap seconds
 
     def __add__(self, other: TimestampIts) -> TimestampIts:
         """

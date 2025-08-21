@@ -1,5 +1,5 @@
 from __future__ import annotations
-import time
+from ..utils.time_service import TimeService
 import hashlib
 from .gbc_extended_header import GBCExtendedHeader
 from .gn_address import GNAddress
@@ -239,7 +239,7 @@ class LocationTable:
         Temporarily solution following ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 8.1.3
         """
         current_time = TST()
-        current_time.set_in_normal_timestamp_seconds(time.time())
+        current_time.set_in_normal_timestamp_seconds(int(TimeService.time()))
         for entry in self.loc_t:
             if (current_time - entry.position_vector.tst) > self.mib.itsGnLifetimeLocTE:
                 self.loc_t.remove(entry)
@@ -293,7 +293,8 @@ class LocationTable:
         DuplicatedPacketException
             If the packet is duplicated.
         """
-        entry: LocationTableEntry = self.get_entry(gbc_extended_header.so_pv.gn_addr)
+        entry: LocationTableEntry = self.get_entry(
+            gbc_extended_header.so_pv.gn_addr)
         if entry:
             entry.update_with_gbc_packet(packet, gbc_extended_header)
         else:

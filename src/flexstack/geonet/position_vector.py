@@ -35,7 +35,7 @@ class TST:
         timestamp : int
             Timestamp in normal timestamp format.
         """
-        self.msec = ((timestamp-1072911600-5)*1000) % 2**32
+        self.msec = ((timestamp-1072911600+5)*1000) % 2**32
 
     def set_in_normal_timestamp_milliseconds(self, timestamp: int) -> None:
         """
@@ -46,7 +46,7 @@ class TST:
         timestamp : int
             Timestamp in normal timestamp format.
         """
-        self.msec = (timestamp-1072911600000 - 5000) % 2**32
+        self.msec = (timestamp-1072911600000 + 5000) % 2**32
 
     def encode(self) -> int:
         """

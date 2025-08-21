@@ -21,10 +21,12 @@ from .cam_ldm_adaptation import CABasicServiceLDM
 T_GEN_CAM_MIN = 100  # T_GenCamMin [in ms]
 T_GEN_CAM_MAX = 1000  # ms
 T_CHECK_CAM_GEN = (
-    T_GEN_CAM_MIN  # T_CheckCamGen [in ms] Shall be equal to or less than T_GenCamMin
+    # T_CheckCamGen [in ms] Shall be equal to or less than T_GenCamMin
+    T_GEN_CAM_MIN
 )
 T_GEN_CAM_DCC = (
-    T_GEN_CAM_MIN  # T_GenCam_DCC [in ms] T_GenCamMin ≤ T_GenCam_DCC ≤ T_GenCamMax
+    # T_GenCam_DCC [in ms] T_GenCamMin ≤ T_GenCam_DCC ≤ T_GenCamMax
+    T_GEN_CAM_MIN
 )
 
 
@@ -118,7 +120,7 @@ class GenerationDeltaTime:
         timestamp : int
             Timestamp in milliseconds.
         """
-        self.msec = (timestamp_seconds*1000 - 1072911600000 - 5000) % 65536
+        self.msec = (timestamp_seconds*1000 - 1072915200000 + 5000) % 65536
 
     def as_timestamp_in_certain_point(self, point_in_time_millis: int) -> float:
         """
@@ -135,11 +137,13 @@ class GenerationDeltaTime:
         float
             Timestamp of the generation delta time in milliseconds
         """
-        number_of_cycles = trunc((point_in_time_millis - 1072911600000 - 5000) / 65536)
-        transformed_timestamp = self.msec + 65536 * number_of_cycles + 1072911600000 + 5000
+        number_of_cycles = trunc(
+            (point_in_time_millis - 1072915200000 + 5000) / 65536)
+        transformed_timestamp = self.msec + 65536 * \
+            number_of_cycles + 1072915200000 - 5000
         if transformed_timestamp <= point_in_time_millis:
             return transformed_timestamp
-        return self.msec + 65536 * (number_of_cycles - 1) + 1072911600000 + 5000
+        return self.msec + 65536 * (number_of_cycles - 1) + 1072915200000 - 5000
 
     def __gt__(self, other: object) -> bool:
         """
@@ -295,9 +299,10 @@ class CooperativeAwarenessMessage:
             GPSD TPV data.
         """
         if "time" in tpv:
-            self.cam["cam"]["generationDeltaTime"] = int(
-                (((parser.parse(tpv["time"]).timestamp()) - 1072911600 - 5) * 1000) % 65536
-            )
+            gen_delta_time = GenerationDeltaTime()
+            gen_delta_time.set_in_normal_timestamp(
+                parser.parse(tpv["time"]).timestamp())
+            self.cam["cam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
     def fullfill_basic_container_with_tpv_data(self, tpv: dict) -> None:
         """

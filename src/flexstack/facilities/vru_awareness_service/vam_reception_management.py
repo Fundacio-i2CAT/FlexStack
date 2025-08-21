@@ -4,6 +4,8 @@ from ...btp.service_access_point import BTPDataIndication
 from ...btp.router import Router as BTPRouter
 
 from .vam_ldm_adaptation import VRUBasicServiceLDM
+from ..ca_basic_service.cam_transmission_management import GenerationDeltaTime
+from ...utils.time_service import TimeService
 
 
 class VAMReceptionManagement:
@@ -53,6 +55,11 @@ class VAMReceptionManagement:
             BTP Data Indication.
         """
         vam = self.vam_coder.decode(btp_indication.data)
+        generation_delta_time = GenerationDeltaTime()
+        generation_delta_time.msec = vam["vam"]["generationDeltaTime"]
+        utc_timestamp = generation_delta_time.as_timestamp_in_certain_point(
+            int(TimeService.time()*1000))
+        vam["utc_timestamp"] = utc_timestamp
         if self.vru_basic_service_ldm is not None:
             self.vru_basic_service_ldm.add_provider_data_to_ldm(vam)
         self.logging.debug("Recieved message; %s", vam)

@@ -6,10 +6,13 @@ This file contains the class for the CA Reception Management.
 
 import logging
 
+from flexstack.facilities.ca_basic_service.cam_transmission_management import GenerationDeltaTime
+
 from .cam_ldm_adaptation import CABasicServiceLDM
 from .cam_coder import CAMCoder
 from ...btp.service_access_point import BTPDataIndication
 from ...btp.router import Router as BTPRouter
+from ...utils.time_service import TimeService
 
 
 class CAMReceptionManagement:
@@ -63,6 +66,11 @@ class CAMReceptionManagement:
             BTP Data Indication.
         """
         cam = self.cam_coder.decode(btp_indication.data)
+        generation_delta_time = GenerationDeltaTime()
+        generation_delta_time.msec = cam["cam"]["generationDeltaTime"]
+        utc_timestamp = generation_delta_time.as_timestamp_in_certain_point(
+            int(TimeService.time()*1000))
+        cam["utc_timestamp"] = utc_timestamp
         if self.ca_basic_service_ldm is not None:
             self.ca_basic_service_ldm.add_provider_data_to_ldm(cam)
         self.logging.debug(

@@ -396,9 +396,9 @@ class VAMMessage(CooperativeAwarenessMessage):
             GPSD TPV data.
         """
         if "time" in tpv:
-            self.vam["vam"]["generationDeltaTime"] = int(
-                (((parser.parse(tpv["time"]).timestamp()) - 1072911600) * 1000) % 65536
-            )
+            gen_delta_time = GenerationDeltaTime()
+            gen_delta_time.set_in_normal_timestamp(parser.parse(tpv["time"]).timestamp())
+            self.vam["vam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
     def create_position_confidence(self, epx: int, epy: int) -> dict:
         """

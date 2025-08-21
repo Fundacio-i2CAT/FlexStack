@@ -80,7 +80,7 @@ class TestCABasicServiceLDM(unittest.TestCase):
     @patch(
         "flexstack.facilities.local_dynamic_map.ldm_classes.Location.location_builder_circle"
     )
-    @patch("time.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_add_provider_data_to_ldm(
         self,
         mock_time,
