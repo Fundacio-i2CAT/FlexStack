@@ -1,6 +1,7 @@
 import time
 import threading
 import logging
+from ...utils.time_service import TimeService
 from ...geonet.service_access_point import Area, GeoBroadcastHST, HeaderType
 from .denm_coder import DENMCoder
 from ...btp.router import Router as BTPRouter
@@ -88,7 +89,7 @@ class DecentralizedEnvironmentalNotificationMessage:
         # Add Management Container
         self.denm["denm"]["management"]["detectionTime"] = request.detection_time
         self.denm["denm"]["management"]["referenceTime"] = int(
-            (time.time() - 1072911600 - 5) * 1000
+            (TimeService.time() - 1072915200 + 5) * 1000
         )
         self.denm["denm"]["management"]["TransmissionInterval"] = request.denm_interval
 
@@ -146,7 +147,7 @@ class DecentralizedEnvironmentalNotificationMessage:
         # Add Management Container
         self.denm["denm"]["management"]["detectionTime"] = request.detection_time
         self.denm["denm"]["management"]["referenceTime"] = int(
-            (time.time() - 1072911600-5) % 65536
+            (TimeService.time() - 1072915200 + 5) % 65536
         )
         self.denm["denm"]["management"]["TransmissionInterval"] = request.denm_interval
 
@@ -216,7 +217,8 @@ class DENMTransmissionManagement:
         """
         Request to send a DENM and starts a thread.
         """
-        t = threading.Thread(target=self.trigger_denm_messages, args=[denm_request])
+        t = threading.Thread(
+            target=self.trigger_denm_messages, args=[denm_request])
         t.start()
 
     def send_collision_risk_warning_denm(self, denm_request: DENRequest) -> None:

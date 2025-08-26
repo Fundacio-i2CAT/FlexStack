@@ -10,6 +10,7 @@ from flexstack.facilities.decentralized_environmental_notification_service.\
 
 class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
     """Test class for the DecentralizedEnvironmentalNotificationMessage."""
+
     def test__init__(self):
         """Test DecentralizedEnvironmentalNotificationMessage initialization"""
         decentralized_environmental_notification_message = \
@@ -22,7 +23,7 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
         # print(encoded_white)
         self.assertEqual(encoded_white, expected_denm)
 
-    @patch('time.time')
+    @patch('flexstack.utils.time_service.TimeService.time')
     def test_fullfill_with_denrequest(self, time_mock):
         """Test DENMCoder decoding"""
         # Given
@@ -55,7 +56,8 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
         # When
         decentralized_environmental_notification_message = \
             DecentralizedEnvironmentalNotificationMessage()
-        decentralized_environmental_notification_message.fullfill_with_denrequest(denm_request)
+        decentralized_environmental_notification_message.fullfill_with_denrequest(
+            denm_request)
 
         # Then
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
@@ -88,7 +90,7 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
                          ['management']['stationType'], denm_request.rhs_vehicle_type)
         time_mock.assert_called_once()
 
-    @patch('time.time')
+    @patch('flexstack.utils.time_service.TimeService.time')
     def test_fullfill_with_collision_risk_warning(self, time_mock):
         """Test fullfill_with_collision_risk_warning function"""
         # Given
@@ -115,7 +117,8 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
         # When
         decentralized_environmental_notification_message = \
             DecentralizedEnvironmentalNotificationMessage()
-        decentralized_environmental_notification_message.fullfill_with_collision_risk_warning(denm_request)
+        decentralized_environmental_notification_message.fullfill_with_collision_risk_warning(
+            denm_request)
 
         # Then
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
@@ -156,6 +159,7 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
 
 class TestDENMTransmissionManagement(unittest.TestCase):
     """Test class for the DENM Transmission Management."""
+
     def setUp(self):
         btp_router = MagicMock()
         btp_router.BTPDataRequest = MagicMock()
@@ -195,12 +199,14 @@ class TestDENMTransmissionManagement(unittest.TestCase):
         self.denm_transmission_management.transmit_denm = MagicMock()
 
         # When
-        self.denm_transmission_management.send_collision_risk_warning_denm(denm_request)
+        self.denm_transmission_management.send_collision_risk_warning_denm(
+            denm_request)
 
         # Then
         mock_fullfill_with_vehicle_data.assert_called_once_with(
             self.denm_transmission_management.vehicle_data)
-        mock_fullfill_with_collision_risk_warning.assert_called_once_with(denm_request)
+        mock_fullfill_with_collision_risk_warning.assert_called_once_with(
+            denm_request)
         self.denm_transmission_management.transmit_denm.assert_called_once()
 
     @patch.object(DecentralizedEnvironmentalNotificationMessage,
@@ -245,4 +251,5 @@ class TestDENMTransmissionManagement(unittest.TestCase):
 
         # Then
         self.denm_transmission_management.btp_router.btp_data_request.assert_called()
-        self.denm_transmission_management.denm_coder.encode.assert_called_once_with(new_denm.denm)
+        self.denm_transmission_management.denm_coder.encode.assert_called_once_with(
+            new_denm.denm)

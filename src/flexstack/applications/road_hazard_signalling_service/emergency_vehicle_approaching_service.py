@@ -1,9 +1,9 @@
-import time
 from .service_access_point import DENRequest, PriorityLevel
 from ...facilities.decentralized_environmental_notification_service.den_service import (
     DecentralizedEnvironmentalNotificationService,
 )
 from ...btp.router import Router as BTPRouter
+from ...utils.time_service import TimeService
 
 
 class EmergencyVehicleApproachingService:
@@ -59,7 +59,7 @@ class EmergencyVehicleApproachingService:
         self.denm_interval = 100
         self.priority_level = PriorityLevel.WARNING
         # Get DENM data to simulate the hazard detection
-        self.detection_time = int((time.time() - 1072911600 - 5) * 1000)
+        self.detection_time = int((TimeService.time() - 1072915200 + 5) * 1000)
         self.event_position = {
             "latitude": 900000001,
             "longitude": 1800000001,
@@ -101,4 +101,5 @@ class EmergencyVehicleApproachingService:
                 )
 
         request.with_emergency_vehicle_approaching(self)
-        self.den_service.denm_transmission_management.request_denm_sending(request)
+        self.den_service.denm_transmission_management.request_denm_sending(
+            request)
