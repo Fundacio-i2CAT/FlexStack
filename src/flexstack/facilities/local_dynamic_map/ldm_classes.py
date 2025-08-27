@@ -17,12 +17,11 @@ A few expeptions:
 """
 
 from __future__ import annotations
-from ...utils.time_service import TimeService
+from ...utils.time_service import TimeService, ITS_EPOCH, ELAPSED_SECONDS
 import math
 
 from .ldm_constants import (
     EATH_RADIUS,
-    REFERENCE_ITS_TIMESTAMP,
     DATA_OBJECT_TYPE_ID,
     DENM,
     CAM,
@@ -53,23 +52,25 @@ class TimestampIts:
     TimestamptITS class to handle timestamps. Timestamps are expressed in ETSI Timestamp format.
     """
 
-    def __init__(self, timestamp: int = None) -> None:
+    def __init__(self, utc_timestamp_seconds: int = None) -> None:
         """
         Initializes the TimestampIts class.
 
         Parameters
         ----------
-        timestamp : int
-            The timestamp in seconds since the epoch (UTC). If None, it will be set to the current time.
+        utc_timestamp_seconds : int
+            The UTC timestamp in seconds since the epoch (UTC).
+            If None, it will be set to the current UTC timestamp.
         """
-        self.timestamp = None
-        if timestamp:
+        self.timestamp = 0
+        if utc_timestamp_seconds:
             self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
-                timestamp)
+                utc_timestamp_seconds)
         else:
             self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
                 int(TimeService.time()))
 
+    @staticmethod
     def initialize_with_timestamp_its(timestamp_its: int) -> TimestampIts:
         """
         Initializes the TimestampIts class with a given ETSI ITS timestamp.
@@ -84,25 +85,25 @@ class TimestampIts:
         TimestampIts
             An instance of the TimestampIts class.
         """
-        to_return: TimestampIts = TimestampIts(REFERENCE_ITS_TIMESTAMP+5)
+        to_return: TimestampIts = TimestampIts(ITS_EPOCH + ELAPSED_SECONDS)
         to_return.timestamp = timestamp_its
         return to_return
 
-    def __transform_utc_seconds_timestamp_to_timestamp_its(self, timestamp: int) -> int:
+    def __transform_utc_seconds_timestamp_to_timestamp_its(self, utc_timestamp_seconds: int) -> int:
         """
         Method to transform a UTC timestamp to a ETSI ITS timestamp.
 
         Parameters
         ----------
-        timestamp : int
-            UTC timestamp to be converted.
+        utc_timestamp_seconds : int
+            UTC timestamp in seconds to be converted.
 
         Returns
         -------
         int
             Converted ITS timestamp.
         """
-        return (timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000  # The 5 correspond to leap seconds
+        return int((utc_timestamp_seconds - ITS_EPOCH + ELAPSED_SECONDS) * 1000)
 
     def __add__(self, other: TimestampIts) -> TimestampIts:
         """
@@ -248,7 +249,7 @@ class TimeValidity:
         int
             Converted timestamp in ETSI ITS format.
         """
-        return ((self.time - REFERENCE_ITS_TIMESTAMP)) * 1000
+        return int(((self.time - ITS_EPOCH)) * 1000)
 
 
 class DataContainer:
@@ -977,13 +978,13 @@ class AddDataProviderReq:
     def __init__(
         self,
         application_id: int,
-        time_stamp: TimestampIts,
+        timestamp: TimestampIts,
         location: Location,
         data_object: dict,
         time_validity: TimeValidity,
     ) -> None:
         self.application_id = application_id
-        self.time_stamp = time_stamp
+        self.timestamp = timestamp
         self.location = location
         self.data_object = data_object
         self.time_validity = time_validity
@@ -991,7 +992,7 @@ class AddDataProviderReq:
     def __iter__(self):
         # pylint: disable=line-too-long
         yield "application_id", self.application_id
-        yield "timestamp", self.time_stamp.timestamp
+        yield "timestamp", self.timestamp.timestamp
         yield "location", {
             "referencePosition": {
                 "latitude": self.location.reference_position.latitude,
@@ -1058,7 +1059,7 @@ class AddDataProviderReq:
         # pylint: disable=line-too-long
         data = {
             "application_id": self.application_id,
-            "timestamp": self.time_stamp.timestamp,
+            "timestamp": self.timestamp.timestamp,
             "location": {
                 "referencePosition": {
                     "latitude": self.location.reference_position.latitude,
@@ -1127,7 +1128,8 @@ class AddDataProviderReq:
             An instance of the AddDataProviderReq class.
         """
         application_id = data.get("application_id")
-        time_stamp = TimestampIts.initialize_with_timestamp_its(data.get("timestamp"))
+        time_stamp = TimestampIts.initialize_with_timestamp_its(
+            data.get("timestamp"))
         location_data = data.get("location")
         data_object = data.get("dataObject")
         time_validity = TimeValidity(data.get("timeValidity"))
@@ -1193,7 +1195,7 @@ class AddDataProviderReq:
 
         return AddDataProviderReq(
             application_id=application_id,
-            time_stamp=time_stamp,
+            timestamp=time_stamp,
             location=location,
             data_object=data_object,
             time_validity=time_validity,

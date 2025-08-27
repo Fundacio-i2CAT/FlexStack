@@ -1,5 +1,5 @@
 from dateutil import parser
-
+from ..utils.time_service import ITS_EPOCH, ITS_EPOCH_MS, ELAPSED_SECONDS, ELAPSED_MILLISECONDS
 from .exceptions import DecodeError
 from .gn_address import GNAddress
 
@@ -26,27 +26,27 @@ class TST:
     def __init__(self) -> None:
         self.msec = 0
 
-    def set_in_normal_timestamp_seconds(self, timestamp: int) -> None:
+    def set_in_normal_timestamp_seconds(self, utc_timestamp_seconds: int) -> None:
         """
         Set the timestamp in normal timestamp format.
 
         Parameters
         ----------
-        timestamp : int
-            Timestamp in normal timestamp format.
+        utc_timestamp_seconds : int
+            Timestamp in normal UTC timestamp format.
         """
-        self.msec = ((timestamp-1072911600+5)*1000) % 2**32
+        self.msec = ((utc_timestamp_seconds-ITS_EPOCH+ELAPSED_SECONDS)*1000) % 2**32
 
-    def set_in_normal_timestamp_milliseconds(self, timestamp: int) -> None:
+    def set_in_normal_timestamp_milliseconds(self, utc_timestamp_milliseconds: int) -> None:
         """
         Set the timestamp in normal timestamp format.
 
         Parameters
         ----------
-        timestamp : int
-            Timestamp in normal timestamp format.
+        utc_timestamp_milliseconds : int
+            Timestamp in normal UTC timestamp format.
         """
-        self.msec = (timestamp-1072911600000 + 5000) % 2**32
+        self.msec = (utc_timestamp_milliseconds-ITS_EPOCH_MS+ELAPSED_MILLISECONDS) % 2**32
 
     def encode(self) -> int:
         """

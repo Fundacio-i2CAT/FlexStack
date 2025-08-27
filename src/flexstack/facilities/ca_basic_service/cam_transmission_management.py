@@ -16,6 +16,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
+from ...utils.time_service import ITS_EPOCH_MS, ELAPSED_MILLISECONDS
 from .cam_ldm_adaptation import CABasicServiceLDM
 
 T_GEN_CAM_MIN = 100  # T_GenCamMin [in ms]
@@ -111,25 +112,27 @@ class GenerationDeltaTime:
     def __init__(self) -> None:
         self.msec = 0
 
-    def set_in_normal_timestamp(self, timestamp_seconds: float) -> None:
+    def set_in_normal_timestamp(self, utc_timestamp_in_seconds: float) -> None:
         """
-        Set the Generation Delta Time in normal timestamp. [Seconds]
+        Set the Generation Delta Time in normal UTC timestamp. [Seconds]
 
         Parameters
         ----------
         timestamp : int
             Timestamp in milliseconds.
         """
-        self.msec = (timestamp_seconds*1000 - 1072915200000 + 5000) % 65536
+        self.msec = (
+            utc_timestamp_in_seconds * 1000 - ITS_EPOCH_MS + ELAPSED_MILLISECONDS
+        ) % 65536
 
-    def as_timestamp_in_certain_point(self, point_in_time_millis: int) -> float:
+    def as_timestamp_in_certain_point(self, utc_timestamp_in_millis: int) -> float:
         """
         Returns the generation delta time as timestamp as it would be if received at
         certain point in time.
 
         Parameters
         ----------
-        point_in_time : int
+        utc_timestamp_in_millis : int
             Timestamp in milliseconds
 
         Returns
@@ -138,12 +141,12 @@ class GenerationDeltaTime:
             Timestamp of the generation delta time in milliseconds
         """
         number_of_cycles = trunc(
-            (point_in_time_millis - 1072915200000 + 5000) / 65536)
+            (utc_timestamp_in_millis - ITS_EPOCH_MS + ELAPSED_MILLISECONDS) / 65536)
         transformed_timestamp = self.msec + 65536 * \
-            number_of_cycles + 1072915200000 - 5000
-        if transformed_timestamp <= point_in_time_millis:
+            number_of_cycles + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+        if transformed_timestamp <= utc_timestamp_in_millis:
             return transformed_timestamp
-        return self.msec + 65536 * (number_of_cycles - 1) + 1072915200000 - 5000
+        return self.msec + 65536 * (number_of_cycles - 1) + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
 
     def __gt__(self, other: object) -> bool:
         """

@@ -65,7 +65,7 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
     UpdateDataProviderResult,
     Utils,
 )
-from flexstack.facilities.local_dynamic_map.ldm_constants import REFERENCE_ITS_TIMESTAMP
+from flexstack.utils.time_service import ITS_EPOCH, ELAPSED_SECONDS
 
 
 white_vam = {
@@ -107,19 +107,19 @@ class TestTimestampIts(unittest.TestCase):
     def setUp(self) -> None:
         self.timestamp = 1746018271
         self.timestamp_its = TimestampIts(self.timestamp)
-        self.timestamp1 = TimestampIts(1000+REFERENCE_ITS_TIMESTAMP)
-        self.timestamp2 = TimestampIts(2000+REFERENCE_ITS_TIMESTAMP)
+        self.timestamp1 = TimestampIts(1000+ITS_EPOCH)
+        self.timestamp2 = TimestampIts(2000+ITS_EPOCH)
 
     def test_initialization(self) -> None:
         self.assertEqual(
             self.timestamp_its.timestamp,
-            (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
+            (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
         )
         with unittest.mock.patch("flexstack.utils.time_service.TimeService.time", return_value=self.timestamp):
             test_none_ts = TimestampIts()
             self.assertEqual(
                 test_none_ts.timestamp,
-                (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
+                (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
             )
 
     def test_transform_utc_seconds_timestamp_to_timestamp_its(self) -> None:
@@ -128,7 +128,7 @@ class TestTimestampIts(unittest.TestCase):
         )
         self.assertEqual(
             transformed_timestamp,
-            (self.timestamp - REFERENCE_ITS_TIMESTAMP + 5) * 1000,
+            (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
         )
 
     def test_addition(self) -> None:
@@ -150,7 +150,7 @@ class TestTimestampIts(unittest.TestCase):
             _ = self.timestamp1 - 1000
 
     def test_equality(self) -> None:
-        self.assertTrue(self.timestamp1 == TimestampIts(1000+REFERENCE_ITS_TIMESTAMP))
+        self.assertTrue(self.timestamp1 == TimestampIts(1000+ITS_EPOCH))
         self.assertFalse(self.timestamp1 == self.timestamp2)
 
     def test_equality_invalid_type(self) -> None:
@@ -166,7 +166,7 @@ class TestTimestampIts(unittest.TestCase):
 
     def test_less_than_or_equal(self) -> None:
         self.assertTrue(self.timestamp1 <= self.timestamp2)
-        self.assertTrue(self.timestamp1 <= TimestampIts(1000+REFERENCE_ITS_TIMESTAMP))
+        self.assertTrue(self.timestamp1 <= TimestampIts(1000+ITS_EPOCH))
         self.assertFalse(self.timestamp2 <= self.timestamp1)
 
     def test_less_than_or_equal_invalid_type(self) -> None:
@@ -415,7 +415,7 @@ class TestTimeValidity(unittest.TestCase):
 
     def test_to_etsi_its(self) -> None:
         timestamp = 2000000000
-        result = ((timestamp - REFERENCE_ITS_TIMESTAMP)) * 1000
+        result = ((timestamp - ITS_EPOCH)) * 1000
         self.assertEqual(TimeValidity(timestamp).to_etsi_its(), result)
 
 

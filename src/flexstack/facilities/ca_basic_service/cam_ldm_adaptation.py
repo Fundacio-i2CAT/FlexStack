@@ -52,7 +52,7 @@ class CABasicServiceLDM:
         timestamp = TimestampIts()
         data = AddDataProviderReq(
             application_id=CAM,
-            time_stamp=timestamp,
+            timestamp=timestamp,
             location=Location.location_builder_circle(
                 latitude=cam["cam"]["camParameters"]["basicContainer"][
                     "referencePosition"

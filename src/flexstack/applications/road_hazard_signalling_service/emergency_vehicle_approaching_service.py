@@ -59,7 +59,7 @@ class EmergencyVehicleApproachingService:
         self.denm_interval = 100
         self.priority_level = PriorityLevel.WARNING
         # Get DENM data to simulate the hazard detection
-        self.detection_time = int((TimeService.time() - 1072915200 + 5) * 1000)
+        self.detection_time = TimeService.timestamp_its()
         self.event_position = {
             "latitude": 900000001,
             "longitude": 1800000001,

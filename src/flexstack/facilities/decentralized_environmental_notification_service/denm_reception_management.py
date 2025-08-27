@@ -68,7 +68,7 @@ class DENMReceptionManagement:
         if self.ldm_facility is not None:
             data = AddDataProviderReq(
                 application_id=DENM,
-                time_stamp=TimestampIts.initialize_with_timestamp_its(denm["denm"]["management"]["detectionTime"]),
+                timestamp=TimestampIts.initialize_with_timestamp_its(denm["denm"]["management"]["detectionTime"]),
                 location=Location.location_builder_circle(
                     latitude=denm["denm"]["management"]["eventPosition"]["latitude"],
                     longitude=denm["denm"]["management"]["eventPosition"]["longitude"],

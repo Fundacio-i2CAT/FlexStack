@@ -8,17 +8,17 @@ class TestTST(unittest.TestCase):
     def test_set_in_normal_timestamp_seconds(self):
         tst = TST()
         tst.set_in_normal_timestamp_seconds(1674637884)
-        self.assertEqual(tst.msec, 430867560)
+        self.assertEqual(tst.msec, 427267560)
 
     def test_set_in_normal_timestamp_milliseconds(self):
         tst = TST()
         tst.set_in_normal_timestamp_milliseconds(1674637884000)
-        self.assertEqual(tst.msec, 430867560)
+        self.assertEqual(tst.msec, 427267560)
 
     def test_encode(self):
         tst = TST()
         tst.set_in_normal_timestamp_seconds(1674637884)
-        self.assertEqual(tst.encode(), 430867560)
+        self.assertEqual(tst.encode(), 427267560)
 
     def test_decode(self):
         tst = TST()
@@ -42,7 +42,7 @@ class TestLongPositionVector(unittest.TestCase):
         lpv.set_heading(0)
         lpv.set_speed(0)
         self.assertEqual(lpv.encode(
-        ), b'\x88\x00\xaa\xbb\xcc\x11"3\x19\xbdQx\x1fM\xea\xd0\x07\xfdo\x04\x80\x00\x00\x00')
+        ), bytes.fromhex('8800aabbcc112233198662f81f4dead007fd6f0480000000'))
 
     def test_decode(self):
         lpv = LongPositionVector()
@@ -69,7 +69,7 @@ class TestShortPositionVector(unittest.TestCase):
         spv.set_latitude(52.520008)
         spv.set_longitude(13.404954)
         self.assertEqual(spv.encode(
-        ), b'\x88\x00\xaa\xbb\xcc\x11"3\x19\xbdQx\x1fM\xea\xd0\x07\xfdo\x04')
+        ), b'\x88\x00\xaa\xbb\xcc\x11"3\x19\x86b\xf8\x1fM\xea\xd0\x07\xfdo\x04')
 
     def test_decode(self):
         spv = ShortPositionVector()

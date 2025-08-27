@@ -57,7 +57,7 @@ class VRUBasicServiceLDM:
         timestamp = TimestampIts()
         data = AddDataProviderReq(
             application_id=VAM,
-            time_stamp=timestamp,
+            timestamp=timestamp,
             location=Location.location_builder_circle(
                 latitude=vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["latitude"],
                 longitude=vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["longitude"],

@@ -5,7 +5,6 @@ import os
 library_folder = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(library_folder, "data_containers.json")
 LDM_STORAGE_PATH = file_path
-REFERENCE_ITS_TIMESTAMP = 1072911600
 MAINTENANCE_AREA_MAX_ALTITUDE_DIFFERENCE = 15
 EATH_RADIUS = 6371000.0
 
