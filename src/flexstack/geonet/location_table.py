@@ -42,7 +42,7 @@ class LocationTableEntry:
         self.is_neighbour: bool = False
         self.dpl: list[bytes] = []
         self.tst: TST = TST()
-        self.pdr: int = 0
+        self.pdr: float = 0.0
 
     def get_gn_address(self) -> GNAddress:
         """
@@ -73,7 +73,7 @@ class LocationTableEntry:
         """
         if self.position_vector.tst.msec == 0:
             self.position_vector = position_vector
-        elif position_vector.tst > self.position_vector.tst:
+        elif position_vector.tst >= self.position_vector.tst:
             self.position_vector = position_vector
         else:
             raise IncongruentTimestampException("Position vector not updated")
@@ -213,7 +213,7 @@ class LocationTable:
         self.mib = mib
         self.loc_t: list[LocationTableEntry] = []
 
-    def get_entry(self, gn_address: GNAddress) -> LocationTableEntry:
+    def get_entry(self, gn_address: GNAddress) -> LocationTableEntry | None:
         """
         Gets the entry of the location table.
 
@@ -224,7 +224,7 @@ class LocationTable:
 
         Returns
         -------
-        LocationTableEntry
+        LocationTableEntry | None
             Location table entry.
         """
         for entry in self.loc_t:
@@ -264,7 +264,7 @@ class LocationTable:
         DuplicatedPacketException
             If the packet is duplicated.
         """
-        entry: LocationTableEntry = self.get_entry(position_vector.gn_addr)
+        entry: LocationTableEntry | None = self.get_entry(position_vector.gn_addr)
         if entry:
             entry.update_with_shb_packet(position_vector, packet)
         else:
@@ -293,7 +293,7 @@ class LocationTable:
         DuplicatedPacketException
             If the packet is duplicated.
         """
-        entry: LocationTableEntry = self.get_entry(
+        entry: LocationTableEntry | None = self.get_entry(
             gbc_extended_header.so_pv.gn_addr)
         if entry:
             entry.update_with_gbc_packet(packet, gbc_extended_header)

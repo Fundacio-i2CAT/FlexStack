@@ -29,6 +29,7 @@ from .common_header import CommonHeader
 from .gbc_extended_header import GBCExtendedHeader
 from .position_vector import LongPositionVector
 from .location_table import LocationTable
+from ..linklayer.link_layer import LinkLayer
 from ..security.sign_service import SignService
 from ..security.security_profiles import SecurityProfile
 from ..security.sn_sap import SNSIGNConfirm, SNSIGNRequest
@@ -84,7 +85,7 @@ class Router:
         self.setup_gn_address()
         self.ego_position_vector = LongPositionVector()
         self.ego_position_vector.set_gn_addr(self.gn_address)
-        self.link_layer = None
+        self.link_layer: LinkLayer | None = None
         self.location_table = LocationTable(mib)
         self.sign_service: SignService = sign_service
         self.indication_callback = None
@@ -173,7 +174,8 @@ class Router:
                 permissions=request.security_permissions,
                 permissions_length=len(request.security_permissions),
             )
-            sign_confirm: SNSIGNConfirm = self.sign_service.sign_cam(sign_request)
+            sign_confirm: SNSIGNConfirm = self.sign_service.sign_cam(
+                sign_request)
             basic_header.set_nh(BasicNH.SECURED_PACKET)
             packet = basic_header.encode_to_bytes() + sign_confirm.sec_message
 
@@ -617,7 +619,8 @@ class Router:
                 raise DecapError("Hop limit exceeded")
             # TODO: Forwarding packet buffer flush
             if common_header.ht == HeaderType.ANY:
-                raise NotImplementedError("Any packet (Common Header) not implemented")
+                raise NotImplementedError(
+                    "Any packet (Common Header) not implemented")
             elif common_header.ht == HeaderType.BEACON:
                 raise NotImplementedError("Beacon not implemented")
             elif common_header.ht == HeaderType.GEOUNICAST:
@@ -628,13 +631,15 @@ class Router:
                 indication = self.gn_data_indicate_gbc(packet, common_header)
             elif common_header.ht == HeaderType.TSB:
                 if common_header.hst == TopoBroadcastHST.SINGLE_HOP:
-                    indication = self.gn_data_indicate_shb(packet, common_header)
+                    indication = self.gn_data_indicate_shb(
+                        packet, common_header)
                 else:
                     raise NotImplementedError("TopoBroadcast not implemented")
             elif common_header.ht == HeaderType.LS:
                 raise NotImplementedError("Location Service not implemented")
             else:
-                raise NotImplementedError("Any packet (Common Header) not implemented")
+                raise NotImplementedError(
+                    "Any packet (Common Header) not implemented")
 
         elif basic_header.nh == BasicNH.SECURED_PACKET:
             raise NotImplementedError("Secured packet not implemented")

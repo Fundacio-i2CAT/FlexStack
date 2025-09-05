@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "v2xflexstack"
-version = "0.9.20"
+version = "0.9.21"
 authors = [
   { name = "Jordi Marias-i-Parella", email = "jordi.marias@i2cat.net" },
   { name = "Daniel Ulied Guevara", email = "daniel.ulied@i2cat.net" },

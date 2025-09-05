@@ -225,6 +225,8 @@ class GNAddress:
         __o : object
             Object to compare
         """
+        if not isinstance(__o, GNAddress):
+            return False
         return self.mid.mid == __o.mid.mid
 
     def __str__(self) -> str:

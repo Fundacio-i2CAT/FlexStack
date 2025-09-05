@@ -6,8 +6,7 @@ This file contains the class for the CA Reception Management.
 
 import logging
 
-from flexstack.facilities.ca_basic_service.cam_transmission_management import GenerationDeltaTime
-
+from .cam_transmission_management import GenerationDeltaTime
 from .cam_ldm_adaptation import CABasicServiceLDM
 from .cam_coder import CAMCoder
 from ...btp.service_access_point import BTPDataIndication

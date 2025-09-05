@@ -45,9 +45,16 @@ class PythonCV2XLinkLayer(LinkLayer):
 
         # Thread for handling callbacks in the main process
         self.callback_thread = threading.Thread(
-            target=self.callback_handler_loop, args=(self.callback_queue,), daemon=True
+            target=self.callback_handler_loop, args=(
+                self.callback_queue,), daemon=True
         )
         self.callback_thread.start()
+
+    def __del__(self):
+        """
+        Destructor to ensure the CV2XLinkLayer resource is properly released.
+        """
+        del self.link_layer
 
     def send(self, packet: bytes) -> None:
         """
@@ -93,7 +100,10 @@ class PythonCV2XLinkLayer(LinkLayer):
             if data is None:  # Stop signal
                 break
             if self.receive_callback:
-                self.receive_callback(data)
+                try:
+                    self.receive_callback(data)
+                except NotImplementedError as e:
+                    print("Error decoding packet: " + str(e))
 
     def stop(self) -> None:
         """
