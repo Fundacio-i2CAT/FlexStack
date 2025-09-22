@@ -32,6 +32,8 @@ Classes
 LocationService
     A class that connects to a GPSD server and provides current location data.
 """
+from __future__ import annotations
+import logging
 import threading
 import socket
 import json
@@ -68,11 +70,13 @@ class GPSDLocationService(LocationService):
             The port of the gpsd server.
         """
         super().__init__()
+        self.logger = logging.getLogger("GPSDLocationService")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.gpsd_host = gpsd_host
         self.gpsd_port = gpsd_port
         self.stop_event = threading.Event()
-        self.location_service_thread = threading.Thread(target=self.start, daemon=True)
+        self.location_service_thread = threading.Thread(
+            target=self.start, daemon=True)
         self.location_service_thread.start()
 
     def __del__(self) -> None:
@@ -97,7 +101,8 @@ class GPSDLocationService(LocationService):
             except InterruptedError:
                 pass
             except ConnectionRefusedError:
-                print("ConnectionRefusedError: [Errno 111] Connection refused, trying again...")
+                self.logger.warning(
+                    "ConnectionRefusedError: [Errno 111] Connection refused, trying again...")
         try:
             self.socket.send(b'?WATCH={"enable":true,"json":true};')
         except BrokenPipeError:
@@ -116,8 +121,8 @@ class GPSDLocationService(LocationService):
                     try:
                         json_data = json.loads(data)
                     except ValueError:
-                        print("Could not decode data")
-                        print(data)
+                        self.logger.debug("Could not decode data")
+                        self.logger.debug(data)
                     if "class" in json_data and json_data["class"] == "TPV":
                         self.send_to_callbacks(json_data)
             except BrokenPipeError:
