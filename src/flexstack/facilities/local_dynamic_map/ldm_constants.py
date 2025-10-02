@@ -1,7 +1,9 @@
 """
 General Constant for LDM
 """
+
 import os
+
 library_folder = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(library_folder, "data_containers.json")
 LDM_STORAGE_PATH = file_path
@@ -126,7 +128,7 @@ DATA_OBJECT_TYPE_ID = {
     17: "dsm",
     18: "pcim",
     19: "pcvm",
-    20: "mcm",
+    20: "payload",  # MCM message still not standarized. Final version pending standarization.
     21: "pam",
 }
 
@@ -151,7 +153,7 @@ VALID_ITS_AID = {
     PCIM,
     PCVM,
     MCM,
-    PAM
+    PAM,
 }
 
 
@@ -180,5 +182,5 @@ OPERATOR_MAPPING = {
     ">=": lambda x, y: x >= y,
     "<=": lambda x, y: x <= y,
     "like": lambda x, y: x in y,
-    "notlike": lambda x, y: x not in y
+    "notlike": lambda x, y: x not in y,
 }
