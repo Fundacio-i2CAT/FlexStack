@@ -126,7 +126,7 @@ DATA_OBJECT_TYPE_ID = {
     17: "dsm",
     18: "pcim",
     19: "pcvm",
-    20: "mcm",
+    20: "payload", # MCM message still not standarized. Final version pending standarization.
     21: "pam",
 }
 
