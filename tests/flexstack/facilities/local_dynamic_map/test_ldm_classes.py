@@ -265,7 +265,7 @@ class TestDataContainer(unittest.TestCase):
             "Parking Control Vehicle Message",
         )
         self.assertEqual(
-            str(DataContainer({"mcm": 1, "test": 2})), "Maneuver Coordination Message"
+            str(DataContainer({"payload": 1, "test": 2})), "Maneuver Coordination Message"
         )
         self.assertEqual(
             str(DataContainer({"pam": 1, "test": 2})), "Parking Availability Message"
