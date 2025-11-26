@@ -86,7 +86,9 @@ class PathHistory:
         All values as specified by ETSI TS 103 300-3 V2.2.1 (2023-02).
     """
 
-    def __init__(self, path_points: list[PathPoint] = None):
+    def __init__(self, path_points: list[PathPoint] | None = None):
+        if path_points is None:
+            path_points = []
         self.path_points = path_points
 
     def append(self, path_point):
@@ -159,7 +161,7 @@ class PathPointPredicted:
         self.delta_longitude = delta_longitude
         self.path_delta_time = path_delta_time
 
-    def __dict__(self) -> dict:
+    def to_dict(self) -> dict:
         return {
             "deltaLatitude": self.delta_latitude,
             "deltaLongitude": self.delta_longitude,
@@ -178,7 +180,9 @@ class PathPrediction:
         All values as specified by ETSI TS 103 300-3 V2.2.1 (2023-02).
     """
 
-    def __init__(self, path_point_predicted: list[PathPointPredicted] = None):
+    def __init__(self, path_point_predicted: list[PathPointPredicted] | None = None):
+        if path_point_predicted is None:
+            path_point_predicted = []
         self.path_point_predicted = path_point_predicted
 
     def append(self, path_point: PathPointPredicted):
@@ -213,7 +217,7 @@ class PathPrediction:
         """
         return {
             "pathPointPredicted": [
-                path_point.__dict__() for path_point in self.path_point_predicted
+                path_point.to_dict() for path_point in self.path_point_predicted
             ]
         }
 
@@ -397,7 +401,8 @@ class VAMMessage(CooperativeAwarenessMessage):
         """
         if "time" in tpv:
             gen_delta_time = GenerationDeltaTime()
-            gen_delta_time.set_in_normal_timestamp(parser.parse(tpv["time"]).timestamp())
+            gen_delta_time.set_in_normal_timestamp(
+                parser.parse(tpv["time"]).timestamp())
             self.vam["vam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
     def create_position_confidence(self, epx: int, epy: int) -> dict:
@@ -521,7 +526,7 @@ class VAMTransmissionManagement:
         btp_router: BTPRouter,
         vam_coder: VAMCoder,
         device_data_provider: DeviceDataProvider,
-        vru_basic_service_ldm: VRUBasicServiceLDM = None,
+        vru_basic_service_ldm: VRUBasicServiceLDM | None = None,
     ) -> None:
         """
         Initialize the vam Transmission Management.
@@ -536,7 +541,8 @@ class VAMTransmissionManagement:
         self.n_genvam = 1
         self.last_vam_sent = None
         self.current_vam_to_send = VAMMessage()
-        self.current_vam_to_send.fullfill_with_device_data(self.device_data_provider)
+        self.current_vam_to_send.fullfill_with_device_data(
+            self.device_data_provider)
 
     def location_service_callback(self, tpv: dict) -> None:
         """
@@ -624,9 +630,10 @@ class VAMTransmissionManagement:
                 "referencePosition"
             ]["longitude"],
         ]
-
+        diff_time: int = received_generation_delta_time - \
+            last_sent_generation_delta_time
         if (
-            received_generation_delta_time - last_sent_generation_delta_time
+            diff_time
             >= self.t_genvam
         ):
             self.send_next_vam()
@@ -659,14 +666,16 @@ class VAMTransmissionManagement:
             self.vru_basic_service_ldm.add_provider_data_to_ldm(
                 self.current_vam_to_send.vam
             )
-        request = BTPDataRequest()
-        request.btp_type = CommonNH.BTP_B
-        request.destination_port = 2018
-        request.gn_packet_transport_type = PacketTransportType()
-        request.communication_profile = CommunicationProfile.UNSPECIFIED
-        request.traffic_class = TrafficClass()
-        request.data = self.vam_coder.encode(self.current_vam_to_send.vam)
-        request.length = len(request.data)
+        data = self.vam_coder.encode(self.current_vam_to_send.vam)
+        request = BTPDataRequest(
+            btp_type=CommonNH.BTP_B,
+            destination_port=2018,
+            gn_packet_transport_type=PacketTransportType(),
+            communication_profile=CommunicationProfile.UNSPECIFIED,
+            traffic_class=TrafficClass(),
+            data=data,
+            length=len(data),
+        )
         self.btp_router.btp_data_request(request)
         self.logging.info(
             "Sent VAM message with timestamp: %s, station_id: %s",
@@ -675,4 +684,5 @@ class VAMTransmissionManagement:
         )
         self.last_vam_sent = self.current_vam_to_send
         self.current_vam_to_send = VAMMessage()
-        self.current_vam_to_send.fullfill_with_device_data(self.device_data_provider)
+        self.current_vam_to_send.fullfill_with_device_data(
+            self.device_data_provider)

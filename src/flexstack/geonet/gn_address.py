@@ -1,4 +1,5 @@
 from enum import Enum
+from dataclasses import dataclass, field
 
 from .exceptions import DecodeError
 
@@ -93,27 +94,24 @@ class ST(Enum):
 
 
 class InvalidMIDLength(Exception):
-    """
-    Exception for invalid MID length
-    """
+    """Exception for invalid MID length"""
 
 
+@dataclass(frozen=True)
 class MID:
-    """
-    MID field of GNAddress as described in ETSI EN 302 636-4-1 V1.4.1 (2020-01)
-
-    ...
+    """MID field of GNAddress as described in ETSI EN 302 636-4-1.
 
     Attributes
     ----------
-    MID : bytes
-        MID field of GNAddress: LL_ADDR
+    mid: bytes
+        MID field of GNAddress: LL_ADDR (6 bytes)
     """
 
-    def __init__(self, mid: bytes):
-        if len(mid) != 6:
+    mid: bytes
+
+    def __post_init__(self) -> None:
+        if len(self.mid) != 6:
             raise InvalidMIDLength("MID must be 6 bytes long")
-        self.mid: bytes = mid
 
     def encode_to_address(self) -> int:
         """
@@ -122,76 +120,76 @@ class MID:
         Returns
         -------
         int
-            Encoded MID for GN address
+            Encoded MID
         """
-        return int.from_bytes(b'\x00\x00'+self.mid, byteorder='big')
+        return int.from_bytes(b'\x00\x00' + self.mid, byteorder='big')
 
 
+@dataclass(frozen=True)
 class GNAddress:
-    """
-    GeoNetworking Address as described in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 6.3
-
-    ...
+    """GeoNetworking Address.
 
     Attributes
     ----------
-    M : M
-        M field of GNAddress
-    ST : ST
-        ST field of GNAddress
-    MID : bytes
-        MID field of GNAddress: LL_ADDR
+    m : M
+    st : ST
+    mid : MID
     """
 
-    def __init__(self):
-        self.m: M = M.GN_UNICAST
-        self.st: ST = ST.UNKNOWN
-        self.mid: MID = MID(b'\x00\x00\x00\x00\x00\x00')
+    m: M = M.GN_UNICAST
+    st: ST = ST.UNKNOWN
+    mid: MID = field(default_factory=lambda: MID(b'\x00\x00\x00\x00\x00\x00'))
 
-    def set_m(self, m: M):
+    def set_m(self, m: M) -> "GNAddress":
         """
-        Sets M field of GNAddress
+        Return a new GNAddress with updated m.
 
         Parameters
         ----------
         m : M
-            M field of GNAddress
+            M to set
         """
-        self.m = m
+        return GNAddress(m=m, st=self.st, mid=self.mid)
 
-    def set_st(self, st: ST):
+    def set_st(self, st: ST) -> "GNAddress":
         """
-        Sets ST field of GNAddress
+        Return a new GNAddress with updated st.
 
         Parameters
         ----------
         st : ST
-            ST field of GNAddress
+            ST to set
         """
-        self.st = st
+        return GNAddress(m=self.m, st=st, mid=self.mid)
 
-    def set_mid(self, mid: MID):
+    def set_mid(self, mid: MID) -> "GNAddress":
         """
-        Sets MID field of GNAddress
+        Return a new GNAddress with updated mid.
 
         Parameters
         ----------
         mid : MID
-            MID field of GNAddress
+            MID to set
+
+        Returns
+        -------
+        GNAddress
+            New GNAddress with updated mid
         """
-        self.mid = mid
+        return GNAddress(m=self.m, st=self.st, mid=mid)
 
     def encode(self) -> bytes:
         """
-        Encodes GNAddress to bytes
+        Encodes GNAddress to bytes.
 
         Returns
         -------
         bytes
-            Encoded GNAddress
+            Encoded GNAddress as bytes
         """
-        return (self.m.encode_to_address() | self.st.encode_to_address() | self.mid.encode_to_address()).to_bytes(
-            8, byteorder='big')
+        return (
+            self.m.encode_to_address() | self.st.encode_to_address() | self.mid.encode_to_address()
+        ).to_bytes(8, byteorder='big')
 
     def encode_to_int(self) -> int:
         """
@@ -200,19 +198,31 @@ class GNAddress:
         Returns
         -------
         int
-            Encoded GNAddress
+            Encoded GNAddress as int
         """
         return self.m.encode_to_address() | self.st.encode_to_address() | self.mid.encode_to_address()
 
-    def decode(self, data: bytes):
+    @classmethod
+    def decode(cls, data: bytes) -> "GNAddress":
         """
-        Decodes GNAddress from bytes
+        Decode a GNAddress from bytes and return a new instance.
+
+        Parameters
+        ----------
+        data : bytes
+            Bytes to decode
+
+        Returns
+        -------
+        GNAddress
+            Decoded GNAddress instance
         """
         if len(data) < 8:
             raise DecodeError("GNAddress must be 8 bytes long")
-        self.m = M((data[0] & 0x80) >> 7)
-        self.st = ST((data[0] & 0x78) >> 3)
-        self.mid = MID(data[2:8])
+        m = M((data[0] & 0x80) >> 7)
+        st = ST((data[0] & 0x78) >> 3)
+        mid = MID(data[2:8])
+        return cls(m=m, st=st, mid=mid)
 
     def __eq__(self, __o: object) -> bool:
         """

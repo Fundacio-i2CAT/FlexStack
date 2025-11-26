@@ -1,4 +1,5 @@
 from enum import Enum
+from dataclasses import dataclass, field
 
 from .exceptions import DecodeError
 from .mib import MIB
@@ -45,6 +46,7 @@ class LTbase(Enum):
     ONE_HUNDRED_SECONDS = 3
 
 
+@dataclass(frozen=True)
 class LT:
     """
     Lifetime class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6.4
@@ -63,11 +65,10 @@ class LT:
         (2 bit unsigned integer) Lifetime base.
     """
 
-    def __init__(self) -> None:
-        self.multiplier = 0
-        self.base = LTbase.FIFTY_MILLISECONDS
+    multiplier: int = 0
+    base: LTbase = LTbase.FIFTY_MILLISECONDS
 
-    def set_value_in_millis(self, value: int) -> None:
+    def set_value_in_millis(self, value: int) -> "LT":
         """
         Set the lifetime in milliseconds.
 
@@ -77,31 +78,33 @@ class LT:
             Lifetime in milliseconds.
         """
         if value < 50:
-            self.multiplier = 0
-            self.base = LTbase.FIFTY_MILLISECONDS
+            multiplier = 0
+            base = LTbase.FIFTY_MILLISECONDS
         elif value < 100:
-            self.multiplier = 1
-            self.base = LTbase.FIFTY_MILLISECONDS
+            multiplier = 1
+            base = LTbase.FIFTY_MILLISECONDS
         elif value < 500:
-            self.multiplier = int(value / 50 % 64)
-            self.base = LTbase.FIFTY_MILLISECONDS
+            multiplier = int(value / 50 % 64)
+            base = LTbase.FIFTY_MILLISECONDS
         elif value < 1000:
-            self.multiplier = 0
-            self.base = LTbase.ONE_SECOND
+            multiplier = 0
+            base = LTbase.ONE_SECOND
         elif value < 10000:
-            self.multiplier = int(value / 1000 % 64)
-            self.base = LTbase.ONE_SECOND
+            multiplier = int(value / 1000 % 64)
+            base = LTbase.ONE_SECOND
         elif value < 100000:
-            self.multiplier = int(value / 10000 % 64)
-            self.base = LTbase.TEN_SECONDS
+            multiplier = int(value / 10000 % 64)
+            base = LTbase.TEN_SECONDS
         elif value < 1000000:
-            self.multiplier = int(value / 100000 % 64)
-            self.base = LTbase.ONE_HUNDRED_SECONDS
+            multiplier = int(value / 100000 % 64)
+            base = LTbase.ONE_HUNDRED_SECONDS
         else:
-            self.multiplier = 0
-            self.base = LTbase.ONE_HUNDRED_SECONDS
+            multiplier = 0
+            base = LTbase.ONE_HUNDRED_SECONDS
 
-    def set_value_in_seconds(self, value: int) -> None:
+        return LT(multiplier=multiplier, base=base)
+
+    def set_value_in_seconds(self, value: int) -> "LT":
         """
         Set the lifetime in seconds.
 
@@ -110,7 +113,7 @@ class LT:
         value : int
             Lifetime in seconds.
         """
-        self.set_value_in_millis(value * 1000)
+        return self.set_value_in_millis(value * 1000)
 
     def get_value_in_millis(self) -> int:
         """
@@ -165,6 +168,7 @@ class LT:
         return self.encode_to_int().to_bytes(1, "big")
 
 
+@dataclass(frozen=True)
 class BasicHeader:
     """
     Basic Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6
@@ -184,14 +188,24 @@ class BasicHeader:
 
     """
 
-    def __init__(self) -> None:
-        self.version = 1
-        self.nh = BasicNH.COMMON_HEADER
-        self.reserved = 0
-        self.lt = LT()
-        self.rhl = 0
+    version: int = 1
+    nh: BasicNH = BasicNH.COMMON_HEADER
+    reserved: int = 0
+    lt: LT = field(default_factory=LT)
+    rhl: int = 0
 
-    def set_version(self, version: int) -> None:
+    @classmethod
+    def initialize_with_mib_and_rhl(cls, mib: MIB, rhl: int) -> "BasicHeader":
+        lt = LT().set_value_in_seconds(mib.itsGnDefaultPacketLifetime)
+        return cls(
+            version=1,
+            nh=BasicNH.COMMON_HEADER,
+            reserved=0,
+            lt=lt,
+            rhl=rhl,
+        )
+
+    def set_version(self, version: int) -> "BasicHeader":
         """
         Set the version.
 
@@ -200,9 +214,15 @@ class BasicHeader:
         version : int
             Version of the GeoNetworking protocol.
         """
-        self.version = version
+        return BasicHeader(
+            version=version,
+            nh=self.nh,
+            reserved=self.reserved,
+            lt=self.lt,
+            rhl=self.rhl,
+        )
 
-    def set_nh(self, nh: BasicNH) -> None:
+    def set_nh(self, nh: BasicNH) -> "BasicHeader":
         """
         Set the next header.
 
@@ -211,9 +231,15 @@ class BasicHeader:
         nh : BasicNH
             Next Header. Indicates the type of the next header.
         """
-        self.nh = nh
+        return BasicHeader(
+            version=self.version,
+            nh=nh,
+            reserved=self.reserved,
+            lt=self.lt,
+            rhl=self.rhl,
+        )
 
-    def set_lt(self, lt: LT) -> None:
+    def set_lt(self, lt: LT) -> "BasicHeader":
         """
         Set the lifetime.
 
@@ -222,9 +248,15 @@ class BasicHeader:
         lt : LT
             Lifetime. Indicates the lifetime of the packet.
         """
-        self.lt = lt
+        return BasicHeader(
+            version=self.version,
+            nh=self.nh,
+            reserved=self.reserved,
+            lt=lt,
+            rhl=self.rhl,
+        )
 
-    def set_rhl(self, rhl: int) -> None:
+    def set_rhl(self, rhl: int) -> "BasicHeader":
         """
         Set the remaining hop limit.
 
@@ -233,7 +265,13 @@ class BasicHeader:
         rhl : int
             Remaining Hop Limit. Indicates the remaining number of hops.
         """
-        self.rhl = rhl % 256
+        return BasicHeader(
+            version=self.version,
+            nh=self.nh,
+            reserved=self.reserved,
+            lt=self.lt,
+            rhl=rhl % 256,
+        )
 
     def encode_to_int(self) -> int:
         """
@@ -263,7 +301,8 @@ class BasicHeader:
         """
         return self.encode_to_int().to_bytes(4, "big")
 
-    def decode_from_int(self, value: int) -> None:
+    @classmethod
+    def decode_from_int(cls, value: int) -> "BasicHeader":
         """
         Decode the Basic Header from an integer.
 
@@ -272,14 +311,18 @@ class BasicHeader:
         value : int
             Encoded Basic Header.
         """
-        self.version = value >> (4 + 3 * 8) & 0xF
-        self.nh = BasicNH((value >> (0 + 3 * 8) & 0xF))
-        self.reserved = value >> 2 * 8 & 0xFF
-        self.lt.multiplier = (value >> 10) & 0x3F
-        self.lt.base = LTbase((value >> 8) & 0x03)
-        self.rhl = value & 0xFF
+        # Return a new BasicHeader created from the integer value
+        version = value >> (4 + 3 * 8) & 0xF
+        nh = BasicNH((value >> (0 + 3 * 8) & 0xF))
+        reserved = value >> 2 * 8 & 0xFF
+        multiplier = (value >> 10) & 0x3F
+        base = LTbase((value >> 8) & 0x03)
+        lt = LT(multiplier=multiplier, base=base)
+        rhl = value & 0xFF
+        return cls(version=version, nh=nh, reserved=reserved, lt=lt, rhl=rhl)
 
-    def decode_from_bytes(self, value: bytes) -> None:
+    @classmethod
+    def decode_from_bytes(cls, value: bytes) -> "BasicHeader":
         """
         Decode the Basic Header from bytes.
 
@@ -290,9 +333,10 @@ class BasicHeader:
         """
         if len(value) < 4:
             raise DecodeError("Basic Header must be 4 bytes long")
-        self.decode_from_int(int.from_bytes(value[0:4], "big"))
+        return cls.decode_from_int(int.from_bytes(value[0:4], "big"))
 
-    def initialize_with_mib(self, mib: MIB) -> None:
+    @classmethod
+    def initialize_with_mib(cls, mib: MIB) -> "BasicHeader":
         """
         Initialize the Basic Header with the MIB.
 
@@ -301,27 +345,14 @@ class BasicHeader:
         mib : MIB
             MIB.
         """
-        self.set_version(mib.itsGnProtocolVersion)
-        self.set_nh(BasicNH.COMMON_HEADER)
-        self.set_rhl(mib.itsGnDefaultHopLimit)
-        self.reserved = 0
-        self.lt.set_value_in_seconds(mib.itsGnDefaultPacketLifetime)
-
-    def __eq__(self, __value: object) -> bool:
-        """
-        Check if two Basic Headers are equal.
-
-        Parameters
-        ----------
-        __value : object
-            Basic Header to compare to.
-        """
-        if not isinstance(__value, BasicHeader):
-            return NotImplemented
-        return (
-            self.version == __value.version
-            and self.nh == __value.nh
-            and self.reserved == __value.reserved
-            and self.lt == __value.lt
-            and self.rhl == __value.rhl
+        # Return a new BasicHeader initialized using values from the MIB
+        lt = LT().set_value_in_seconds(mib.itsGnDefaultPacketLifetime)
+        return cls(
+            version=mib.itsGnProtocolVersion,
+            nh=BasicNH.COMMON_HEADER,
+            reserved=0,
+            lt=lt,
+            rhl=mib.itsGnDefaultHopLimit,
         )
+
+    # dataclass provides an appropriate __eq__ implementation

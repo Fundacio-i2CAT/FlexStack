@@ -1,6 +1,8 @@
 from .service_access_point import BTPDataRequest
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True)
 class BTPAHeader:
     """
     BTP-A Header class.
@@ -15,21 +17,20 @@ class BTPAHeader:
         (16 bit integer) Source Port field of BTP-A Header
     """
 
-    def __init__(self) -> None:
-        self.destination_port = 0
-        self.source_port = 0
+    destination_port: int = 0
+    source_port: int = 0
 
-    def initialize_with_request(self, request: BTPDataRequest) -> None:
+    @classmethod
+    def initialize_with_request(cls, request: BTPDataRequest) -> "BTPAHeader":
         """
-        Initializes the BTP-A Header with a GNDataRequest.
+        Initialize a BTP-A Header from a BTPDataRequest.
 
         Parameters
         ----------
-        request : GNDataRequest
-            GNDataRequest to use.
+        request : BTPDataRequest
+            Request to use for initialization.
         """
-        self.destination_port = request.destination_port
-        self.source_port = request.source_port
+        return cls(destination_port=request.destination_port, source_port=request.source_port)
 
     def encode_to_int(self) -> int:
         """
@@ -53,19 +54,22 @@ class BTPAHeader:
         """
         return self.encode_to_int().to_bytes(4, byteorder='big')
 
-    def decode(self, data: bytes) -> None:
+    @classmethod
+    def decode(cls, data: bytes) -> "BTPAHeader":
         """
-        Decodes the BTP-A Header from bytes.
+        Decodes the BTP-A Header from bytes and returns a new instance.
 
         Parameters
         ----------
         data : bytes
             Bytes to decode.
         """
-        self.destination_port = int.from_bytes(data[0:2], byteorder='big')
-        self.source_port = int.from_bytes(data[2:4], byteorder='big')
+        destination_port = int.from_bytes(data[0:2], byteorder='big')
+        source_port = int.from_bytes(data[2:4], byteorder='big')
+        return cls(destination_port=destination_port, source_port=source_port)
 
 
+@dataclass(frozen=True)
 class BTPBHeader:
     """
     BTP-B Header class.
@@ -80,21 +84,20 @@ class BTPBHeader:
         (16 bit integer) Destination Port Info field of BTP-B Header
     """
 
-    def __init__(self) -> None:
-        self.destination_port = 0
-        self.destination_port_info = 0
+    destination_port: int = 0
+    destination_port_info: int = 0
 
-    def initialize_with_request(self, request: BTPDataRequest) -> None:
+    @classmethod
+    def initialize_with_request(cls, request: BTPDataRequest) -> "BTPBHeader":
         """
-        Initializes the BTP-B Header with a GNDataRequest.
+        Initialize a BTP-B Header from a BTPDataRequest.
 
         Parameters
         ----------
-        request : GNDataRequest
-            GNDataRequest to use.
+        request : BTPDataRequest
+            Request to use for initialization.
         """
-        self.destination_port = request.destination_port
-        self.destination_port_info = request.destinaion_port_info
+        return cls(destination_port=request.destination_port, destination_port_info=getattr(request, 'destination_port_info', 0))
 
     def encode_to_int(self) -> int:
         """
@@ -118,14 +121,16 @@ class BTPBHeader:
         """
         return self.encode_to_int().to_bytes(4, byteorder='big')
 
-    def decode(self, data: bytes) -> None:
+    @classmethod
+    def decode(cls, data: bytes) -> "BTPBHeader":
         """
-        Decodes the BTP-B Header from bytes.
+        Decodes the BTP-B Header from bytes and returns a new instance.
 
         Parameters
         ----------
         data : bytes
             Bytes to decode.
         """
-        self.destination_port = int.from_bytes(data[0:2], byteorder='big')
-        self.destination_port_info = int.from_bytes(data[2:4], byteorder='big')
+        destination_port = int.from_bytes(data[0:2], byteorder='big')
+        destination_port_info = int.from_bytes(data[2:4], byteorder='big')
+        return cls(destination_port=destination_port, destination_port_info=destination_port_info)

@@ -1,8 +1,10 @@
+from dataclasses import dataclass, field
 from .exceptions import DecodeError
 from .position_vector import LongPositionVector
 from .service_access_point import GNDataRequest
 
 
+@dataclass(frozen=True)
 class GBCExtendedHeader:
     """
     GBC Extended Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.8 (Table 14 & Table 36)
@@ -29,18 +31,47 @@ class GBCExtendedHeader:
         Reserved. All bits set to zero.
     """
 
-    def __init__(self) -> None:
-        self.sn = 0
-        self.reserved = 0
-        self.so_pv = LongPositionVector()
-        self.latitude = 0
-        self.longitude = 0
-        self.a = 0
-        self.b = 0
-        self.angle = 0
-        self.reserved2 = 0
+    sn: int = 0
+    reserved: int = 0
+    so_pv: LongPositionVector = field(default_factory=LongPositionVector)
+    latitude: int = 0
+    longitude: int = 0
+    a: int = 0
+    b: int = 0
+    angle: int = 0
+    reserved2: int = 0
 
-    def initialize_with_request(self, request: GNDataRequest) -> None:
+    @classmethod
+    def initialize_with_request_sequence_number_ego_pv(cls, request: GNDataRequest, sequence_number: int, ego_pv: LongPositionVector) -> "GBCExtendedHeader":
+        """
+        Initialize the GBC Extended Header with a GN Data Request, sequence number, and ego position vector.
+
+        Parameters
+        ----------
+        request : GNDataRequest
+            The GN Data Request.
+        sequence_number : int
+            The sequence number.
+        ego_pv : LongPositionVector
+            The ego position vector.
+
+        Returns
+        -------
+        GBCExtendedHeader
+            GeoBroadcast Extended Header.
+        """
+        return cls(
+            sn=sequence_number,
+            so_pv=ego_pv,
+            latitude=request.area.latitude,
+            longitude=request.area.longitude,
+            a=request.area.a,
+            b=request.area.b,
+            angle=request.area.angle,
+        )
+
+    @classmethod
+    def initialize_with_request(cls, request: GNDataRequest) -> "GBCExtendedHeader":
         """
         Initialize the GBC Extended Header with a GN Data Request.
 
@@ -48,12 +79,18 @@ class GBCExtendedHeader:
         ----------
         request : GNDataRequest
             The GN Data Request.
+
+        Returns
+        -------
+        GBCExtendedHeader
+            GeoBroadcast Extended Header.
         """
-        self.latitude = request.area.latitude
-        self.longitude = request.area.longitude
-        self.a = request.area.a
-        self.b = request.area.b
-        self.angle = request.area.angle
+        latitude = request.area.latitude
+        longitude = request.area.longitude
+        a = request.area.a
+        b = request.area.b
+        angle = request.area.angle
+        return cls(latitude=latitude, longitude=longitude, a=a, b=b, angle=angle)
 
     def encode(self) -> bytes:
         """
@@ -76,7 +113,8 @@ class GBCExtendedHeader:
             + self.reserved2.to_bytes(2, "big")
         )
 
-    def decode(self, header: bytes) -> None:
+    @classmethod
+    def decode(cls, header: bytes) -> "GBCExtendedHeader":
         """
         Decode the GBC Extended Header from bytes.
 
@@ -92,15 +130,16 @@ class GBCExtendedHeader:
         """
         if len(header) < 44:
             raise DecodeError("GBC Extended Header must be 44 bytes long")
-        self.sn = int.from_bytes(header[0:2], "big")
-        self.reserved = int.from_bytes(header[2:4], "big")
-        self.so_pv.decode(header[4:28])
-        self.latitude = int.from_bytes(header[28:32], "big")
-        self.longitude = int.from_bytes(header[32:36], "big")
-        self.a = int.from_bytes(header[36:38], "big")
-        self.b = int.from_bytes(header[38:40], "big")
-        self.angle = int.from_bytes(header[40:42], "big")
-        self.reserved2 = int.from_bytes(header[42:44], "big")
+        sn = int.from_bytes(header[0:2], "big")
+        reserved = int.from_bytes(header[2:4], "big")
+        so_pv = LongPositionVector.decode(header[4:28])
+        latitude = int.from_bytes(header[28:32], "big")
+        longitude = int.from_bytes(header[32:36], "big")
+        a = int.from_bytes(header[36:38], "big")
+        b = int.from_bytes(header[38:40], "big")
+        angle = int.from_bytes(header[40:42], "big")
+        reserved2 = int.from_bytes(header[42:44], "big")
+        return cls(sn=sn, reserved=reserved, so_pv=so_pv, latitude=latitude, longitude=longitude, a=a, b=b, angle=angle, reserved2=reserved2)
 
     def __str__(self) -> str:
         return (

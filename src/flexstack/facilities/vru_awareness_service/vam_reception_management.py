@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 from .vam_coder import VAMCoder
 from ...btp.service_access_point import BTPDataIndication
@@ -23,7 +24,7 @@ class VAMReceptionManagement:
         self,
         vam_coder: VAMCoder,
         btp_router: BTPRouter,
-        vru_basic_service_ldm: VRUBasicServiceLDM = None,
+        vru_basic_service_ldm: VRUBasicServiceLDM | None = None,
     ) -> None:
         """
         Initialize the vam Reception Management.
@@ -34,8 +35,8 @@ class VAMReceptionManagement:
             vam Coder object.
         btp_router : BTPRouter
             BTP Router.
-        ldm_facility : LDMFacility
-            LDM Facility.
+        vru_basic_service_ldm : VRUBasicServiceLDM | None
+            VRU Basic Service LDM.
         """
         self.logging = logging.getLogger("vru_basic_service")
         self.vam_coder = vam_coder

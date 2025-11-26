@@ -30,20 +30,21 @@ class TestGNAddress(unittest.TestCase):
     def test_encode_to_address(self):
         self.assertEqual(GNAddress().encode(),
                          b'\x00\x00\x00\x00\x00\x00\x00\x00')
-        gn_address = GNAddress()
-        gn_address.set_m(M(1))
-        gn_address.set_st(ST(1))
-        gn_address.set_mid(MID(b'\xaa\xbb\xcc\x11\x22\x33'))
+        gn_address = GNAddress(
+            m=M(1),
+            st=ST(1),
+            mid=MID(b'\xaa\xbb\xcc\x11\x22\x33')
+        )
         self.assertEqual(gn_address.encode(),
                          b'\x88\x00\xaa\xbb\xcc\x11\x22\x33')
 
     def test_decode(self):
-        gn_address = GNAddress()
-        gn_address.set_m(M(1))
-        gn_address.set_st(ST(1))
-        gn_address.set_mid(MID(b'\xaa\xbb\xcc\x11\x22\x33'))
-        gn_address_decoded = GNAddress()
-        gn_address_decoded.decode(gn_address.encode())
+        gn_address = GNAddress(
+            m=M(1),
+            st=ST(1),
+            mid=MID(b'\xaa\xbb\xcc\x11\x22\x33')
+        )
+        gn_address_decoded = GNAddress.decode(gn_address.encode())
         self.assertEqual(gn_address.m.value, gn_address_decoded.m.value)
         self.assertEqual(gn_address.st.value, gn_address_decoded.st.value)
         self.assertEqual(gn_address.mid.mid, gn_address_decoded.mid.mid)

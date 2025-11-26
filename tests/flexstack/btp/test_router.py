@@ -10,7 +10,7 @@ class TestRouter(unittest.TestCase):
     def test__init__(self):
         gn_router = MagicMock()
         router = Router(gn_router)
-        self.assertEqual(router.indication_callbacks, {})
+        self.assertEqual(router.indication_callbacks, None)
         self.assertEqual(router.gn_router, gn_router)
 
     def test_register_indication_callback(self):
@@ -18,7 +18,9 @@ class TestRouter(unittest.TestCase):
         router = Router(gn_router)
         callback = MagicMock()
         router.register_indication_callback_btp(1, callback)
-        self.assertEqual(router.indication_callbacks[1], callback)
+        router.freeze_callbacks()
+        self.assertEqual(router.indication_callbacks.get(1),  # type: ignore
+                         callback)
 
     def test_BTPDataRequest(self):
         """
@@ -27,14 +29,15 @@ class TestRouter(unittest.TestCase):
         gn_router = MagicMock()
         gn_router.gn_data_request = MagicMock()
         router = Router(gn_router)
-        request = BTPDataRequest()
-        request.btp_type = CommonNH.BTP_B
-        request.destination_port = 2001
-        request.gn_packet_transport_type = PacketTransportType()
-        request.communication_profile = CommunicationProfile.UNSPECIFIED
-        request.traffic_class = TrafficClass()
-        request.data = b'Hello World'
-        request.length = len(request.data)
+        request = BTPDataRequest(
+            btp_type=CommonNH.BTP_B,
+            destination_port=2001,
+            gn_packet_transport_type=PacketTransportType(),
+            communication_profile=CommunicationProfile.UNSPECIFIED,
+            traffic_class=TrafficClass(),
+            data=b'Hello World',
+            length=11,
+        )
         router.btp_data_request(request)
         gn_router.gn_data_request.assert_called_once()
 

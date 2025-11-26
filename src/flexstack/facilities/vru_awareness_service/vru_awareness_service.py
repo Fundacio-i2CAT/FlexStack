@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 
 from ..local_dynamic_map.ldm_constants import VAM
@@ -31,7 +32,7 @@ class VRUAwarenessService:
         self,
         btp_router: BTPRouter,
         device_data_provider: DeviceDataProvider,
-        ldm: LDMFacility = None,
+        ldm: LDMFacility | None = None,
     ) -> None:
         """
         Initialize the Cooperative Awareness Basic Service.

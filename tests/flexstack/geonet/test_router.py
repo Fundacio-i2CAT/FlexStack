@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from flexstack.geonet.router import DADException, GNForwardingAlgorithmResponse, Router
 from flexstack.geonet.mib import MIB
 from flexstack.geonet.position_vector import LongPositionVector
-from flexstack.geonet.service_access_point import Area, CommonNH, GNDataIndication, GNDataRequest, GNDataConfirm, GeoBroadcastHST, HeaderType, ResultCode, TopoBroadcastHST
+from flexstack.geonet.service_access_point import Area, CommonNH, GNDataIndication, GNDataRequest, GNDataConfirm, GeoBroadcastHST, HeaderType, ResultCode, TopoBroadcastHST, PacketTransportType
 from flexstack.geonet.gn_address import ST, GNAddress
 from flexstack.geonet.basic_header import BasicHeader
 from flexstack.geonet.common_header import CommonHeader
@@ -15,13 +15,11 @@ class TestRouter(unittest.TestCase):
     def test__init__(self):
         # Given
         mib = MIB()
-        position_vector = LongPositionVector()
-        position_vector.set_gn_addr(mib.itsGnLocalGnAddr)
+        position_vector = LongPositionVector().set_gn_addr(mib.itsGnLocalGnAddr)
         # When
         router = Router(mib)
         # Then
         self.assertEqual(router.mib, mib)
-        self.assertEqual(router.gn_address, mib.itsGnLocalGnAddr)
         self.assertEqual(router.ego_position_vector, position_vector)
         self.assertIsNone(router.link_layer)
         self.assertIsNone(router.indication_callback)
@@ -53,15 +51,15 @@ class TestRouter(unittest.TestCase):
 
     def test_setup_gn_address(self):
         # Given
-        mib = MIB()
+        mib = MIB(
+            itsGnLocalGnAddr=GNAddress(st=ST.TRAILER)
+        )
         router = Router(mib)
-        gn_address = GNAddress()
-        mib.itsGnLocalGnAddr = gn_address
-        gn_address.st = ST.TRAILER
         # When
         router.setup_gn_address()
         # Then
-        self.assertEqual(router.gn_address, gn_address)
+        self.assertEqual(router.ego_position_vector.gn_addr,
+                         mib.itsGnLocalGnAddr)
 
     def test_GNDataRequestSHB(self):
         # Given
@@ -72,9 +70,9 @@ class TestRouter(unittest.TestCase):
         router.link_layer = link_layer
 
         # Create a mock GNDataRequest object to pass as an argument to the function
-        request: GNDataRequest = GNDataRequest()
-
-        request.data = b'request_data'
+        request: GNDataRequest = GNDataRequest(
+            data=b'request_data'
+        )
 
         # When
         result = router.gn_data_request_shb(request)
@@ -110,12 +108,13 @@ class TestRouter(unittest.TestCase):
         router = Router(mib)
         # When
         area_type = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        area = Area()
-        area.a = 100
-        area.b = 100
-        area.angle = 0
-        area.latitude = 421255850
-        area.longitude = 27601710
+        area = Area(
+            a=100,
+            b=100,
+            angle=0,
+            latitude=421255850,
+            longitude=27601710
+        )
         latitude = 421254550
         longitude = 27603740
         result = router.gn_geometric_function_f(
@@ -132,17 +131,24 @@ class TestRouter(unittest.TestCase):
         # Given
         mib = MIB()
         router = Router(mib)
-        request = GNDataRequest()
-        request.data = b'request_data'
-        request.area = Area()
-        request.area.a = 100
-        request.area.b = 100
-        request.area.angle = 0
-        request.area.latitude = 421255850
-        request.area.longitude = 27601710
-        request.packet_transport_type.header_subtype = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        router.ego_position_vector.latitude = 421254550
-        router.ego_position_vector.longitude = 27603740
+        router.ego_position_vector = LongPositionVector(
+            latitude=421255850,
+            longitude=27601710
+        )
+        request = GNDataRequest(
+            data=b'request_data',
+            area=Area(
+                a=100,
+                b=100,
+                angle=0,
+                latitude=421255850,
+                longitude=27601710
+            ),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOBROADCAST,
+                header_subtype=GeoBroadcastHST.GEOBROADCAST_CIRCLE,
+            )
+        )
         # When
         result = router.gn_forwarding_algorithm_selection(request)
         # Then
@@ -157,21 +163,25 @@ class TestRouter(unittest.TestCase):
         router.gn_forwarding_algorithm_selection = Mock(
             return_value=GNForwardingAlgorithmResponse.AREA_FORWARDING)
 
-        basic_header = BasicHeader()
+        basic_header = BasicHeader(rhl=10)
 
-        common_header = CommonHeader()
-        common_header.hst = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        gbc_extended_header = GBCExtendedHeader()
-        gbc_extended_header.latitude = 421255850
-        gbc_extended_header.longitude = 27601710
-        gbc_extended_header.a = 100
-        gbc_extended_header.b = 100
-        gbc_extended_header.angle = 0
+        common_header = CommonHeader(
+            ht=HeaderType.GEOBROADCAST,
+            hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE  # type: ignore
+        )
+        gbc_extended_header = GBCExtendedHeader(
+            latitude=421255850,
+            longitude=27601710,
+            a=100,
+            b=100,
+            angle=0
+        )
 
         # When
         router.gn_data_forward_gbc(
             basic_header, common_header, gbc_extended_header, b'payload')
 
+        basic_header = basic_header.set_rhl(basic_header.rhl - 1)
         # Then
         router.link_layer.send.assert_called_once_with(basic_header.encode_to_bytes(
         ) + common_header.encode_to_bytes() + gbc_extended_header.encode() + b'payload')
@@ -183,16 +193,20 @@ class TestRouter(unittest.TestCase):
         router = Router(mib)
         router.link_layer = Mock()
         router.link_layer.send = Mock()
-        request = GNDataRequest()
-        request.upper_protocol_entity = CommonNH.BTP_B
-        request.packet_transport_type.header_type = HeaderType.GEOBROADCAST
-        request.packet_transport_type.header_subtype = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        request.area = Area()
-        request.area.a = 100
-        request.area.b = 100
-        request.area.angle = 0
-        request.area.latitude = 421255850
-        request.area.longitude = 27601710
+        request = GNDataRequest(
+            upper_protocol_entity=CommonNH.BTP_B,
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOBROADCAST,
+                header_subtype=GeoBroadcastHST.GEOBROADCAST_CIRCLE,
+            ),
+            area=Area(
+                a=100,
+                b=100,
+                angle=0,
+                latitude=421255850,
+                longitude=27601710
+            ),
+        )
         router.gn_forwarding_algorithm_selection = Mock(
             return_value=GNForwardingAlgorithmResponse.AREA_FORWARDING)
 
@@ -207,15 +221,18 @@ class TestRouter(unittest.TestCase):
         # Given
         mib = MIB()
         router = Router(mib)
-        confirm = GNDataConfirm()
-        confirm.result_code = ResultCode.ACCEPTED
+        confirm = GNDataConfirm(
+            result_code=ResultCode.ACCEPTED
+        )
         router.gn_data_request_gbc = Mock(return_value=confirm)
         router.gn_data_request_shb = Mock(return_value=confirm)
-        request = GNDataRequest()
-        request.upper_protocol_entity = CommonNH.BTP_B
-        request.packet_transport_type.header_type = HeaderType.GEOBROADCAST
-        request.packet_transport_type.header_subtype = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-
+        request = GNDataRequest(
+            upper_protocol_entity=CommonNH.BTP_B,
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOBROADCAST,
+                header_subtype=GeoBroadcastHST.GEOBROADCAST_CIRCLE,
+            ),
+        )
         # When
         router.gn_data_request(request=request)
 
@@ -226,9 +243,13 @@ class TestRouter(unittest.TestCase):
         # Given
         router.gn_data_request_gbc = Mock(return_value=confirm)
         router.gn_data_request_shb = Mock(return_value=confirm)
-        request.packet_transport_type.header_type = HeaderType.TSB
-        request.packet_transport_type.header_subtype = TopoBroadcastHST.SINGLE_HOP
-
+        request = GNDataRequest(
+            upper_protocol_entity=CommonNH.BTP_B,
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.TSB,
+                header_subtype=TopoBroadcastHST.SINGLE_HOP,
+            ),
+        )
         # When
         router.gn_data_request(request=request)
 
@@ -241,14 +262,16 @@ class TestRouter(unittest.TestCase):
         mib = MIB()
         router = Router(mib)
         router.location_table.new_shb_packet = Mock()
-        common_header = CommonHeader()
-        common_header.hst = TopoBroadcastHST.SINGLE_HOP
-        common_header.ht = HeaderType.TSB
-        position_vector = LongPositionVector()
-        position_vector.latitude = 421255850
-        position_vector.longitude = 27601710
-        position_vector.s = 12
-        position_vector.h = 30
+        common_header = CommonHeader(
+            hst=TopoBroadcastHST.SINGLE_HOP,  # type: ignore
+            ht=HeaderType.TSB
+        )
+        position_vector = LongPositionVector(
+            latitude=421255850,
+            longitude=27601710,
+            s=12,
+            h=30
+        )
         packet = position_vector.encode() + bytes(4) + b'payload'
 
         # When
@@ -264,12 +287,13 @@ class TestRouter(unittest.TestCase):
         router = Router(mib)
         router.location_table.new_gbc_packet = Mock()
         router.gn_geometric_function_f = Mock(return_value=0.5)
-        gbc_extended_header = GBCExtendedHeader()
-        gbc_extended_header.a = 100
-        gbc_extended_header.b = 100
-        gbc_extended_header.angle = 0
-        gbc_extended_header.latitude = 421255850
-        gbc_extended_header.longitude = 27601710
+        gbc_extended_header = GBCExtendedHeader(
+            latitude=421255850,
+            longitude=27601710,
+            a=100,
+            b=100,
+            angle=0
+        )
         router.duplicate_address_detection = Mock()
         common_header = CommonHeader()
         packet = gbc_extended_header.encode() + b'payload'
@@ -289,11 +313,13 @@ class TestRouter(unittest.TestCase):
         router = Router(mib)
         router.gn_data_indicate_gbc = Mock()
         router.gn_data_indicate_shb = Mock()
-        common_header = CommonHeader()
-        common_header.ht = HeaderType.GEOBROADCAST
-        common_header.hst = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        basic_header = BasicHeader()
-        basic_header.version = 1
+        common_header = CommonHeader(
+            hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE,  # type: ignore
+            ht=HeaderType.GEOBROADCAST
+        )
+        basic_header = BasicHeader(
+            version=1
+        )
         packet = basic_header.encode_to_bytes() + common_header.encode_to_bytes() + \
             b'packetthebestpacket'
 
@@ -307,8 +333,10 @@ class TestRouter(unittest.TestCase):
         # Given
         router.gn_data_indicate_gbc = Mock()
         router.gn_data_indicate_shb = Mock()
-        common_header.ht = HeaderType.TSB
-        common_header.hst = TopoBroadcastHST.SINGLE_HOP
+        common_header = CommonHeader(
+            hst=TopoBroadcastHST.SINGLE_HOP,  # type: ignore
+            ht=HeaderType.TSB
+        )
         packet = basic_header.encode_to_bytes() + common_header.encode_to_bytes() + \
             b'packetthebestpacket'
 
@@ -337,11 +365,12 @@ class TestRouter(unittest.TestCase):
                     "lat": 46.498293369, "lon": 7.567411672, "alt": 1343.127,
                     "eph": 36.000, "epv": 32.321,
                     "track": 10.3788, "speed": 0.091, "climb": -0.085, "mode": 3}
-        router.ego_position_vector.refresh_with_tpv_data = Mock()
 
         # When
         router.refresh_ego_position_vector(tpv_data)
 
         # Then
-        router.ego_position_vector.refresh_with_tpv_data.assert_called_once_with(
-            tpv_data)
+        self.assertEqual(router.ego_position_vector.latitude, 464982933)
+        self.assertEqual(router.ego_position_vector.longitude, 75674116)
+        self.assertEqual(router.ego_position_vector.s, 9)
+        self.assertEqual(router.ego_position_vector.h, 103)

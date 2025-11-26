@@ -1,3 +1,5 @@
+from __future__ import annotations
+from dataclasses import dataclass, field
 from .service_access_point import (
     CommonNH,
     HeaderType,
@@ -12,6 +14,7 @@ from .service_access_point import (
 from .exceptions import DecodeError
 
 
+@dataclass(frozen=True)
 class CommonHeader:
     """
     Common Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7
@@ -40,18 +43,17 @@ class CommonHeader:
         (8 bit unsigned integer) Reserved. Always set to zero.
     """
 
-    def __init__(self) -> None:
-        self.nh = CommonNH.ANY
-        self.reserved = 0
-        self.ht = HeaderType.ANY
-        self.hst = HeaderSubType.UNSPECIFIED
-        self.tc = TrafficClass()
-        self.flags = 0
-        self.pl = 0
-        self.mhl = 0
-        self.reserved = 0
+    nh: CommonNH = CommonNH.ANY
+    reserved: int = 0
+    ht: HeaderType = HeaderType.ANY
+    hst: HeaderSubType = HeaderSubType.UNSPECIFIED
+    tc: TrafficClass = field(default_factory=TrafficClass)
+    flags: int = 0
+    pl: int = 0
+    mhl: int = 0
 
-    def initialize_with_request(self, request: GNDataRequest) -> None:
+    @classmethod
+    def initialize_with_request(cls, request: GNDataRequest) -> "CommonHeader":
         """
         Initializes the Common Header with a GNDataRequest.
 
@@ -60,16 +62,17 @@ class CommonHeader:
         request : GNDataRequest
             GNDataRequest to use.
         """
-        self.nh = request.upper_protocol_entity
-        self.ht = request.packet_transport_type.header_type
-        self.hst = request.packet_transport_type.header_subtype
-        self.tc = request.traffic_class
-        self.pl = request.length
-        if self.ht == HeaderType.TSB and self.hst == TopoBroadcastHST.SINGLE_HOP:
-            self.mhl = 1
+        nh = request.upper_protocol_entity
+        ht = request.packet_transport_type.header_type
+        hst = request.packet_transport_type.header_subtype
+        tc = request.traffic_class
+        pl = request.length
+        if ht == HeaderType.TSB and hst == TopoBroadcastHST.SINGLE_HOP:
+            mhl = 1
         else:
             # TODO: Set the maximum hop limit on other cases than SHB As specified in: Section 10.3.4 Table 20
-            self.mhl = 1
+            mhl = 1
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=0, pl=pl, mhl=mhl)  # type: ignore
 
     def encode_to_int(self) -> int:
         """
@@ -103,7 +106,8 @@ class CommonHeader:
         """
         return self.encode_to_int().to_bytes(8, "big")
 
-    def decode_from_int(self, header: int) -> None:
+    @classmethod
+    def decode_from_int(cls, header: int) -> "CommonHeader":
         """
         Decodes an integer to a Common Header.
 
@@ -112,25 +116,28 @@ class CommonHeader:
         header : int
             Encoded Common Header. 4 bytes.
         """
-        self.nh = CommonNH((header >> (4 + 8 * 7)) & 15)
-        self.ht = HeaderType((header >> (4 + 8 * 6)) & 15)
-        if self.ht == HeaderType.GEOBROADCAST:
-            self.hst = GeoBroadcastHST((header >> (8 * 6)) & 15)
-        elif self.ht == HeaderType.TSB:
-            self.hst = TopoBroadcastHST((header >> (8 * 6)) & 15)
-        elif self.ht == HeaderType.GEOANYCAST:
-            self.hst = GeoAnycastHST((header >> (8 * 6)) & 15)
-        elif self.ht == HeaderType.LS:
-            self.hst = LocationServiceHST((header >> (8 * 6)) & 15)
+        nh = CommonNH((header >> (4 + 8 * 7)) & 15)
+        ht = HeaderType((header >> (4 + 8 * 6)) & 15)
+        if ht == HeaderType.GEOBROADCAST:
+            hst = GeoBroadcastHST((header >> (8 * 6)) & 15)
+        elif ht == HeaderType.TSB:
+            hst = TopoBroadcastHST((header >> (8 * 6)) & 15)
+        elif ht == HeaderType.GEOANYCAST:
+            hst = GeoAnycastHST((header >> (8 * 6)) & 15)
+        elif ht == HeaderType.LS:
+            hst = LocationServiceHST((header >> (8 * 6)) & 15)
         else:
-            self.hst = HeaderSubType((header >> (8 * 6)) & 15)
-        self.tc = TrafficClass()
-        self.tc.decode_from_int((header >> 8 * 5) & 255)
-        self.flags = (header >> 8 * 4) & 128
-        self.pl = (header >> 8 * 2) & 65535
-        self.mhl = (header >> 8) & 255
+            hst = HeaderSubType((header >> (8 * 6)) & 15)
+        tc = TrafficClass.decode_from_int((header >> 8 * 5) & 255)
+        flags = (header >> 8 * 4) & 128
+        pl = (header >> 8 * 2) & 65535
+        mhl = (header >> 8) & 255
+        reserved = header & 255
+        # type: ignore
+        return cls(nh=nh, reserved=reserved, ht=ht, hst=hst, tc=tc, flags=flags, pl=pl, mhl=mhl)  # type: ignore
 
-    def decode_from_bytes(self, header: bytes) -> None:
+    @classmethod
+    def decode_from_bytes(cls, header: bytes) -> "CommonHeader":
         """
         Decodes bytes to a Common Header.
 
@@ -141,27 +148,4 @@ class CommonHeader:
         """
         if len(header) < 8:
             raise DecodeError("Common Header must be 8 bytes long")
-        self.decode_from_int(int.from_bytes(header[0:8], "big"))
-
-    def __eq__(self, __value: object) -> bool:
-        """
-        Checks if two Common Headers are equal.
-
-        Parameters
-        ----------
-        __value : object
-            Object to compare with.
-        """
-        if not isinstance(__value, CommonHeader):
-            return NotImplemented
-        return (
-            self.nh == __value.nh
-            and self.reserved == __value.reserved
-            and self.ht == __value.ht
-            and self.hst == __value.hst
-            and self.tc == __value.tc
-            and self.flags == __value.flags
-            and self.pl == __value.pl
-            and self.mhl == __value.mhl
-            and self.reserved == __value.reserved
-        )
+        return cls.decode_from_int(int.from_bytes(header[0:8], "big"))

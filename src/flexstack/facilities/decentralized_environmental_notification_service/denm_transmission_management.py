@@ -2,7 +2,7 @@ import time
 import threading
 import logging
 from ...utils.time_service import TimeService
-from ...geonet.service_access_point import Area, GeoBroadcastHST, HeaderType
+from ...geonet.service_access_point import Area, GeoBroadcastHST, HeaderType, PacketTransportType
 from .denm_coder import DENMCoder
 from ...btp.router import Router as BTPRouter
 from ...btp.service_access_point import BTPDataRequest, CommonNH, CommunicationProfile
@@ -261,26 +261,29 @@ class DENMTransmissionManagement:
         denm_to_send : DecentralizedEnvironmentalNotificationMessage
             New DENM message to be sent.
         """
-        request = BTPDataRequest()
-        request.btp_type = CommonNH.BTP_B
-        request.destination_port = 2002
-        request.gn_packet_transport_type.header_type = HeaderType.GEOBROADCAST
-        request.gn_packet_transport_type.header_subtype = (
-            GeoBroadcastHST.GEOBROADCAST_CIRCLE
+        data = self.denm_coder.encode(denm_to_send.denm)
+        request = BTPDataRequest(
+            btp_type=CommonNH.BTP_B,
+            destination_port=2002,
+            gn_packet_transport_type=PacketTransportType(
+                header_subtype=GeoBroadcastHST.GEOBROADCAST_CIRCLE,
+                header_type=HeaderType.GEOBROADCAST,
+            ),
+            gn_area=Area(
+                a=100,
+                b=0,
+                angle=0,
+                latitude=denm_to_send.denm["denm"]["management"][
+                    "eventPosition"
+                ]["latitude"],
+                longitude=denm_to_send.denm["denm"]["management"][
+                    "eventPosition"
+                ]["longitude"],
+            ),
+            communication_profile=CommunicationProfile.UNSPECIFIED,
+            data=data,
+            length=len(data),
         )
-        request.gn_area = Area()
-        request.gn_area.a = 100
-        request.gn_area.b = 0
-        request.gn_area.angle = 0
-        request.gn_area.latitude = denm_to_send.denm["denm"]["management"][
-            "eventPosition"
-        ]["latitude"]
-        request.gn_area.longitude = denm_to_send.denm["denm"]["management"][
-            "eventPosition"
-        ]["longitude"]
-        request.communication_profile = CommunicationProfile.UNSPECIFIED
-        request.data = self.denm_coder.encode(denm_to_send.denm)
-        request.length = len(request.data)
         self.btp_router.btp_data_request(request)
         self.logging.debug(
             "Recieved DENM with timestamp: %s, station_id: %s",

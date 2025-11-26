@@ -1,4 +1,7 @@
 from enum import Enum
+from dataclasses import dataclass, field
+from typing import Optional
+
 from .gn_address import GNAddress
 
 
@@ -122,6 +125,7 @@ class AreaForwardingAlgorithm(Enum):
     CBF = 2
 
 
+@dataclass(frozen=True)
 class MIB:
     # pylint: disable=too-many-instance-attributes, invalid-name
     """Management Information Base (MIB) for GeoNetworking. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01).
@@ -201,40 +205,43 @@ class MIB:
         Default traffic class
     """
 
-    def __init__(self) -> None:
-        self.itsGnLocalGnAddr = GNAddress()
-        # self.itsGnLocalGnAddrConfMethod = LocalGnAddrConfMethod.MANAGED
-        self.itsGnLocalGnAddrConfMethod = LocalGnAddrConfMethod.AUTO
-        self.itsGnProtocolVersion = 1
-        self.itsGnIsMobile = GnIsMobile.MOBILE
-        self.itsGnIfType = GnIfType.UNSPECIFIED
-        self.itsGnMinUpdateFrequencyEPV = 1000
-        self.itsGnPaiInterval = 80
-        self.itsGnMaxSduSize = 1398
-        self.itsGnMaxGeoNetworkingHeaderSize = 88
-        self.itsGnLifetimeLocTE = 20
-        self.itsGnSecurity = GnSecurity.DISABLED
-        self.itsGnSnDecapResultHandling = SnDecapResultHandling.STRICT
-        self.itsGnLocationServiceMaxRetrans = 10
-        self.itsGnLocationServiceRetransmitTimer = 1000
-        self.itsGnLocationServicePacketBufferSize = 1024
-        self.itsGnBeaconServiceRetransmitTimer = 3000
-        self.itsGnBeaconServiceMaxJitter = self.itsGnBeaconServiceRetransmitTimer / 4
-        self.itsGnDefaultHopLimit = 10
-        self.itsGnDPLLength = 8
-        self.itsGnMaxPacketLifetime = 600
-        self.itsGnDefaultPacketLifetime = 60
-        self.itsGnMaxPacketDataRate = 100
-        self.itsGnMaxPacketDataRateEmaBeta = 90
-        self.itsGnMaxGeoAreaSize = 10
-        self.itsGnMinPacketRepetitionInterval = 100
-        self.itsGnNonAreaForwardingAlgorithm = NonAreaForwardingAlgorithm.GREEDY
-        self.itsGnAreaForwardingAlgorithm = AreaForwardingAlgorithm.CBF
-        self.itsGnCbfMinTime = 1
-        self.itsGnCbfMaxTime = 100
-        self.itsGnDefaultMaxCommunicationRange = 1000
-        self.itsGnBroadcastCBFDefSectorAngle = 30
-        self.itsGnUcForwardingPacketBufferSize = 256
-        self.itsGnBcForwardingPacketBufferSize = 1024
-        self.itsGnCbfPacketBufferSize = 256
-        self.itsGnDefaultTrafficClass = 0
+    itsGnLocalGnAddr: GNAddress = field(default_factory=GNAddress)
+    itsGnLocalGnAddrConfMethod: LocalGnAddrConfMethod = LocalGnAddrConfMethod.AUTO
+    itsGnProtocolVersion: int = 1
+    itsGnIsMobile: GnIsMobile = GnIsMobile.MOBILE
+    itsGnIfType: GnIfType = GnIfType.UNSPECIFIED
+    itsGnMinUpdateFrequencyEPV: int = 1000
+    itsGnPaiInterval: int = 80
+    itsGnMaxSduSize: int = 1398
+    itsGnMaxGeoNetworkingHeaderSize: int = 88
+    itsGnLifetimeLocTE: int = 20
+    itsGnSecurity: GnSecurity = GnSecurity.DISABLED
+    itsGnSnDecapResultHandling: SnDecapResultHandling = SnDecapResultHandling.STRICT
+    itsGnLocationServiceMaxRetrans: int = 10
+    itsGnLocationServiceRetransmitTimer: int = 1000
+    itsGnLocationServicePacketBufferSize: int = 1024
+    itsGnBeaconServiceRetransmitTimer: int = 3000
+    itsGnBeaconServiceMaxJitter: Optional[float] = None
+    itsGnDefaultHopLimit: int = 10
+    itsGnDPLLength: int = 8
+    itsGnMaxPacketLifetime: int = 600
+    itsGnDefaultPacketLifetime: int = 60
+    itsGnMaxPacketDataRate: int = 100
+    itsGnMaxPacketDataRateEmaBeta: int = 90
+    itsGnMaxGeoAreaSize: int = 10
+    itsGnMinPacketRepetitionInterval: int = 100
+    itsGnNonAreaForwardingAlgorithm: NonAreaForwardingAlgorithm = NonAreaForwardingAlgorithm.GREEDY
+    itsGnAreaForwardingAlgorithm: AreaForwardingAlgorithm = AreaForwardingAlgorithm.CBF
+    itsGnCbfMinTime: int = 1
+    itsGnCbfMaxTime: int = 100
+    itsGnDefaultMaxCommunicationRange: int = 1000
+    itsGnBroadcastCBFDefSectorAngle: int = 30
+    itsGnUcForwardingPacketBufferSize: int = 256
+    itsGnBcForwardingPacketBufferSize: int = 1024
+    itsGnCbfPacketBufferSize: int = 256
+    itsGnDefaultTrafficClass: int = 0
+
+    def __post_init__(self) -> None:
+        # compute dependent default
+        if self.itsGnBeaconServiceMaxJitter is None:
+            object.__setattr__(self, "itsGnBeaconServiceMaxJitter", self.itsGnBeaconServiceRetransmitTimer / 4)

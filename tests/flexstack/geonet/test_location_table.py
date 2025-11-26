@@ -16,18 +16,19 @@ from flexstack.geonet.mib import MIB
 class TestLocationTableEntry(unittest.TestCase):
 
     def create_filled_position_vector(self):
-        position_vector = LongPositionVector()
-        naddress = GNAddress()
-        naddress.set_m(M.GN_MULTICAST)
-        naddress.set_st(ST.CYCLIST)
-        naddress.set_mid(MID(b"\xaa\xbb\xcc\xdd\x22\x33"))
-        position_vector.set_gn_addr(naddress)
-        # position_vector.set_tst_in_normal_timestamp_seconds(100)
-        position_vector.set_pai(True)
-        position_vector.set_speed(3)
-        position_vector.set_heading(4)
-        position_vector.set_latitude(41.387275688863674)
-        position_vector.set_longitude(2.112266864991681)
+        naddress = GNAddress(
+            m=M.GN_MULTICAST,
+            st=ST.CYCLIST,
+            mid=MID(b"\xaa\xbb\xcc\xdd\x22\x33"),
+        )
+        position_vector = LongPositionVector(
+            gn_addr=naddress,
+            pai=True,
+            s=3,
+            h=4,
+            latitude=413872756,
+            longitude=21122668
+        )
         return position_vector
 
     @patch("time.time")
@@ -41,7 +42,8 @@ class TestLocationTableEntry(unittest.TestCase):
         entry.update_position_vector(position_vector)
         self.assertEqual(entry.position_vector, position_vector)
         position_vector2 = self.create_filled_position_vector()
-        position_vector2.set_tst_in_normal_timestamp_seconds(timestamp + 0.1)
+        position_vector2 = position_vector2.set_tst_in_normal_timestamp_seconds(
+            timestamp + 0.1)
         entry.update_position_vector(position_vector2)
         self.assertRaises(
             IncongruentTimestampException, entry.update_position_vector, position_vector
@@ -57,22 +59,23 @@ class TestLocationTableEntry(unittest.TestCase):
 
         # First position_vector
         position_vector = self.create_filled_position_vector()
-        position_vector.set_tst_in_normal_timestamp_seconds(timestamp)
+        position_vector = position_vector.set_tst_in_normal_timestamp_seconds(timestamp)
         entry.update_position_vector(position_vector)
         entry.update_pdr(position_vector=position_vector, packet_size=100)
         self.assertAlmostEqual(entry.pdr, 1.1566219266650857e-05)
         # Second position_vector
         position_vector2 = self.create_filled_position_vector()
-        position_vector2.set_tst_in_normal_timestamp_seconds(timestamp + 0.1)
+        position_vector2 = position_vector2.set_tst_in_normal_timestamp_seconds(
+            timestamp + 0.1)
         entry.update_position_vector(position_vector2)
         entry.update_pdr(position_vector=position_vector2, packet_size=100)
-        self.assertAlmostEqual(entry.pdr, 100.00013248005884)
+        self.assertAlmostEqual(entry.pdr, 100.00001045306173)
         # Third position_vector
         position_vector3 = self.create_filled_position_vector()
-        position_vector3.set_tst_in_normal_timestamp_seconds(timestamp + 0.2)
+        position_vector3 = position_vector3.set_tst_in_normal_timestamp_seconds(timestamp + 0.2)
         entry.update_position_vector(position_vector3)
         entry.update_pdr(position_vector=position_vector3, packet_size=100)
-        self.assertAlmostEqual(entry.pdr, 189.99999716188944)
+        self.assertAlmostEqual(entry.pdr, 190.00000940775553)
 
     def test_duplicate_packet(self):
         mib = MIB()

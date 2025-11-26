@@ -3,7 +3,7 @@ CAM Transmission Management
 
 This file implements the CAM Transmission Management required by the CAM Basic Service.
 """
-
+from __future__ import annotations
 from math import trunc
 import logging
 from dateutil import parser
@@ -180,15 +180,15 @@ class GenerationDeltaTime:
             return self.msec <= other.msec
         return False
 
-    def __add__(self, other: object) -> object:
+    def __add__(self, other: object) -> int:
         """
         Addition operator.
         """
         if isinstance(other, GenerationDeltaTime):
-            return (self.msec + other.msec) % 65536
+            return int((self.msec + other.msec) % 65536)
         return NotImplemented
 
-    def __sub__(self, other: object) -> object:
+    def __sub__(self, other: object) -> int:
         """
         Subtraction operator.
         """
@@ -196,7 +196,7 @@ class GenerationDeltaTime:
             subs = self.msec - other.msec
             if subs < 0:
                 subs = subs + 65536
-            return subs
+            return int(subs)
         return NotImplemented
 
 
@@ -558,7 +558,7 @@ class CAMTransmissionManagement:
         btp_router: BTPRouter,
         cam_coder: CAMCoder,
         vehicle_data: VehicleData,
-        ca_basic_service_ldm: CABasicServiceLDM = None,
+        ca_basic_service_ldm: CABasicServiceLDM | None = None,
     ) -> None:
         """
         Initialize the CAM Transmission Management.
@@ -629,14 +629,16 @@ class CAMTransmissionManagement:
             self.ca_basic_service_ldm.add_provider_data_to_ldm(
                 self.current_cam_to_send.cam
             )
-        request = BTPDataRequest()
-        request.btp_type = CommonNH.BTP_B
-        request.destination_port = 2001
-        request.gn_packet_transport_type = PacketTransportType()
-        request.communication_profile = CommunicationProfile.UNSPECIFIED
-        request.traffic_class = TrafficClass()
-        request.data = self.cam_coder.encode(self.current_cam_to_send.cam)
-        request.length = len(request.data)
+        data = self.cam_coder.encode(self.current_cam_to_send.cam)
+        request = BTPDataRequest(
+            btp_type=CommonNH.BTP_B,
+            destination_port=2001,
+            gn_packet_transport_type=PacketTransportType(),
+            communication_profile=CommunicationProfile.UNSPECIFIED,
+            traffic_class=TrafficClass(),
+            data=data,
+            length=len(data),
+        )
 
         self.btp_router.btp_data_request(request)
         self.logging.debug(

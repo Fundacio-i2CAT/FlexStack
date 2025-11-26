@@ -24,19 +24,20 @@ class TestTrafficClass(unittest.TestCase):
             tc.set_tc_id(0x100)
 
     def test_encode_to_bytes(self):
-        tc = TrafficClass()
-        tc.set_tc_id(0x1)
-        tc.set_scf(True)
-        tc.set_channel_offload(True)
+        tc = TrafficClass(
+            tc_id=0x1,
+            scf=True,
+            channel_offload=True,
+        )
         self.assertEqual(tc.encode_to_bytes(), b"\xc1")
 
     def test_decode_from_bytes(self):
-        tcp = TrafficClass()
-        tcp.set_tc_id(0x1)
-        tcp.set_scf(True)
-        tcp.set_channel_offload(True)
-        tc = TrafficClass()
-        tc.decode_from_bytes(tcp.encode_to_bytes())
+        tcp = TrafficClass(
+            tc_id=1,
+            scf=True,
+            channel_offload=True,
+        )
+        tc = TrafficClass.decode_from_bytes(tcp.encode_to_bytes())
         self.assertEqual(tc.tc_id, 0x1)
         self.assertTrue(tc.scf)
         self.assertTrue(tc.channel_offload)
@@ -53,33 +54,36 @@ class TestPacketTransportType(unittest.TestCase):
         self.assertEqual(ptt.to_dict(), {"header_type": 5, "header_subtype": 0})
 
     def test_from_dict(self):
-        ptt = PacketTransportType()
         # Geoanycast
-        ptt.header_type = HeaderType.GEOANYCAST
-        ptt.header_subtype = GeoAnycastHST.GEOANYCAST_CIRCLE
-        nppt = PacketTransportType()
-        nppt.from_dict(ptt.to_dict())
+        ptt = PacketTransportType(
+            header_type=HeaderType.GEOANYCAST,
+            header_subtype=GeoAnycastHST.GEOANYCAST_CIRCLE,
+        )
+        nppt = PacketTransportType.from_dict(ptt.to_dict())
         self.assertEqual(nppt.header_type, HeaderType.GEOANYCAST)
         self.assertEqual(nppt.header_subtype, GeoAnycastHST.GEOANYCAST_CIRCLE)
         # Geobroadcast
-        ptt.header_type = HeaderType.GEOBROADCAST
-        ptt.header_subtype = GeoBroadcastHST.GEOBROADCAST_CIRCLE
-        nppt = PacketTransportType()
-        nppt.from_dict(ptt.to_dict())
+        ptt = PacketTransportType(
+            header_type=HeaderType.GEOBROADCAST,
+            header_subtype=GeoBroadcastHST.GEOBROADCAST_CIRCLE,
+        )
+        nppt = PacketTransportType.from_dict(ptt.to_dict())
         self.assertEqual(nppt.header_type, HeaderType.GEOBROADCAST)
         self.assertEqual(nppt.header_subtype, GeoBroadcastHST.GEOBROADCAST_CIRCLE)
         # TSB
-        ptt.header_type = HeaderType.TSB
-        ptt.header_subtype = TopoBroadcastHST.SINGLE_HOP
-        nppt = PacketTransportType()
-        nppt.from_dict(ptt.to_dict())
+        ptt = PacketTransportType(
+            header_type=HeaderType.TSB,
+            header_subtype=TopoBroadcastHST.SINGLE_HOP,
+        )
+        nppt = PacketTransportType.from_dict(ptt.to_dict())
         self.assertEqual(nppt.header_type, HeaderType.TSB)
         self.assertEqual(nppt.header_subtype, TopoBroadcastHST.SINGLE_HOP)
         # LS
-        ptt.header_type = HeaderType.LS
-        ptt.header_subtype = LocationServiceHST.LS_REPLY
-        nppt = PacketTransportType()
-        nppt.from_dict(ptt.to_dict())
+        ptt = PacketTransportType(
+            header_type=HeaderType.LS,
+            header_subtype=LocationServiceHST.LS_REPLY,
+        )
+        nppt = PacketTransportType.from_dict(ptt.to_dict())
         self.assertEqual(nppt.header_type, HeaderType.LS)
         self.assertEqual(nppt.header_subtype, LocationServiceHST.LS_REPLY)
 
@@ -100,14 +104,14 @@ class TestArea(unittest.TestCase):
         )
 
     def test_from_dict(self):
-        area = Area()
-        area.latitude = 1
-        area.longitude = 2
-        area.a = 3
-        area.b = 4
-        area.angle = 5
-        narea = Area()
-        narea.from_dict(area.to_dict())
+        area = Area(
+            latitude=1,
+            longitude=2,
+            a=3,
+            b=4,
+            angle=5,
+        )
+        narea = Area.from_dict(area.to_dict())
         self.assertEqual(narea.latitude, 1)
         self.assertEqual(narea.longitude, 2)
         self.assertEqual(narea.a, 3)
@@ -139,16 +143,16 @@ class TestGNDataRequest(unittest.TestCase):
         )
 
     def test_from_dict(self):
-        gndr = GNDataRequest()
-        gndr.upper_protocol_entity = CommonNH.ANY
-        gndr.packet_transport_type = PacketTransportType()
-        gndr.communication_profile = CommunicationProfile.UNSPECIFIED
-        gndr.traffic_class = TrafficClass()
-        gndr.length = 0
-        gndr.data = b""
-        gndr.area = Area()
-        ngndr = GNDataRequest()
-        ngndr.from_dict(gndr.to_dict())
+        gndr = GNDataRequest(
+            upper_protocol_entity=CommonNH.ANY,
+            packet_transport_type=PacketTransportType(),
+            communication_profile=CommunicationProfile.UNSPECIFIED,
+            traffic_class=TrafficClass(),
+            length=0,
+            data=b"",
+            area=Area(),
+        )
+        ngndr = GNDataRequest.from_dict(gndr.to_dict())
         self.assertEqual(ngndr.upper_protocol_entity, CommonNH.ANY)
         self.assertEqual(ngndr.packet_transport_type.header_type, HeaderType.TSB)
         self.assertEqual(
@@ -191,11 +195,12 @@ class TestGNDataIndication(unittest.TestCase):
         )
 
     def test_from_dict(self):
-        gn_data_indication = GNDataIndication()
-        gn_data_indication.upper_protocol_entity = CommonNH.ANY
-        gn_data_indication.packet_transport_type = PacketTransportType()
-        gn_data_indication.length = 0
-        gn_data_indication.data = b""
+        gn_data_indication = GNDataIndication(
+            upper_protocol_entity=CommonNH.ANY,
+            packet_transport_type=PacketTransportType(),
+            length=0,
+            data=b""
+        )
         ngndi = GNDataIndication()
         ngndi.from_dict(gn_data_indication.to_dict())
         self.assertEqual(ngndi.upper_protocol_entity, CommonNH.ANY)

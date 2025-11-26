@@ -1,5 +1,7 @@
 from enum import Enum
 from base64 import b64encode, b64decode
+from dataclasses import dataclass, field
+from typing import Any
 from .position_vector import LongPositionVector
 from ..security.security_profiles import SecurityProfile
 
@@ -140,6 +142,7 @@ class LocationServiceHST(Enum):
     LS_REPLY = 1
 
 
+@dataclass(frozen=True)
 class TrafficClass:
     """
     Common Traffic class class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7.5
@@ -157,12 +160,11 @@ class TrafficClass:
         GeoNetworking corresponding to the interface over which the packet will be transmitted
     """
 
-    def __init__(self) -> None:
-        self.scf = False
-        self.channel_offload = False
-        self.tc_id = 0
+    scf: bool = False
+    channel_offload: bool = False
+    tc_id: int = 0
 
-    def set_scf(self, scf: bool) -> None:
+    def set_scf(self, scf: bool) -> "TrafficClass":
         """
         Set the SCF flag.
 
@@ -171,9 +173,9 @@ class TrafficClass:
         scf : bool
             SCF flag.
         """
-        self.scf = scf
+        return TrafficClass(scf=scf, channel_offload=self.channel_offload, tc_id=self.tc_id)
 
-    def set_tc_id(self, tc_id: int) -> None:
+    def set_tc_id(self, tc_id: int) -> "TrafficClass":
         """
         Set the traffic class identifier.
 
@@ -183,10 +185,11 @@ class TrafficClass:
             Traffic class identifier.
         """
         if tc_id < 0 or tc_id > 63:
-            raise ValueError("Traffic class identifier must be between 0 and 63")
-        self.tc_id = tc_id
+            raise ValueError(
+                "Traffic class identifier must be between 0 and 63")
+        return TrafficClass(scf=self.scf, channel_offload=self.channel_offload, tc_id=tc_id)
 
-    def set_channel_offload(self, channel_offload: bool) -> None:
+    def set_channel_offload(self, channel_offload: bool) -> "TrafficClass":
         """
         Set the channel offload flag.
 
@@ -195,7 +198,7 @@ class TrafficClass:
         channel_offload : bool
             Channel offload flag.
         """
-        self.channel_offload = channel_offload
+        return TrafficClass(scf=self.scf, channel_offload=channel_offload, tc_id=self.tc_id)
 
     def encode_to_int(self) -> int:
         """
@@ -219,7 +222,8 @@ class TrafficClass:
         """
         return self.encode_to_int().to_bytes(1, "big")
 
-    def decode_from_int(self, tc: int) -> None:
+    @classmethod
+    def decode_from_int(cls, tc: int) -> "TrafficClass":
         """
         Decodes the traffic class from an integer.
 
@@ -228,11 +232,13 @@ class TrafficClass:
         tc : int
             Encoded traffic class. 1 byte.
         """
-        self.scf = (tc >> 7) & 1
-        self.channel_offload = (tc >> 6) & 1
-        self.tc_id = tc & 63
+        scf = bool((tc >> 7) & 1)
+        channel_offload = bool((tc >> 6) & 1)
+        tc_id = tc & 63
+        return cls(scf=scf, channel_offload=channel_offload, tc_id=tc_id)
 
-    def decode_from_bytes(self, tc: bytes) -> None:
+    @classmethod
+    def decode_from_bytes(cls, tc: bytes) -> "TrafficClass":
         """
         Decodes the traffic class from a byte array.
 
@@ -241,18 +247,10 @@ class TrafficClass:
         tc : bytes
             Byte array containing the traffic class.
         """
-        self.decode_from_int(int.from_bytes(tc, "big"))
-
-    def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, TrafficClass):
-            return (
-                self.scf == __o.scf
-                and self.channel_offload == __o.channel_offload
-                and self.tc_id == __o.tc_id
-            )
-        return False
+        return cls.decode_from_int(int.from_bytes(tc, "big"))
 
 
+@dataclass(frozen=True)
 class PacketTransportType:
     """
     Packet Transport Type class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J2
@@ -267,14 +265,8 @@ class PacketTransportType:
         Header Subtype.
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the Packet Transport Type.
-
-        By default now is set to Single Hop Broadcast.
-        """
-        self.header_type = HeaderType.TSB
-        self.header_subtype = TopoBroadcastHST.SINGLE_HOP
+    header_type: HeaderType = HeaderType.TSB
+    header_subtype: Any = TopoBroadcastHST.SINGLE_HOP
 
     def to_dict(self) -> dict:
         """
@@ -290,7 +282,8 @@ class PacketTransportType:
             "header_subtype": self.header_subtype.value,
         }
 
-    def from_dict(self, packet_transport_type: dict) -> None:
+    @classmethod
+    def from_dict(cls, packet_transport_type: dict) -> "PacketTransportType":
         """
         Initialize the Packet Transport Type from a dictionary.
 
@@ -299,23 +292,23 @@ class PacketTransportType:
         packet_transport_type : dict
             Dictionary containing the Packet Transport Type.
         """
-        self.header_type = HeaderType(packet_transport_type["header_type"])
-        if self.header_type == HeaderType.GEOANYCAST:
-            self.header_subtype = GeoAnycastHST(packet_transport_type["header_subtype"])
-        elif self.header_type == HeaderType.GEOBROADCAST:
-            self.header_subtype = GeoBroadcastHST(
-                packet_transport_type["header_subtype"]
-            )
-        elif self.header_type == HeaderType.TSB:
-            self.header_subtype = TopoBroadcastHST(
-                packet_transport_type["header_subtype"]
-            )
-        elif self.header_type == HeaderType.LS:
-            self.header_subtype = LocationServiceHST(
-                packet_transport_type["header_subtype"]
-            )
+        header_type = HeaderType(packet_transport_type["header_type"])
+        if header_type == HeaderType.GEOANYCAST:
+            header_subtype = GeoAnycastHST(
+                packet_transport_type["header_subtype"])
+        elif header_type == HeaderType.GEOBROADCAST:
+            header_subtype = GeoBroadcastHST(
+                packet_transport_type["header_subtype"])
+        elif header_type == HeaderType.TSB:
+            header_subtype = TopoBroadcastHST(
+                packet_transport_type["header_subtype"])
+        elif header_type == HeaderType.LS:
+            header_subtype = LocationServiceHST(
+                packet_transport_type["header_subtype"])
         else:
-            self.header_subtype = HeaderSubType(packet_transport_type["header_subtype"])
+            header_subtype = HeaderSubType(
+                packet_transport_type["header_subtype"])
+        return cls(header_type=header_type, header_subtype=header_subtype)
 
 
 class CommunicationProfile(Enum):
@@ -331,6 +324,7 @@ class CommunicationProfile(Enum):
     UNSPECIFIED = 0
 
 
+@dataclass(frozen=True)
 class Area:
     """
     Area class. Not specified in the standard
@@ -350,15 +344,11 @@ class Area:
         In degrees from North
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the Area.
-        """
-        self.latitude = 0
-        self.longitude = 0
-        self.a = 0
-        self.b = 0
-        self.angle = 0
+    latitude: int = 0
+    longitude: int = 0
+    a: int = 0
+    b: int = 0
+    angle: int = 0
 
     def to_dict(self) -> dict:
         """
@@ -377,22 +367,18 @@ class Area:
             "angle": self.angle,
         }
 
-    def from_dict(self, area: dict) -> None:
-        """
-        Initialize the Area from a dictionary.
-
-        Parameters
-        ----------
-        area : dict
-            Dictionary containing the area.
-        """
-        self.latitude = area["latitude"]
-        self.longitude = area["longitude"]
-        self.a = area["a"]
-        self.b = area["b"]
-        self.angle = area["angle"]
+    @classmethod
+    def from_dict(cls, area: dict) -> "Area":
+        return cls(
+            latitude=area["latitude"],
+            longitude=area["longitude"],
+            a=area["a"],
+            b=area["b"],
+            angle=area["angle"],
+        )
 
 
+@dataclass(frozen=True)
 class GNDataRequest:
     """
     GN Data Request class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J2.2
@@ -424,20 +410,17 @@ class GNDataRequest:
     THIS CLASS WILL BE EXTENDED WHEN FURTHER PACKET TYPES ARE IMPLEMENTED
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the GN Data Request.
-        """
-        self.upper_protocol_entity = CommonNH.ANY
-        self.packet_transport_type = PacketTransportType()
-        self.communication_profile = CommunicationProfile.UNSPECIFIED
-        self.security_profile = SecurityProfile.NO_SECURITY
-        self.its_aid = 0
-        self.security_permissions = b"\x00"
-        self.traffic_class = TrafficClass()
-        self.length = 0
-        self.data = b""
-        self.area = Area()
+    upper_protocol_entity: CommonNH = CommonNH.ANY
+    packet_transport_type: PacketTransportType = field(
+        default_factory=PacketTransportType)
+    communication_profile: CommunicationProfile = CommunicationProfile.UNSPECIFIED
+    security_profile: SecurityProfile = SecurityProfile.NO_SECURITY
+    its_aid: int = 0
+    security_permissions: bytes = b"\x00"
+    traffic_class: TrafficClass = field(default_factory=TrafficClass)
+    length: int = 0
+    data: bytes = b""
+    area: Area = field(default_factory=Area)
 
     def to_dict(self) -> dict:
         """
@@ -460,7 +443,8 @@ class GNDataRequest:
             "area": self.area.to_dict(),
         }
 
-    def from_dict(self, gn_data_request: dict) -> None:
+    @classmethod
+    def from_dict(cls, gn_data_request: dict) -> "GNDataRequest":
         """
         Initialize the GN Data Request from a dictionary.
 
@@ -469,17 +453,29 @@ class GNDataRequest:
         gn_data_request : dict
             Dictionary containing the GN Data Request.
         """
-        self.upper_protocol_entity = CommonNH(gn_data_request["upper_protocol_entity"])
-        self.packet_transport_type.from_dict(gn_data_request["packet_transport_type"])
-        self.communication_profile = CommunicationProfile(
+        upper_protocol_entity = CommonNH(
+            gn_data_request["upper_protocol_entity"])
+        packet_transport_type = PacketTransportType.from_dict(
+            gn_data_request["packet_transport_type"]
+        )
+        communication_profile = CommunicationProfile(
             gn_data_request["communication_profile"]
         )
-        self.traffic_class.decode_from_bytes(
+        traffic_class = TrafficClass.decode_from_bytes(
             b64decode(gn_data_request["traffic_class"])
         )
-        self.length = gn_data_request["length"]
-        self.data = b64decode(gn_data_request["data"])
-        self.area.from_dict(gn_data_request["area"])
+        length = gn_data_request["length"]
+        data = b64decode(gn_data_request["data"])
+        area = Area.from_dict(gn_data_request["area"])
+        return cls(
+            upper_protocol_entity=upper_protocol_entity,
+            packet_transport_type=packet_transport_type,
+            communication_profile=communication_profile,
+            traffic_class=traffic_class,
+            length=length,
+            data=data,
+            area=area,
+        )
 
 
 class ResultCode(Enum):
@@ -513,6 +509,7 @@ class ResultCode(Enum):
     UNSPECIFIED = 7
 
 
+@dataclass(frozen=True)
 class GNDataConfirm:
     """
     GN Data Confirm class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J3
@@ -524,13 +521,10 @@ class GNDataConfirm:
 
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the GN Data Confirm.
-        """
-        self.result_code = ResultCode.UNSPECIFIED
+    result_code: ResultCode = ResultCode.UNSPECIFIED
 
 
+@dataclass(frozen=True)
 class GNDataIndication:
     """
     GN Data Indication class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J4
@@ -551,16 +545,14 @@ class GNDataIndication:
         Payload.
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the GN Data Indication.
-        """
-        self.upper_protocol_entity = CommonNH.ANY
-        self.packet_transport_type = PacketTransportType()
-        self.source_position_vector = LongPositionVector()
-        self.traffic_class = TrafficClass()
-        self.length = 0
-        self.data = b""
+    upper_protocol_entity: CommonNH = CommonNH.ANY
+    packet_transport_type: PacketTransportType = field(
+        default_factory=PacketTransportType)
+    source_position_vector: LongPositionVector = field(
+        default_factory=LongPositionVector)
+    traffic_class: TrafficClass = field(default_factory=TrafficClass)
+    length: int = 0
+    data: bytes = b""
 
     def to_dict(self) -> dict:
         """
@@ -584,7 +576,8 @@ class GNDataIndication:
             "data": b64encode(self.data).decode("utf-8"),
         }
 
-    def from_dict(self, gn_data_indication: dict) -> None:
+    @classmethod
+    def from_dict(cls, gn_data_indication: dict) -> "GNDataIndication":
         """
         Initialize the GN Data Indication from a dictionary.
 
@@ -593,17 +586,24 @@ class GNDataIndication:
         gn_data_indication : dict
             Dictionary containing the GN Data Indication.
         """
-        self.upper_protocol_entity = CommonNH(
-            gn_data_indication["upper_protocol_entity"]
-        )
-        self.packet_transport_type.from_dict(
+        upper_protocol_entity = CommonNH(
+            gn_data_indication["upper_protocol_entity"])
+        packet_transport_type = PacketTransportType.from_dict(
             gn_data_indication["packet_transport_type"]
         )
-        self.source_position_vector.decode(
+        source_position_vector = LongPositionVector.decode(
             b64decode(gn_data_indication["source_position_vector"])
         )
-        self.traffic_class.decode_from_bytes(
+        traffic_class = TrafficClass.decode_from_bytes(
             b64decode(gn_data_indication["traffic_class"])
         )
-        self.length = gn_data_indication["length"]
-        self.data = b64decode(gn_data_indication["data"])
+        length = gn_data_indication["length"]
+        data = b64decode(gn_data_indication["data"])
+        return cls(
+            upper_protocol_entity=upper_protocol_entity,
+            packet_transport_type=packet_transport_type,
+            source_position_vector=source_position_vector,
+            traffic_class=traffic_class,
+            length=length,
+            data=data,
+        )
