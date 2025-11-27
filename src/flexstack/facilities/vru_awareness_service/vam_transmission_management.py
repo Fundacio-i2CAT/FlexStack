@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from dataclasses import dataclass, field
 from dateutil import parser
 
 from ...facilities.local_dynamic_map.ldm_classes import Utils
@@ -17,10 +18,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
-from ..ca_basic_service.cam_transmission_management import (
-    GenerationDeltaTime,
-    CooperativeAwarenessMessage,
-)
+from ..ca_basic_service.cam_transmission_management import GenerationDeltaTime
 from . import vam_constants
 
 # from ..local_dynamic_map import LocalDynamicMap
@@ -315,7 +313,8 @@ class MotionPredictionContainer:
         return motion_prediction_container_json
 
 
-class VAMMessage(CooperativeAwarenessMessage):
+@dataclass(frozen=True)
+class VAMMessage:
     """
     VAM Message class.
 
@@ -325,12 +324,11 @@ class VAMMessage(CooperativeAwarenessMessage):
         All the vam message in dict format as decoded by the vamCoder.
 
     """
+    vam: dict = field(
+        default_factory=lambda: VAMMessage.generate_white_vam_static())
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.vam = self.generate_white_vam()
-
-    def generate_white_vam(self) -> dict:
+    @staticmethod
+    def generate_white_vam_static() -> dict:
         """
         Generate a white vam.
         """
@@ -370,6 +368,12 @@ class VAMMessage(CooperativeAwarenessMessage):
 
         return white_vam
 
+    def generate_white_vam(self) -> dict:
+        """
+        Generate a white vam.
+        """
+        return self.generate_white_vam_static()
+
     def fullfill_with_device_data(
         self, device_data_provider: DeviceDataProvider
     ) -> None:
@@ -400,8 +404,7 @@ class VAMMessage(CooperativeAwarenessMessage):
             GPSD TPV data.
         """
         if "time" in tpv:
-            gen_delta_time = GenerationDeltaTime()
-            gen_delta_time.set_in_normal_timestamp(
+            gen_delta_time = GenerationDeltaTime.from_timestamp(
                 parser.parse(tpv["time"]).timestamp())
             self.vam["vam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
@@ -612,14 +615,12 @@ class VAMTransmissionManagement:
         if self.last_vam_sent is None:
             self.send_next_vam()
             return
-        received_generation_delta_time = GenerationDeltaTime()
-        last_sent_generation_delta_time = GenerationDeltaTime()
-        received_generation_delta_time.set_in_normal_timestamp(
+        received_generation_delta_time = GenerationDeltaTime.from_timestamp(
             parser.parse(tpv["time"]).timestamp()
         )
-        last_sent_generation_delta_time.msec = self.last_vam_sent.vam["vam"][
+        last_sent_generation_delta_time = GenerationDeltaTime(msec=self.last_vam_sent.vam["vam"][
             "generationDeltaTime"
-        ]
+        ])
 
         received_position = [int(tpv["lat"]), int(tpv["lon"])]
         last_sent_position = [

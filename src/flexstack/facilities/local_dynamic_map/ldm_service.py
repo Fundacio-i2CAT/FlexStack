@@ -6,6 +6,7 @@ from ...utils.time_service import TimeService
 from .ldm_classes import (
     Filter,
     AddDataProviderReq,
+    OrderingDirection,
     RequestDataObjectsResp,
     RequestedDataObjectsResult,
     RequestDataObjectsReq,
@@ -73,13 +74,14 @@ class LDMService:
                 valid_search_result = self.order_search_results(
                     valid_search_result, subscription["order"]
                 )
+                valid_search_result = valid_search_result[0]
 
-            self.process_notifications(subscription, valid_search_result)
+                self.process_notifications(subscription, valid_search_result)
 
             if subscription["applicationId"] not in self.data_consumer_its_aid:
                 self.pop_subscription(subscription["doc_id"])
 
-    def search_data(self, subscription: dict) -> list[dict]:
+    def search_data(self, subscription: dict) -> tuple[dict, ...]:
         """
         Method to search data by using the filter in the subscription.
 
@@ -89,8 +91,8 @@ class LDMService:
             Subscription information (in dictionary format).
         Returns
         -------
-        list[dict]
-            list of data objects that match the filter.
+        tuple[dict, ...]
+            tuple of data objects that match the filter.
         """
         data_request = RequestDataObjectsReq(
             subscription["applicationId"],
@@ -102,33 +104,33 @@ class LDMService:
         return self.ldm_maintenance.data_containers.search(data_request)
 
     def filter_data_object_type(
-        self, search_result: list[dict], allowed_types: list[str]
-    ) -> list[dict]:
+        self, search_result: tuple[dict, ...], allowed_types: tuple[str, ...]
+    ) -> tuple[dict, ...]:
         """
         Method to filter data objects by type.
 
         Parameters
         ----------
-        search_result : list[dict]
-            list of data objects that match the filter.
+        search_result : tuple[dict, ...]
+            tuple of data objects that match the filter.
         allowed_types : list[str]
             list of allowed data object types
             (as specified in the ETSI TS 102 894-2 V2.2.1 (2023-10), i.e. CAM, DENM,...).
 
         Returns
         -------
-        list[dict]
-            list of data objects that match the filter and are of the allowed types.
+        tuple[dict, ...]
+            tuple of data objects that match the filter and are of the allowed types.
         """
-        return [
+        return tuple(
             result
             for result in search_result
             if self.get_object_type_from_data_object(result["dataObject"])
             in allowed_types
-        ]
+        )
 
     def process_notifications(
-        self, subscription: dict, valid_search_result: list[dict]
+        self, subscription: dict, valid_search_result: tuple[dict, ...]
     ) -> None:
         """
         Method to process notifications for a subscription. It checks the notification interval and the last time
@@ -139,8 +141,8 @@ class LDMService:
         ----------
         subscription : dict
             Subscription information (in dictionary format).
-        valid_search_result : list[dict]
-            list of data objects that match the filter and are of the allowed types.
+        valid_search_result : tuple[dict]
+            tuple of data objects that match the filter and are of the allowed types.
 
         Returns
         -------
@@ -148,7 +150,8 @@ class LDMService:
         """
         current_time = TimeService.time()
         if (
-            subscription["last_checked"] + subscription["notification_interval"]
+            subscription["last_checked"] +
+                subscription["notification_interval"]
             > current_time
         ):
             return
@@ -158,7 +161,7 @@ class LDMService:
             RequestDataObjectsResp(
                 application_id=subscription["applicationId"],
                 data_objects=valid_search_result,
-                result=RequestedDataObjectsResult(result=0),
+                result=RequestedDataObjectsResult.SUCCEED,
             )
         )
 
@@ -193,7 +196,7 @@ class LDMService:
             key_paths.append(self.find_key_path(target_key, result))
         return key_paths
 
-    def find_key_path(self, target_key: str, dictionary: dict, path: str = None) -> str:
+    def find_key_path(self, target_key: str, dictionary: dict, path: list | None = None) -> str:
         """
         Static method to find the path of a key in a dictionary.
 
@@ -213,18 +216,25 @@ class LDMService:
                 sub_path = self.find_key_path(target_key, value, path + [key])
                 if sub_path:
                     return sub_path
-        return None
+        return ""
 
     def order_search_results(
-        self, search_results: list[dict], orders: list[OrderTuple]
-    ) -> list[list[dict]]:
+        self, search_results: tuple[dict, ...], orders: tuple[OrderTuple, ...]
+    ) -> tuple[tuple[dict, ...], ...]:
         """
         Method to order search results.
 
         Parameters
         ----------
-        search_results : list[dict]
-        orders : list[OrderTuple]
+        search_results : tuple[dict, ...]
+            tuple of data objects that match the filter.
+        orders : tuple[OrderTuple, ...]
+            tuple of OrderTuple objects specifying the ordering.
+
+        Returns
+        -------
+        tuple[tuple[dict, ...], ...]
+            tuple of ordered tuples of data objects.
         """
         results = []
         for order in orders:
@@ -238,24 +248,26 @@ class LDMService:
                 )
                 for index, search_result in enumerate(search_results)
             ]
-            if str(order.ordering_direction) == "ascending":
+            if order.ordering_direction == OrderingDirection.ASCENDING:
                 sorted_tuple_list = sorted(
-                    tuple_list, key=lambda x: x[1], reverse=False
+                    tuple_list, key=lambda x: (x[1] is None, repr(x[1])), reverse=False
                 )
             else:
-                sorted_tuple_list = sorted(tuple_list, key=lambda x: x[1], reverse=True)
+                sorted_tuple_list = sorted(
+                    tuple_list, key=lambda x: (x[1] is None, repr(x[1])), reverse=True
+                )
 
             result = [search_results[tuple[0]] for tuple in sorted_tuple_list]
             results.append(result)
-        return results
+        return tuple(results)
 
-    def add_provider_data(self, data: AddDataProviderReq) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int | None:
         """
         Method created in order to add provider data into the data containers.
 
         Parameters
         ----------
-        data : dict
+        data : AddDataProviderReq
         """
         return self.ldm_maintenance.add_provider_data(data)
 
@@ -280,15 +292,15 @@ class LDMService:
         """
         self.ldm_maintenance.update_provider_data(data_object_id, data_object)
 
-    def get_provider_data(self) -> list:
-        """
-        Method to get provider data from the data containers.
+    # def get_provider_data(self) -> list:
+    #     """
+    #     Method to get provider data from the data containers.
 
-        Parameters
-        ----------
-        None
-        """
-        return self.ldm_maintenance.data_containers
+    #     Parameters
+    #     ----------
+    #     None
+    #     """
+    #     return self.ldm_maintenance.data_containers
 
     def get_data_provider_its_aid(self) -> list[int]:
         """
@@ -320,7 +332,7 @@ class LDMService:
         """
         self.data_provider_its_aid.remove(its_aid)
 
-    def query(self, data_request: RequestDataObjectsReq) -> list[list[dict]]:
+    def query(self, data_request: RequestDataObjectsReq) -> tuple[tuple[dict, ...], ...]:
         """
         Method to query the data containers using the RequestDataObjectsReq object.
 
@@ -342,13 +354,14 @@ class LDMService:
                 )
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error querying data container: {str(e)}")
-            return [[]]
+            return (())
 
         # If it does then see if it needs ordering and order it
         if data_request.order is not None:
-            search_result = self.order_search_results(search_result, data_request.order)
+            search_result = self.order_search_results(
+                search_result, data_request.order)
         else:
-            search_result = [search_result]
+            search_result = (search_result,)
         return search_result
 
     def get_object_type_from_data_object(self, data_object: dict) -> str:
@@ -358,23 +371,26 @@ class LDMService:
         Parameters
         ----------
         data_object : dict
+
+        Returns
+        -------
+        str
+            data object type.
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[
-                    list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)
-                ]
-        return None
+                return data_object_type_str
+        return ""
 
     def store_new_subscription_petition(
         self,
         application_id: int,
-        data_object_type: list[int],
+        data_object_type: tuple[int, ...],
         priority: int,
         filter: Filter,
         notification_interval: TimestampIts,
         multiplicity: int,
-        order: list[OrderTuple],
+        order: tuple[OrderTuple, ...],
         callback: Callable[[RequestDataObjectsResp], None],
     ) -> int:
         # pylint: disable=too-many-arguments
@@ -384,16 +400,30 @@ class LDMService:
 
         Parameters
         ----------
-        application_id : int
-        data_object_type : int
-        priority : int
-        filter : Filter
-        notification_interval : int
-        multiplicity : int
-        order : int
-        callback : function
+        application_id: int,
+            application id of the data consumer requesting the subscription.
+        data_object_type: list[int],
+            list of data object types to be subscribed to.
+        priority: int,
+            priority of the subscription.
+        filter: Filter,
+            filter to apply to the subscription.
+        notification_interval: TimestampIts,
+            notification interval for the subscription.
+        multiplicity: int,
+            multiplicity for the subscription.
+        order: list[OrderTuple],
+            order for the subscription.
+        callback: Callable[[RequestDataObjectsResp], None]
+            callback function to be called when a notification is to be sent.
+
+        Returns
+        -------
+        int
+            subscription id.
         """
-        return self.subscriptions.append(
+        doc_id = len(self.subscriptions)
+        self.subscriptions.append(
             {
                 "applicationId": application_id,
                 "data_object_type": data_object_type,
@@ -404,9 +434,10 @@ class LDMService:
                 "order": order,
                 "callback": callback,
                 "last_checked": TimeService.time(),
-                "doc_id": len(self.subscriptions),
+                "doc_id": doc_id,
             }
         )
+        return doc_id
 
     def add_data_consumer_its_aid(self, its_aid: int) -> None:
         """

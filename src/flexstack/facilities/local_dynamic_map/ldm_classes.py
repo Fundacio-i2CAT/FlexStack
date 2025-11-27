@@ -18,6 +18,9 @@ A few expeptions:
 
 from __future__ import annotations
 from ...utils.time_service import TimeService, ITS_EPOCH, ELAPSED_SECONDS
+from dataclasses import dataclass
+from functools import total_ordering
+from enum import IntEnum
 import math
 
 from .ldm_constants import (
@@ -47,49 +50,43 @@ from .ldm_constants import (
 )
 
 
+@total_ordering
+@dataclass(frozen=True)
 class TimestampIts:
     """
-    TimestamptITS class to handle timestamps. Timestamps are expressed in ETSI Timestamp format.
-    """
+    TimestampITS class to handle timestamps. Timestamps are expressed in ETSI Timestamp format.
 
-    def __init__(self, utc_timestamp_seconds: int = None) -> None:
+    Attributes
+    ----------
+    timestamp : int
+        The timestamp in ETSI Timestamp format (milliseconds since 1st January 2004).
+    """
+    timestamp_its: int
+
+    @staticmethod
+    def initialize_with_utc_timestamp_seconds(utc_timestamp_seconds: int) -> TimestampIts:
         """
-        Initializes the TimestampIts class.
+        Initializes the TimestampIts class with a given UTC timestamp in seconds.
 
         Parameters
         ----------
         utc_timestamp_seconds : int
             The UTC timestamp in seconds since the epoch (UTC).
-            If None, it will be set to the current UTC timestamp.
-        """
-        self.timestamp = 0
-        if utc_timestamp_seconds:
-            self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
-                utc_timestamp_seconds)
-        else:
-            self.timestamp = self.__transform_utc_seconds_timestamp_to_timestamp_its(
-                int(TimeService.time()))
-
-    @staticmethod
-    def initialize_with_timestamp_its(timestamp_its: int) -> TimestampIts:
-        """
-        Initializes the TimestampIts class with a given ETSI ITS timestamp.
-
-        Parameters
-        ----------
-        timestamp_its : int
-            The timestamp in ETSI ITS format.
 
         Returns
         -------
         TimestampIts
             An instance of the TimestampIts class.
         """
-        to_return: TimestampIts = TimestampIts(ITS_EPOCH + ELAPSED_SECONDS)
-        to_return.timestamp = timestamp_its
-        return to_return
+        if utc_timestamp_seconds:
+            return TimestampIts(TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
+                utc_timestamp_seconds))
+        else:
+            return TimestampIts(TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
+                int(TimeService.time())))
 
-    def __transform_utc_seconds_timestamp_to_timestamp_its(self, utc_timestamp_seconds: int) -> int:
+    @staticmethod
+    def transform_utc_seconds_timestamp_to_timestamp_its(utc_timestamp_seconds: int) -> int:
         """
         Method to transform a UTC timestamp to a ETSI ITS timestamp.
 
@@ -121,7 +118,7 @@ class TimestampIts:
         """
         if not isinstance(other, TimestampIts):
             raise TypeError("Operand must be of type TimestampIts")
-        return TimestampIts.initialize_with_timestamp_its(self.timestamp + other.timestamp)
+        return TimestampIts(timestamp_its=self.timestamp_its + other.timestamp_its)
 
     def __sub__(self, other: TimestampIts) -> TimestampIts:
         """
@@ -139,9 +136,9 @@ class TimestampIts:
         """
         if not isinstance(other, TimestampIts):
             raise TypeError("Operand must be of type TimestampIts")
-        return TimestampIts.initialize_with_timestamp_its(self.timestamp - other.timestamp)
+        return TimestampIts(timestamp_its=self.timestamp_its - other.timestamp_its)
 
-    def __eq__(self, other: TimestampIts) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Overloads the equality operator for TimestampIts objects.
 
@@ -157,7 +154,7 @@ class TimestampIts:
         """
         if not isinstance(other, TimestampIts):
             return False
-        return self.timestamp == other.timestamp
+        return self.timestamp_its == other.timestamp_its
 
     def __lt__(self, other: TimestampIts) -> bool:
         """
@@ -175,70 +172,20 @@ class TimestampIts:
         """
         if not isinstance(other, TimestampIts):
             raise TypeError("Operand must be of type TimestampIts")
-        return self.timestamp < other.timestamp
-
-    def __le__(self, other: TimestampIts) -> bool:
-        """
-        Overloads the less-than-or-equal-to operator for TimestampIts objects.
-
-        Parameters
-        ----------
-        other : TimestampIts
-            Another TimestampIts object.
-
-        Returns
-        -------
-        bool
-            True if self.timestamp is less than or equal to other.timestamp, False otherwise.
-        """
-        if not isinstance(other, TimestampIts):
-            raise TypeError("Operand must be of type TimestampIts")
-        return self.timestamp <= other.timestamp
-
-    def __gt__(self, other: TimestampIts) -> bool:
-        """
-        Overloads the greater-than operator for TimestampIts objects.
-
-        Parameters
-        ----------
-        other : TimestampIts
-            Another TimestampIts object.
-
-        Returns
-        -------
-        bool
-            True if self.timestamp is greater than other.timestamp, False otherwise.
-        """
-        if not isinstance(other, TimestampIts):
-            raise TypeError("Operand must be of type TimestampIts")
-        return self.timestamp > other.timestamp
-
-    def __ge__(self, other: TimestampIts) -> bool:
-        """
-        Overloads the greater-than-or-equal-to operator for TimestampIts objects.
-
-        Parameters
-        ----------
-        other : TimestampIts
-            Another TimestampIts object.
-
-        Returns
-        -------
-        bool
-            True if self.timestamp is greater than or equal to other.timestamp, False otherwise.
-        """
-        if not isinstance(other, TimestampIts):
-            raise TypeError("Operand must be of type TimestampIts")
-        return self.timestamp >= other.timestamp
+        return self.timestamp_its < other.timestamp_its
 
 
+@dataclass(frozen=True)
 class TimeValidity:
     """
     Class that represents the time validity of a data object. Time is expressed in Normal Unix Format.
-    """
 
-    def __init__(self, time: int) -> None:
-        self.time = time
+    Attributes
+    ----------
+    time : int
+        The time validity in Normal Unix Format.
+    """
+    time: int
 
     def to_etsi_its(self) -> int:
         """
@@ -252,14 +199,13 @@ class TimeValidity:
         return int(((self.time - ITS_EPOCH)) * 1000)
 
 
+@dataclass(frozen=True)
 class DataContainer:
     """
     Class currently not used, as no real value is added. Currenly a datacontainer is treated as a list of dicts, maybe
     in the future some added funcionalities will be added.
     """
-
-    def __init__(self, data_container: dict) -> None:
-        self.data_container = data_container
+    data_container: dict
 
     def __str__(self) -> str:
         type_mapping = {
@@ -293,113 +239,78 @@ class DataContainer:
         return "unknown"
 
 
-class AuthorizationResult:
-    """
-    Class that represents the result of an authorization request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
-    """
+class AuthorizationResult(IntEnum):
+    SUCCESSFUL = 0
+    INVALID_ITS_AID = 1
+    AUTHENTICATION_FAILURE = 2
+    APPLICATION_NOT_AUTHORIZED = 3
 
-    def __init__(self, result: int) -> None:
-        self.result = result
-
-    def __str__(self) -> str:
-        if self.result == 0:
-            return "successful"
-        if self.result == 1:
-            return "invalidITS-AID"
-        if self.result == 2:
-            return "authentiticaionFailure"
-        if self.result == 3:
-            return "applicationNotAuthorized"
-        raise ValueError(
-            "AuthorizationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+    def __str__(self):
+        return self.name.lower()
 
 
+@dataclass(frozen=True)
 class AuthorizeReg:
     """
     Class that represents an authorization request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, access_permissions: list[DataContainer]) -> None:
-        self.application_id = application_id
-        self.access_permissions = access_permissions
+    application_id: int
+    access_permissions: tuple[DataContainer, ...]
 
 
+@dataclass(frozen=True)
 class AuthorizeResp:
     """
     Class that represents an authorization response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        access_permissions: list[DataContainer],
-        result: AuthorizationResult,
-    ) -> None:
-        self.application_id = application_id
-        self.access_permissions = access_permissions
-        self.result = result
+    application_id: int
+    access_permissions: tuple[DataContainer, ...]
+    result: AuthorizationResult
 
 
-class RevocationReason:
-    """
-    Class that represents an Revocation Reason as specified in ETSI EN 302 895 V1.1.1 (2014-09).
-    """
-
-    def __init__(self, reason: int) -> None:
-        self.reason = reason
+class RevocationReason(IntEnum):
+    REGISTRATION_REVOKED_BY_REGISTRATION_AUTHORITY = 0
+    REGISTRATION_PERIOD_EXPIRED = 1
 
     def __str__(self) -> str:
-        if self.reason == 0:
-            return "registratioRevokedByRegistrationAuthority"
-        if self.reason == 1:
-            return "registrationPeriodExpired"
-        raise ValueError(
-            "RevocationReason string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        return {
+            RevocationReason.REGISTRATION_REVOKED_BY_REGISTRATION_AUTHORITY:
+                "registrationRevokedByRegistrationAuthority",
+            RevocationReason.REGISTRATION_PERIOD_EXPIRED:
+                "registrationPeriodExpired",
+        }[self]
 
 
-class RevocationResult:
-    """
-    Class that represents a Revocation Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
-    """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+class RevocationResult(IntEnum):
+    SUCCESSFUL = 0
+    INVALID_ITS_AID = 1
+    UNKNOWN_ITS_AID = 2
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "successful"
-        if self.result == 1:
-            return "invalidITS-AID"
-        if self.result == 2:
-            return "unknownITS-AID"
-        raise ValueError(
-            "RevocationResult string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        return {
+            RevocationResult.SUCCESSFUL: "successful",
+            RevocationResult.INVALID_ITS_AID: "invalidITS-AID",
+            RevocationResult.UNKNOWN_ITS_AID: "unknownITS-AID",
+        }[self]
 
 
+@dataclass(frozen=True)
 class RevokeAuthorizationReg:
     """
     Class that represents a Revoke Authorization Registration as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, reason: RevocationResult) -> None:
-        self.application_id = application_id
-        self.reason = reason
+    application_id: int
+    reason: RevocationReason
 
 
+@dataclass(frozen=True)
 class RegisterDataProviderReq:
     """
     Class that represents a Register Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        access_permissions: list,
-        time_validity: TimeValidity,
-    ) -> None:
-        self.application_id = application_id
-        self.access_permisions = access_permissions
-        self.time_validity = time_validity
+    application_id: int
+    access_permissions: tuple[DataContainer, ...]
+    time_validity: TimeValidity
 
     def to_dict(self) -> dict:
         """
@@ -417,7 +328,7 @@ class RegisterDataProviderReq:
 
         return {
             "application_id": self.application_id,
-            "access_permissions": self.access_permisions,
+            "access_permissions": self.access_permissions,
             "time_validity": self.time_validity.time,
         }
 
@@ -438,7 +349,10 @@ class RegisterDataProviderReq:
         """
         application_id = data.get("application_id")
         access_permissions = data.get("access_permissions")
-        time_validity = TimeValidity(data.get("time_validity"))
+        time_validity = TimeValidity(data.get("time_validity", 0))
+
+        if application_id is None or access_permissions is None:
+            raise ValueError("Missing required fields in data dictionary")
 
         return RegisterDataProviderReq(
             application_id=application_id,
@@ -447,121 +361,86 @@ class RegisterDataProviderReq:
         )
 
 
-class RegisterDataProviderResult:
+class RegisterDataProviderResult(IntEnum):
     """
     Class that represents a Register Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result) -> None:
-        self.result = result
+    ACCEPTED = 0
+    REJECTED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "accepted"
-        if self.result == 1:
-            return "rejected"
-        raise ValueError(
-            "RegisterDataProviderResult string synonym not found according to \
-                         ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            RegisterDataProviderResult.ACCEPTED: "accepted",
+            RegisterDataProviderResult.REJECTED: "rejected",
+        }[self]
 
 
+@dataclass(frozen=True)
 class RegisterDataProviderResp:
     """
     Class that represent a Register Data Provder Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        access_permisions: list,
-        result: RegisterDataProviderResult,
-    ) -> None:
-        self.application_id = application_id
-        self.access_permisions = access_permisions
-        self.result = result
+    application_id: int
+    access_permisions: tuple[DataContainer, ...]
+    result: RegisterDataProviderResult
 
 
-class DeregisterDataProviderAck:
+class DeregisterDataProviderAck(IntEnum):
     """
     Class that represent Deregister Data Provider Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    ACCEPTED = 0
+    REJECTED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "accepted"
-        if self.result == 1:
-            return "rejected"
-        raise ValueError(
-            "DeregisterDataProviderAck string synonym not found according \
-                         to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            DeregisterDataProviderAck.ACCEPTED: "accepted",
+            DeregisterDataProviderAck.REJECTED: "rejected",
+        }[self]
 
 
+@dataclass(frozen=True)
 class DeregisterDataProviderReq:
     """
     Class that represents Deregister Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int) -> None:
-        self.application_id = application_id
+    application_id: int
 
 
+@dataclass(frozen=True)
 class DeregisterDataProviderResp:
     """
     Class that represents Deregister Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, result: DeregisterDataProviderAck) -> None:
-        self.application_id = application_id
-        self.result = result
+    application_id: int
+    result: DeregisterDataProviderAck
 
 
+@dataclass(frozen=True)
 class RevokeDataProviderRegistrationResp:
     """
     Class that represents Revoke Data Provider Registration Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int) -> None:
-        self.application_id = application_id
+    application_id: int
 
 
+@dataclass(frozen=True)
 class PositionConfidenceEllipse:
     """
     Class that represents Position Confidence Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, semi_major_confidence, semi_minor_confidence, semi_major_orientation) -> None:
-        self.semi_major_confidence = semi_major_confidence
-        self.semi_minor_confidence = semi_minor_confidence
-        self.semi_major_orientation = semi_major_orientation
+    semi_major_confidence: int
+    semi_minor_confidence: int
+    semi_major_orientation: int
 
 
+@dataclass(frozen=True)
 class Altitude:
     """
     Class that represents Altitude as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, altitude_value: int, altitude_confidence: int) -> None:
-        """
-        Initializes the Altitude class.
-
-        Parameters
-        ----------
-        altitude_value : int
-            The altitude value in ETSI Altitude format (0,01 metre).
-        altitude_confidence : int
-            The altitude confidence in ETSI Altitude (0,01 metre).
-
-        Returns
-        -------
-        None
-        """
-        self.altitude_value = altitude_value
-        self.altitude_confidence = altitude_confidence
+    altitude_value: int
+    altitude_confidence: int
 
 
 class Latitude:
@@ -616,22 +495,15 @@ class Longitude:
         return its_longitude
 
 
+@dataclass(frozen=True)
 class ReferencePosition:
     """
     Class that represent Reference Position as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        latitude: int,
-        longitude: int,
-        position_confidence_ellipse: PositionConfidenceEllipse,
-        altitude: Altitude,
-    ) -> None:
-        self.latitude = latitude
-        self.longitude = longitude
-        self.position_confidence_ellipse = position_confidence_ellipse
-        self.altitude = altitude
+    latitude: int
+    longitude: int
+    position_confidence_ellipse: PositionConfidenceEllipse
+    altitude: Altitude
 
     def to_dict(self) -> dict:
         """
@@ -656,7 +528,8 @@ class ReferencePosition:
             },
         }
 
-    def update_with_gpsd_tpv(self, tpv: dict) -> None:
+    @classmethod
+    def update_with_gpsd_tpv(cls, tpv: dict) -> "ReferencePosition":
         """
         Updates the reference position with a TPV from gpsd.
 
@@ -665,22 +538,36 @@ class ReferencePosition:
         tpv : dict
             Dictionary containing the location data.
 
+        Returns
+        -------
+        ReferencePosition
+            Updated ReferencePosition instance.
+
         TODO: In the future the altitude and the confidence ellipses should be updated as well.
         """
-        self.latitude = Latitude.convert_latitude_to_its_latitude(tpv["lat"])
-        self.longitude = Longitude.convert_longitude_to_its_longitude(
-            tpv["lon"])
+        return cls(
+            latitude=Latitude.convert_latitude_to_its_latitude(tpv["lat"]),
+            longitude=Longitude.convert_longitude_to_its_longitude(tpv["lon"]),
+            position_confidence_ellipse=PositionConfidenceEllipse(
+                semi_major_confidence=tpv["epx"],
+                semi_minor_confidence=tpv["epy"],
+                semi_major_orientation=tpv["track"],
+            ),
+            altitude=Altitude(
+                altitude_value=tpv["alt"],
+                altitude_confidence=tpv["epv"],
+            ),
+        )
 
 
+@dataclass(frozen=True)
 class StationType:
     """
     Class that represent Station Type as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+    station_type: int
 
-    def __init__(self, station_type: int) -> None:
-        self.station_type = station_type
-
-    def __str__(self):
+    def __str__(self) -> str:
         type_mapping = {
             0: "Unknown",
             1: "Pedestrian",
@@ -700,13 +587,12 @@ class StationType:
         return type_mapping.get(self.station_type, "Unknown")
 
 
+@dataclass(frozen=True)
 class Direction:
     """
     Class that represents Direction as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, direction: int) -> None:
-        self.direction = direction
+    direction: int
 
     def __str__(self) -> str:
         if self.direction == 0:
@@ -720,67 +606,55 @@ class Direction:
         return "unknown"
 
 
+@dataclass(frozen=True)
 class Circle:
     """
     Class that represents Circle as speficied in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, radius: int) -> None:
-        self.radius = radius
+    radius: int
 
 
+@dataclass(frozen=True)
 class Rectangle:
     """
     Class that represents Rectangle as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction) -> None:
-        self.a_semi_axis = a_semi_axis
-        self.b_semi_axis = b_semi_axis
-        self.azimuth_angle = azimuth_angle
+    a_semi_axis: int
+    b_semi_axis: int
+    azimuth_angle: Direction
 
 
+@dataclass(frozen=True)
 class Ellipse:
     """
     Class that represents Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, a_semi_axis: int, b_semi_axis: int, azimuth_angle: Direction) -> None:
-        self.a_semi_axis = a_semi_axis
-        self.b_semi_axis = b_semi_axis
-        self.azimuth_angle = azimuth_angle
+    a_semi_axis: int
+    b_semi_axis: int
+    azimuth_angle: Direction
 
 
-class RelevanceTrafficDirection:
-    """
-    Class that represents Relevance Traffic Direction as specified in ETSI EN 302 895 V1.1.1 (2014-09).
-    """
-
-    def __init__(self, relevance_traffic_direction: int) -> None:
-        self.relevance_traffic_direction = relevance_traffic_direction
+class RelevanceTrafficDirection(IntEnum):
+    ALL_TRAFFIC_DIRECTIONS = 0
+    UPSTREAM_TRAFFIC = 1
+    DOWNSTREAM_TRAFFIC = 2
+    OPPOSITE_TRAFFIC = 3
 
     def __str__(self) -> str:
-        if self.relevance_traffic_direction == 0:
-            return "allTrafficDirections"
-        if self.relevance_traffic_direction == 1:
-            return "upstreamTraffic"
-        if self.relevance_traffic_direction == 2:
-            return "downstreamTraffic"
-        if self.relevance_traffic_direction == 3:
-            return "oppositeTraffic"
-        raise ValueError(
-            "RelevanceTrafficDirection string synonym not found according \
-                         to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            RelevanceTrafficDirection.ALL_TRAFFIC_DIRECTIONS: "allTrafficDirections",
+            RelevanceTrafficDirection.UPSTREAM_TRAFFIC: "upstreamTraffic",
+            RelevanceTrafficDirection.DOWNSTREAM_TRAFFIC: "downstreamTraffic",
+            RelevanceTrafficDirection.OPPOSITE_TRAFFIC: "oppositeTraffic",
+        }[self]
 
 
+@dataclass(frozen=True)
 class RelevanceDistance:
     """
     Class that represents Relevance Distance as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, relevance_distance: int) -> None:
-        self.relevance_distance = relevance_distance
+    relevance_distance: int
 
     def __str__(self) -> str:
         distance_mapping = {
@@ -826,49 +700,42 @@ class RelevanceDistance:
         )
 
 
+@dataclass(frozen=True)
 class RelevanceArea:
     """
     Class that represents Relevance Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        relevance_distance: RelevanceDistance,
-        relevance_traffic_direction: RelevanceTrafficDirection,
-    ) -> None:
-        self.relevance_distance = relevance_distance
-        self.relevance_traffic_direction = relevance_traffic_direction
+    relevance_distance: RelevanceDistance
+    relevance_traffic_direction: RelevanceTrafficDirection
 
 
+@dataclass(frozen=True)
 class GeometricArea:
     """
     Class that represents Geometric Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, circle: Circle, rectangle: Rectangle, ellipse: Ellipse) -> None:
-        self.circle = circle
-        self.rectangle = rectangle
-        self.ellipse = ellipse
+    circle: Circle | None
+    rectangle: Rectangle | None
+    ellipse: Ellipse | None
 
 
+@dataclass(frozen=True)
 class ReferenceArea:
     """
     Class that represents Reference Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, geometric_area: GeometricArea, relevance_area: RelevanceArea) -> None:
-        self.geometric_area = geometric_area
-        self.relevance_area = relevance_area
+    geometric_area: GeometricArea
+    relevance_area: RelevanceArea
 
 
+@dataclass(frozen=True)
 class Location:
     """
     Class that represents Location as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
 
-    def __init__(self, reference_position: ReferencePosition, reference_area: ReferenceArea) -> None:
-        self.reference_position = reference_position
-        self.reference_area = reference_area
+    reference_position: ReferencePosition
+    reference_area: ReferenceArea
 
     @staticmethod
     def initializer(
@@ -876,7 +743,7 @@ class Location:
         longitude=0,
         semi_major_confidence=0,
         semi_major_orientation=0,
-        semi_minor_condifence=0,
+        semi_minor_confidence=0,
         altitude_value=0,
         altitude_confidence=0,
         radius=2000,
@@ -894,7 +761,7 @@ class Location:
             position_confidence_ellipse=PositionConfidenceEllipse(
                 semi_major_confidence=semi_major_confidence,
                 semi_major_orientation=semi_major_orientation,
-                semi_minor_confidence=semi_minor_condifence,
+                semi_minor_confidence=semi_minor_confidence,
             ),
             altitude=Altitude(altitude_value=altitude_value,
                               altitude_confidence=altitude_confidence),
@@ -906,7 +773,7 @@ class Location:
                 relevance_distance=RelevanceDistance(
                     relevance_distance=relevance_distance),
                 relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=relevance_traffic_direction
+                    relevance_traffic_direction
                 ),
             ),
         )
@@ -963,36 +830,27 @@ class Location:
                 radius=radius), rectangle=None, ellipse=None),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(relevance_distance=1),
-                relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=0),
+                relevance_traffic_direction=RelevanceTrafficDirection(0),
             ),
         )
         return Location(reference_area=reference_area, reference_position=reference_position)
 
 
+@dataclass(frozen=True)
 class AddDataProviderReq:
     """
     Class that represents Add Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        timestamp: TimestampIts,
-        location: Location,
-        data_object: dict,
-        time_validity: TimeValidity,
-    ) -> None:
-        self.application_id = application_id
-        self.timestamp = timestamp
-        self.location = location
-        self.data_object = data_object
-        self.time_validity = time_validity
+    application_id: int
+    timestamp: TimestampIts
+    location: Location
+    data_object: dict
+    time_validity: TimeValidity
 
     def __iter__(self):
         # pylint: disable=line-too-long
         yield "application_id", self.application_id
-        yield "timestamp", self.timestamp.timestamp
+        yield "timestamp", self.timestamp.timestamp_its
         yield "location", {
             "referencePosition": {
                 "latitude": self.location.reference_position.latitude,
@@ -1035,7 +893,7 @@ class AddDataProviderReq:
                 },
                 "relevanceArea": {
                     "relevanceDistance": self.location.reference_area.relevance_area.relevance_distance.relevance_distance,
-                    "relevaneTrafficDirection": self.location.reference_area.relevance_area.relevance_traffic_direction.relevance_traffic_direction,
+                    "relevanceTrafficDirection": self.location.reference_area.relevance_area.relevance_traffic_direction.value,
                 },
             },
         }
@@ -1059,7 +917,7 @@ class AddDataProviderReq:
         # pylint: disable=line-too-long
         data = {
             "application_id": self.application_id,
-            "timestamp": self.timestamp.timestamp,
+            "timestamp": self.timestamp.timestamp_its,
             "location": {
                 "referencePosition": {
                     "latitude": self.location.reference_position.latitude,
@@ -1102,7 +960,7 @@ class AddDataProviderReq:
                     },
                     "relevanceArea": {
                         "relevanceDistance": self.location.reference_area.relevance_area.relevance_distance.relevance_distance,
-                        "relevaneTrafficDirection": self.location.reference_area.relevance_area.relevance_traffic_direction.relevance_traffic_direction,
+                        "relevanceTrafficDirection": self.location.reference_area.relevance_area.relevance_traffic_direction.value,
                     },
                 },
             },
@@ -1128,12 +986,12 @@ class AddDataProviderReq:
             An instance of the AddDataProviderReq class.
         """
         application_id = data.get("application_id")
-        time_stamp = TimestampIts.initialize_with_timestamp_its(
-            data.get("timestamp"))
+        time_stamp = TimestampIts(timestamp_its=data.get("timestamp", 0))
         location_data = data.get("location")
         data_object = data.get("dataObject")
-        time_validity = TimeValidity(data.get("timeValidity"))
-
+        time_validity = TimeValidity(data.get("timeValidity", 0))
+        if application_id is None or location_data is None or data_object is None:
+            raise ValueError("Missing required fields in data dictionary")
         # Extracting location data
         reference_position_data = location_data.get("referencePosition")
         reference_position = ReferencePosition(
@@ -1159,7 +1017,7 @@ class AddDataProviderReq:
                     Circle(
                         radius=reference_area_data["geometricArea"]["circle"]["radius"])
                     if reference_area_data["geometricArea"]["circle"]
-                    else None
+                    else Circle(radius=0)
                 ),
                 rectangle=(
                     Rectangle(
@@ -1168,7 +1026,7 @@ class AddDataProviderReq:
                         azimuth_angle=reference_area_data["geometricArea"]["rectangle"]["azimuthAngle"],
                     )
                     if reference_area_data["geometricArea"]["rectangle"]
-                    else None
+                    else Rectangle(a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0))
                 ),
                 ellipse=(
                     Ellipse(
@@ -1177,16 +1035,15 @@ class AddDataProviderReq:
                         azimuth_angle=reference_area_data["geometricArea"]["ellipse"]["azimuthAngle"],
                     )
                     if reference_area_data["geometricArea"]["ellipse"]
-                    else None
+                    else Ellipse(a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0))
                 ),
             ),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(
                     relevance_distance=reference_area_data["relevanceArea"]["relevanceDistance"]
                 ),
-                relevance_traffic_direction=RelevanceTrafficDirection(
-                    relevance_traffic_direction=reference_area_data[
-                        "relevanceArea"]["relevaneTrafficDirection"]
+                relevance_traffic_direction=RelevanceTrafficDirection(reference_area_data[
+                    "relevanceArea"]["relevaneTrafficDirection"]
                 ),
             ),
         )
@@ -1202,14 +1059,13 @@ class AddDataProviderReq:
         )
 
 
+@dataclass(frozen=True)
 class AddDataProviderResp:
     """
     Class that represents Add Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, data_object_id: int) -> None:
-        self.application_id = application_id
-        self.data_object_id = data_object_id
+    application_id: int
+    data_object_id: int
 
     def to_dict(self) -> dict:
         """
@@ -1244,269 +1100,208 @@ class AddDataProviderResp:
         AddDataProviderResp
             An instance of the AddDataProviderResp class.
         """
-        application_id = data.get("application_id")
-        data_object_id = data.get("data_object_id")
+        application_id = data.get("application_id", 0)
+        data_object_id = data.get("data_object_id", 0)
 
         return AddDataProviderResp(application_id=application_id, data_object_id=data_object_id)
 
 
+@dataclass(frozen=True)
 class UpdateDataProviderReq:
     """
     Class that represents Update Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        data_object_id: int,
-        time_stamp: TimestampIts,
-        location: Location,
-        data_object: dict,
-        time_validity: TimeValidity,
-    ) -> None:
-        self.application_id = application_id
-        self.data_object_id = data_object_id
-        self.time_stamp = time_stamp
-        self.location = location
-        self.data_object = data_object
-        self.time_validity = time_validity
+    application_id: int
+    data_object_id: int
+    time_stamp: TimestampIts
+    location: Location
+    data_object: dict
+    time_validity: TimeValidity
 
 
-class UpdateDataProviderResult:
+class UpdateDataProviderResult(IntEnum):
     """
     Class that represents Update Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    SUCCEED = 0
+    UNKNOWN_DATA_OBJECT_ID = 1
+    INCONSISTENT_DATA_OBJECT_TYPE = 2
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "succeed"
-        if self.result == 1:
-            return "unknownDataObjectID"
-        if self.result == 2:
-            return "inconsistentDataObjectType"
-        raise ValueError(
-            "UpdateDataProviderResult string synonym not found according to \
-                         ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            UpdateDataProviderResult.SUCCEED: "succeed",
+            UpdateDataProviderResult.UNKNOWN_DATA_OBJECT_ID: "unknownDataObjectID",
+            UpdateDataProviderResult.INCONSISTENT_DATA_OBJECT_TYPE: "inconsistentDataObjectType"
+        }[self]
 
 
+@dataclass(frozen=True)
 class UpdateDataProviderResp:
     """
     Class that represents Update Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, data_object_id: int, result: UpdateDataProviderResult) -> None:
-        self.application_id = application_id
-        self.data_object_id = data_object_id
-        self.result = result
+    application_id: int
+    data_object_id: int
+    result: UpdateDataProviderResult
 
 
+@dataclass(frozen=True)
 class DeleteDataProviderReq:
     """
     Class that represents Delete Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, data_object_id: int, time_stamp: TimestampIts) -> None:
-        self.application_id = application_id
-        self.data_object_id = data_object_id
-        self.time_stamp = time_stamp
+    application_id: int
+    data_object_id: int
+    time_stamp: TimestampIts
 
 
-class DeleteDataProviderResult:
+class DeleteDataProviderResult(IntEnum):
     """
     Class that represents Delete Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    SUCCEED = 0
+    FAILED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "succeed"
-        if self.result == 1:
-            return "failed"
-        raise ValueError(
-            "DeleteDataProviderResult string synonym not found according \
-                         to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            DeleteDataProviderResult.SUCCEED: "succeed",
+            DeleteDataProviderResult.FAILED: "failed",
+        }[self]
 
 
+@dataclass(frozen=True)
 class DeleteDataProviderResp:
     """
     Class that represents Delete Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, data_object_id: int, result: DeleteDataProviderResult) -> None:
-        self.application_id = application_id
-        self.data_object_id = data_object_id
-        self.result = result
+    application_id: int
+    data_object_id: int
+    result: DeleteDataProviderResult
 
 
+@dataclass(frozen=True)
 class RegisterDataConsumerReq:
     """
     Class that represents Register Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        access_permisions: list[DataContainer],
-        area_of_interest: GeometricArea,
-    ) -> None:
-        self.application_id = application_id
-        self.access_permisions = access_permisions
-        self.area_of_interest = area_of_interest
+    application_id: int
+    access_permisions: tuple[DataContainer, ...]
+    area_of_interest: GeometricArea
 
 
-class RegisterDataConsumerResult:
+class RegisterDataConsumerResult(IntEnum):
     """
     Class that represents Register Data Consumer Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    ACCEPTED = 0
+    WARNING = 1
+    REJECTED = 2
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "accepted"
-        if self.result == 1:
-            return "warning"
-        if self.result == 2:
-            return "rejected"
-        raise ValueError(
-            "RegisterDataConsumerResult string synonym not found according to \
-                         ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            RegisterDataConsumerResult.ACCEPTED: "accepted",
+            RegisterDataConsumerResult.WARNING: "warning",
+            RegisterDataConsumerResult.REJECTED: "rejected",
+        }[self]
 
 
+@dataclass(frozen=True)
 class RegisterDataConsumerResp:
     """
     Class that represents Register Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        access_permisions: list[DataContainer],
-        result: RegisterDataConsumerResult,
-    ) -> None:
-        self.application_id = application_id
-        self.access_permisions = access_permisions
-        self.result = result
+    application_id: int
+    access_permisions: tuple[DataContainer, ...]
+    result: RegisterDataConsumerResult
 
 
+@dataclass(frozen=True)
 class DeregisterDataConsumerReq:
     """
     Class that represents Deregister Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int) -> None:
-        self.application_id = application_id
+    application_id: int
 
 
-class DeregisterDataConsumerAck:
+class DeregisterDataConsumerAck(IntEnum):
     """
     Class that represents Deegister Data Consumer Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    SUCCEED = 0
+    FAILED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "succeed"
-        if self.result == 1:
-            return "failed"
-        raise ValueError(
-            "DeregisterDataConsumerAck string synonym not found according \
-                         to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            DeregisterDataConsumerAck.SUCCEED: "succeed",
+            DeregisterDataConsumerAck.FAILED: "failed",
+        }[self]
 
 
+@dataclass(frozen=True)
 class DeregisterDataConsumerResp:
     """
     Class that represents Deregister Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, ack: DeregisterDataConsumerAck) -> None:
-        self.application_id = application_id
-        self.ack = ack
+    application_id: int
+    ack: DeregisterDataConsumerAck
 
 
+@dataclass(frozen=True)
 class UnsubscribeDataConsumerReq:
     """
     Class that represents Unsubscribe Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, subscription_id: int) -> None:
-        self.application_id = application_id
-        self.subscription_id = subscription_id
+    application_id: int
+    subscription_id: int
 
 
-class UnsubscribeDataConsumerAck:
+class UnsubscribeDataConsumerAck(IntEnum):
     """
     Class that represents Unsubscribe Data Consumer Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    ACCEPTED = 0
+    FAILED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "accepted"
-        if self.result == 1:
-            return "failed"
-        raise ValueError(
-            "UnsubscribeDataConsumerAck string synonym not found according \
-                         to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            UnsubscribeDataConsumerAck.ACCEPTED: "accepted",
+            UnsubscribeDataConsumerAck.FAILED: "failed",
+        }[self]
 
 
+@dataclass(frozen=True)
 class UnsubscribeDataConsumerResp:
     """
     Class that represents Unsubscribe Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        subscription_id: int,
-        result: UnsubscribeDataConsumerAck,
-    ) -> None:
-        self.application_id = application_id
-        self.subscription_id = subscription_id
-        self.result = result
+    application_id: int
+    subscription_id: int
+    result: UnsubscribeDataConsumerAck
 
 
+@dataclass(frozen=True)
 class RevokeDataConsumerRegistrationResp:
     """
     Class that represents Revoke Data Consumer Registration Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int) -> None:
-        self.application_id = application_id
+    application_id: int
 
 
-class OrderingDirection:
+class OrderingDirection(IntEnum):
     """
     Class that represents Ordering Direction as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, direction: int) -> None:
-        self.direction = direction
+    ASCENDING = 0
+    DESCENDING = 1
 
     def __str__(self) -> str:
-        if self.direction == 0:
-            return "ascending"
-        if self.direction == 1:
-            return "descending"
-        raise ValueError(
-            "OrderingDirection string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        return {
+            OrderingDirection.ASCENDING: "ascending",
+            OrderingDirection.DESCENDING: "descending",
+        }[self]
 
 
+@dataclass(frozen=True)
 class OrderTuple:
     """
     Class that represents Order Tuple as specified in ETSI EN 302 895 V1.1.1 (2014-09).
@@ -1516,121 +1311,101 @@ class OrderTuple:
 
     Attributes
     ----------
-    attribute: string
+    attribute: stringvalues
         Attribute to be ordered. For example "generationDeltaTime" or "latitude". It should match the ASN.1 format.
     ordering_direction: OrderingDirection
         OrderingDirection class that represents what direction to be ordered.
     """
-
-    def __init__(self, attribute: str, ordering_direction: OrderingDirection) -> None:
-        self.attribute = attribute
-        self.ordering_direction = ordering_direction
+    attribute: str
+    ordering_direction: OrderingDirection
 
 
-class LogicalOperators:
+class LogicalOperators(IntEnum):
     """
     Class that represents Logical Operators as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, operator: int) -> None:
-        self.operator = operator
+    AND = 0
+    OR = 1
 
     def __str__(self) -> str:
-        if self.operator == 0:
-            return "and"
-        if self.operator == 1:
-            return "or"
-        raise ValueError(
-            "LogicalOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        return {
+            LogicalOperators.AND: "and",
+            LogicalOperators.OR: "or",
+        }[self]
 
 
-class ComparisonOperators:
+class ComparisonOperators(IntEnum):
     """
     Class that represents Comparison Operators as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, operator: int) -> None:
-        self.operator = operator
+    EQUAL = 0  # ==
+    NOT_EQUAL = 1  # !=
+    GREATER_THAN = 2  # >
+    LESS_THAN = 3  # <
+    GREATER_THAN_OR_EQUAL = 4  # >=
+    LESS_THAN_OR_EQUAL = 5  # <=
+    LIKE = 6  # like
+    NOT_LIKE = 7  # not like
 
     def __str__(self) -> str:
-        operator_mapping = {
-            0: "==",
-            1: "!=",
-            2: ">",
-            3: "<",
-            4: ">=",
-            5: "<=",
-            6: "like",
-            7: "notlike",
-        }
-
-        if self.operator in operator_mapping:
-            return operator_mapping[self.operator]
-
-        raise ValueError(
-            "ComparisonOperators string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
+        return {
+            ComparisonOperators.EQUAL: "==",
+            ComparisonOperators.NOT_EQUAL: "!=",
+            ComparisonOperators.GREATER_THAN: ">",
+            ComparisonOperators.LESS_THAN: "<",
+            ComparisonOperators.GREATER_THAN_OR_EQUAL: ">=",
+            ComparisonOperators.LESS_THAN_OR_EQUAL: "<=",
+            ComparisonOperators.LIKE: "like",
+            ComparisonOperators.NOT_LIKE: "notlike",
+        }[self]
 
 
+@dataclass(frozen=True)
 class FilterStatement:
     """
     Class that represents Filter Statement as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, attribute: int, operator: ComparisonOperators, ref_value: int):
-        self.attribute = attribute
-        self.operator = operator
-        self.ref_value = ref_value
+    attribute: int
+    operator: ComparisonOperators
+    ref_value: int
 
 
+@dataclass(frozen=True)
 class Filter:
     """
     Class that represents Filter as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        filter_statement_1: FilterStatement,
-        logical_operator: LogicalOperators = None,
-        filter_statement_2: FilterStatement = None,
-    ) -> None:
-        self.filter_statement_1 = filter_statement_1
-        self.logical_operator = logical_operator
-        self.filter_statement_2 = filter_statement_2
+    filter_statement_1: FilterStatement
+    logical_operator: LogicalOperators | None = None
+    filter_statement_2: FilterStatement | None = None
 
 
+@dataclass(frozen=True)
 class RequestDataObjectsReq:
     """
     Class that represents Request Data Objects Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        data_object_type: list[int],
-        priority: int,
-        order: list[OrderTuple],
-        filter: Filter,
-    ) -> None:
-        self.application_id = application_id
-        self.data_object_type = data_object_type
-        self.priority = priority
-        self.order = order
-        self.filter = filter
+    application_id: int
+    data_object_type: tuple[int, ...]
+    priority: int
+    order: tuple[OrderTuple, ...]
+    filter: Filter
 
     @staticmethod
-    def filter_out_by_data_object_type(search_result: list[dict], data_object_types: list[int]) -> list[dict]:
+    def filter_out_by_data_object_type(search_result: tuple[dict, ...], data_object_types: tuple[int, ...]) -> list[dict]:
         """
         Function that filters out all packets that are not part of the specified data object type list given
         in the RequestDataObjectReq
 
         Parameters
         ----------
-        search_result: list[dict]
+        search_result: tuple[dict, ...]
             The current search result with all data object types (CAM, DENM, VAM, etc)
-        data_object_types: list[int]
+        data_object_types: tuple[int, ...]
             The data objects that want to be returned (field from RequestDataObjectReq)
+        
         Returns
-        ---------
+        -------
         filtered_search_result: list[dict]
             Only the packets that have the type specified in the data object type of the RequestDataObjectReq
         """
@@ -1641,7 +1416,7 @@ class RequestDataObjectsReq:
         return filtered_search_result
 
     @staticmethod
-    def get_object_type_from_data_object(data_object: dict) -> str:
+    def get_object_type_from_data_object(data_object: dict) -> str | None:
         """
         Method to get object type from data object.
 
@@ -1651,51 +1426,41 @@ class RequestDataObjectsReq:
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]
+                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]  # type: ignore
         return None
 
 
-class RequestedDataObjectsResult:
+class RequestedDataObjectsResult(IntEnum):
     """
     Class that represents Requested Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    SUCCEED = 0
+    INVALID_ITSA_ID = 1
+    INVALID_DATA_OBJECT_TYPE = 2
+    INVALID_PRIORITY = 3
+    INVALID_FILTER = 4
+    INVALID_ORDER = 5
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "succeed"
-        if self.result == 1:
-            return "invalidITSAID"
-        if self.result == 2:
-            return "invalidDataObjectType"
-        if self.result == 3:
-            return "invalidPriority"
-        if self.result == 4:
-            return "invalidFilter"
-        if self.result == 5:
-            return "invalidOrder"
-        raise ValueError(
-            "RequestedDataObjectsResult string synonym not found according\
-                          to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+
+        return {
+            RequestedDataObjectsResult.SUCCEED: "succeed",
+            RequestedDataObjectsResult.INVALID_ITSA_ID: "invalidITSAID",
+            RequestedDataObjectsResult.INVALID_DATA_OBJECT_TYPE: "invalidDataObjectType",
+            RequestedDataObjectsResult.INVALID_PRIORITY: "invalidPriority",
+            RequestedDataObjectsResult.INVALID_FILTER: "invalidFilter",
+            RequestedDataObjectsResult.INVALID_ORDER: "invalidOrder",
+        }[self]
 
 
+@dataclass(frozen=True)
 class RequestDataObjectsResp:
     """
     Class that represents Request Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        data_objects: list[dict],
-        result: RequestedDataObjectsResult,
-    ) -> None:
-        self.application_id = application_id
-        self.data_objects = data_objects
-        self.result = result
+    application_id: int
+    data_objects: tuple[dict, ...]
+    result: RequestedDataObjectsResult
 
     def find_attribute(self, attribute: str, data_object: dict) -> list:
         """
@@ -1764,182 +1529,130 @@ class RequestDataObjectsResp:
         return []
 
 
+@dataclass(frozen=True)
 class SubscribeDataobjectsReq:
     """
     As specified in src.facilities.local_dynamic_map.if_ldm_4.py this class has been modified to fit implementation.
     The parameter "callback : function" has been added (not in the standard)
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        data_object_type: list[int],
-        priority: int,
-        filter: Filter,
-        notify_time: TimestampIts,
-        multiplicity: int,
-        order: list[OrderTuple],
-    ) -> None:
-        """
-        Constructor for SubscribeDataobjectsReq class.
-
-        Parameters
-        ----------
-        application_id : int
-            The application id.
-        data_object_type : list[int]
-            The data object type.
-        priority : int
-            The priority.
-        filter : Filter
-            The filter.
-        notify_time : TimestampIts
-            The notify time.
-        multiplicity : int
-            The multiplicity.
-        order : list[OrderTuple]
-            The order.
-        """
-        self.application_id = application_id
-        self.data_object_type = data_object_type
-        self.priority = priority
-        self.filter = filter
-        self.notify_time = notify_time
-        self.multiplicity = multiplicity
-        self.order = order
+    application_id: int
+    data_object_type: tuple[int, ...]
+    priority: int
+    filter: Filter
+    notify_time: TimestampIts
+    multiplicity: int
+    order: tuple[OrderTuple, ...]
 
 
-class SubscribeDataobjectsResult:
+class SubscribeDataobjectsResult(IntEnum):
     """
     Class that represents Subscribe Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    SUCCESSFUL = 0
+    INVALID_ITSA_ID = 1
+    INVALID_DATA_OBJECT_TYPE = 2
+    INVALID_PRIORITY = 3
+    INVALID_FILTER = 4
+    INVALID_NOTIFICATION_INTERVAL = 5
+    INVALID_MULTIPLICITY = 6
+    INVALID_ORDER = 7
 
     def __str__(self) -> str:
-        result_mapping = {
-            0: "successful",
-            1: "invalidITSAID",
-            2: "invalidDataObjectType",
-            3: "invalidPriority",
-            4: "invalidFilter",
-            5: "invalidNotificationInterval",
-            6: "invalidMultiplicity",
-            7: "invalidOrder",
-        }
-
-        result_str = result_mapping.get(self.result)
-        if result_str is not None:
-            return result_str
-
-        raise ValueError("SubscribeDataobjectsResult string synonym not found")
+        return {
+            SubscribeDataobjectsResult.SUCCESSFUL: "successful",
+            SubscribeDataobjectsResult.INVALID_ITSA_ID: "invalidITSAID",
+            SubscribeDataobjectsResult.INVALID_DATA_OBJECT_TYPE: "invalidDataObjectType",
+            SubscribeDataobjectsResult.INVALID_PRIORITY: "invalidPriority",
+            SubscribeDataobjectsResult.INVALID_FILTER: "invalidFilter",
+            SubscribeDataobjectsResult.INVALID_NOTIFICATION_INTERVAL: "invalidNotificationInterval",
+            SubscribeDataobjectsResult.INVALID_MULTIPLICITY: "invalidMultiplicity",
+            SubscribeDataobjectsResult.INVALID_ORDER: "invalidOrder",
+        }[self]
 
 
+@dataclass(frozen=True)
 class SubscribeDataObjectsResp:
     """
     Class that represents Subscribe Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(
-        self,
-        application_id: int,
-        subscription_id: int,
-        result: SubscribeDataobjectsResult,
-        error_message: str,
-    ) -> None:
-        self.application_id = application_id
-        self.subscription_id = subscription_id
-        self.result = result
-        self.error_message = error_message
+    application_id: int
+    subscription_id: int
+    result: SubscribeDataobjectsResult
+    error_message: str
 
 
+@dataclass(frozen=True)
 class PublishDataobjects:
     """
     Class that represents Publish Data Objects as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, subscription_id: int, request_data: list[str]) -> None:
-        self.subscription_id = subscription_id
-        self.requested_data = request_data
+    subscription_id: int
+    requested_data: tuple[str, ...]
 
 
+@dataclass(frozen=True)
 class UnsubscribeDataobjectsReq:
     """
     Class that represents Unsubscribe Data Objects Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, subscription_id: int) -> None:
-        self.application_id = application_id
-        self.subscription_id = subscription_id
+    application_id: int
+    subscription_id: int
 
 
-class UnsubscribeDataobjectsResult:
+class UnsubscribeDataobjectsResult(IntEnum):
     """
     Class that represents Unsubscribe Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, result: int) -> None:
-        self.result = result
+    ACCEPTED = 0
+    REJECTED = 1
 
     def __str__(self) -> str:
-        if self.result == 0:
-            return "accepted"
-        if self.result == 1:
-            return "rejected"
-        raise ValueError(
-            "UnsubscribeDataobjectsResult string synonym not found\
-                          according to ETSI TS 102 894-2 V2.2.1 (2023-10)"
-        )
+        return {
+            UnsubscribeDataobjectsResult.ACCEPTED: "accepted",
+            UnsubscribeDataobjectsResult.REJECTED: "rejected",
+        }[self]
 
 
+@dataclass(frozen=True)
 class UnsubscribeDataobjectsResp:
     """
     Class that represents Unsubscribe Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, application_id: int, result: UnsubscribeDataobjectsResult) -> None:
-        self.application_id = application_id
-        self.result = result
-
-    def __str__(self) -> str:
-        if self.result == 0:
-            return "succeed"
-        if self.result == 1:
-            return "failed"
-        return None
+    application_id: int
+    subscription_id: int
+    result: UnsubscribeDataobjectsResult
 
 
-class ReferenceValue:
+class ReferenceValue(IntEnum):
     """
     Class that represents Reference Value as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-
-    def __init__(self, reference_value: int) -> None:
-        self.reference_value = reference_value
+    BOOL_VALUE = 0
+    SBYTE_VALUE = 1
+    BYTE_VALUE = 2
+    SHORT_VALUE = 3
+    INT_VALUE = 4
+    OCTS_VALUE = 5
+    BITS_VALUE = 6
+    STR_VALUE = 7
+    CAUSE_CODE_VALUE = 8
+    SPEED_VALUE = 9
+    STATION_ID_VALUE = 10
 
     def __str__(self) -> str:
-        value_mapping = {
-            0: "boolValue",
-            1: "sbyteValue",
-            2: "byteValue",
-            3: "shortValue",
-            4: "intValue",
-            5: "octsValue",
-            6: "bitsValue",
-            7: "strValue",
-            8: "causeCodeValue",
-            9: "speedValue",
-            10: "stationIDValue",
-        }
-
-        result = value_mapping.get(self.reference_value)
-
-        if result is None:
-            raise ValueError(
-                "ReferenceValue string synonym not found according to ETSI TS 102 894-2 V2.2.1 (2023-10)")
-
-        return result
+        return {
+            ReferenceValue.BOOL_VALUE: "boolValue",
+            ReferenceValue.SBYTE_VALUE: "sbyteValue",
+            ReferenceValue.BYTE_VALUE: "byteValue",
+            ReferenceValue.SHORT_VALUE: "shortValue",
+            ReferenceValue.INT_VALUE: "intValue",
+            ReferenceValue.OCTS_VALUE: "octsValue",
+            ReferenceValue.BITS_VALUE: "bitsValue",
+            ReferenceValue.STR_VALUE: "strValue",
+            ReferenceValue.CAUSE_CODE_VALUE: "causeCodeValue",
+            ReferenceValue.SPEED_VALUE: "speedValue",
+            ReferenceValue.STATION_ID_VALUE: "stationIDValue",
+        }[self]
 
 
 class Utils:
@@ -1995,14 +1708,19 @@ class Utils:
         return 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     @staticmethod
-    def haversine_distance(coord1: tuple, coord2: tuple) -> int:
+    def haversine_distance(coord1: tuple[float, float], coord2: tuple[float, float]) -> float:
         """
         Function that returns the distance between two coordinates in meters.
 
         Parameters
         ----------
-        coord1 : tuple(int, int)
-        coord2 : tuple(int, int)
+        coord1 : tuple[float, float]
+        coord2 : tuple[float, float]
+
+        Returns
+        -------
+        float
+            Distance in meters between the two coordinates.
         """
         lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
         lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
@@ -2017,7 +1735,7 @@ class Utils:
         return distance
 
     @staticmethod
-    def get_nested(data: dict, path: list) -> list:
+    def get_nested(data: dict, path: list) -> list | None:
         """
         Returns the value nested in a dict. If the path is not found, returns None.
         If a dict looks like this:
@@ -2077,7 +1795,7 @@ class Utils:
         return []
 
     @staticmethod
-    def get_station_id(data_object: dict) -> int:
+    def get_station_id(data_object: dict) -> int | None:
         """
         Method to get the station id from a data object. This method was created because some older (ETSI) standards
         use stationId instead of stationID.
@@ -2097,10 +1815,13 @@ class Utils:
         if station_id is None:
             station_id = Utils.get_nested(
                 data_object, Utils.find_attribute("stationId", data_object))
+        if station_id is None:
+            return None
+        station_id = int(station_id[0]) if station_id[0] is not None else None
         return station_id
 
     @staticmethod
-    def check_field(data: dict, field_name: str = None) -> bool:
+    def check_field(data: dict, field_name: str | None = None) -> bool:
         """
         Method that checks if field name exists in dictionary. It checks all levels of the dictionary.
 
@@ -2143,7 +1864,7 @@ class Utils:
         tuple
             Coordinates in normal format
         """
-        return point / 10000000
+        return tuple(coord / 10**7 for coord in point)
 
     @staticmethod
     def euclidian_distance(point1, point2):

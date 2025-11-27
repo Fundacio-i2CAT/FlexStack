@@ -1,204 +1,138 @@
+import os
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+from tinydb.table import Document
+
 from flexstack.facilities.local_dynamic_map.tinydb_database import TinyDB
 
-tinydb_database_example = {
-    "_default": {
-        "1": {
-            "applicationId": 36,
-            "timeStamp": -452001707.8018279,
-            "location": {
-                "referencePosition": {
-                    "latitude": 407143528,
-                    "longitude": -740059731,
-                    "positionConfidenceEllipse": {
-                        "semiMajorConfidence": 5,
-                        "semiMinorConfidence": 5,
-                        "semiMajorOrientation": 5,
+_SAMPLE_RECORD = {
+    "applicationId": 36,
+    "dataObject": {
+        "cam": {
+            "camParameters": {
+                "basicContainer": {
+                    "stationType": 0,
+                    "referencePosition": {
+                        "latitude": 900000001,
+                        "longitude": 1800000001,
                     },
-                    "altitude": {"altitudeValue": 1000, "altitudeConfidence": 0},
-                },
-                "referenceArea": {
-                    "geometricArea": {
-                        "circle": {"radius": 2},
-                        "rectangle": None,
-                        "ellipse": None,
-                    },
-                    "relevanceArea": {
-                        "relevanceDistance": 0,
-                        "relevaneTrafficDirection": 0,
-                    },
-                },
-            },
-            "dataObject": {
-                "header": {"protocolVersion": 2, "messageID": 2, "stationID": 0},
-                "cam": {
-                    "generationDeltaTime": 0,
-                    "camParameters": {
-                        "basicContainer": {
-                            "stationType": 0,
-                            "referencePosition": {
-                                "latitude": 900000001,
-                                "longitude": 1800000001,
-                                "positionConfidenceEllipse": {
-                                    "semiMajorConfidence": 4095,
-                                    "semiMinorConfidence": 4095,
-                                    "semiMajorOrientation": 3601,
-                                },
-                                "altitude": {
-                                    "altitudeValue": 800001,
-                                    "altitudeConfidence": "unavailable",
-                                },
-                            },
-                        },
-                        "highFrequencyContainer": [
-                            "basicVehicleContainerHighFrequency",
-                            {
-                                "heading": {
-                                    "headingValue": 3601,
-                                    "headingConfidence": 127,
-                                },
-                                "speed": {"speedValue": 16383, "speedConfidence": 127},
-                                "driveDirection": "unavailable",
-                                "vehicleLength": {
-                                    "vehicleLengthValue": 1023,
-                                    "vehicleLengthConfidenceIndication": "unavailable",
-                                },
-                                "vehicleWidth": 62,
-                                "longitudinalAcceleration": {
-                                    "longitudinalAccelerationValue": 161,
-                                    "longitudinalAccelerationConfidence": 102,
-                                },
-                                "curvature": {
-                                    "curvatureValue": 1023,
-                                    "curvatureConfidence": "unavailable",
-                                },
-                                "curvatureCalculationMode": "unavailable",
-                                "yawRate": {
-                                    "yawRateValue": 32767,
-                                    "yawRateConfidence": "unavailable",
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-            "timeValidity": 1000,
+                }
+            }
         }
-    }
+    },
+    "timeValidity": 1000,
 }
 
 
 class TestTinyDB(unittest.TestCase):
-    @patch("tinydb.TinyDB")
-    def setUp(self, mock_tinydb):
-        self.database_name = "test_database"
-        self.database_path = "test_path"
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.database_path = self.temp_dir.name
+        self.database_name = "test_database.json"
+
+        tinydb_ctor_patcher = patch(
+            "flexstack.facilities.local_dynamic_map.tinydb_database.tinydb.TinyDB"
+        )
+        self.addCleanup(tinydb_ctor_patcher.stop)
+        self.mock_tinydb_ctor = tinydb_ctor_patcher.start()
+
+        self.mock_database = MagicMock()
+        self.mock_tinydb_ctor.return_value = self.mock_database
+
         self.tinydb = TinyDB(self.database_name, self.database_path)
-        self.tinydb.database = MagicMock()
 
     def test__init__(self):
         self.assertEqual(self.tinydb.database_name, self.database_name)
-        self.assertEqual(self.tinydb.database_path, self.database_path)
+        self.assertEqual(self.tinydb.database_path, os.path.abspath(self.database_path))
+        self.mock_tinydb_ctor.assert_called_once_with(
+            os.path.join(os.path.abspath(self.database_path), self.database_name)
+        )
 
-    @patch("builtins.print")
-    @patch("os.remove")
-    def test_delete(self, mock_remove, mock_print):
-        self.tinydb.database.close = MagicMock()
+    @patch("flexstack.facilities.local_dynamic_map.tinydb_database.os.remove")
+    @patch("flexstack.facilities.local_dynamic_map.tinydb_database.print")
+    def test_delete(self, mock_print, mock_remove):
         mock_remove.return_value = True
+        self.mock_database.close = MagicMock()
+
         self.assertTrue(self.tinydb.delete())
-        self.tinydb.database.close.assert_called_once()
+        self.mock_database.close.assert_called_once()
+        self.mock_tinydb_ctor.assert_called_with(
+            os.path.join(os.path.abspath(self.database_path), self.database_name)
+        )
+        mock_print.assert_not_called()
 
-    @patch("builtins.print")
-    @patch("os.remove")
-    def test_delete_file_not_found(self, mock_remove, mock_print):
-        mock_remove.side_effect = FileNotFoundError()
+    @patch("flexstack.facilities.local_dynamic_map.tinydb_database.os.remove")
+    @patch("flexstack.facilities.local_dynamic_map.tinydb_database.print")
+    def test_delete_file_not_found(self, mock_print, mock_remove):
+        mock_remove.side_effect = FileNotFoundError("missing")
+
         self.assertFalse(self.tinydb.delete())
-
-    """@patch("builtins.str")
-    def test_create_query_from_filter_statement(self, mock_str):
-        query = MagicMock()
-        mock_str.split = MagicMock(return_value=["cam", "camParameters", "basicContainer", "stationType"])
-        attribute = "cam.camParameters.basicContainer.stationType"
-        query_return = self.tinydb.create_query_from_filter_statement(query, attribute)
-        self.assertEqual(query_return, "query.cam.camParameters.basicContainer.stationType")
-
-    def test_create_query_search(self):
-        query_with_attribute = MagicMock()
-        operator = "=="
-        ref_value = 1
-        query_return = self.tinydb.create_query_search(query_with_attribute, operator, ref_value)
-        self.assertEqual(query_return, query_with_attribute == ref_value)"""
-
-    """def test_parse_filter_statement(self):
-        self.tinydb.create_query_from_filter_statement = MagicMock()
-        self.tinydb.create_query_search = MagicMock(return_value = "cam.camParameters.basicContainer.stationType == 1")
-
-        filter = MagicMock()
-        filter_statement_1 = MagicMock()
-        filter_statement_1.attribute = "cam.camParameters.basicContainer.stationType"
-        filter_statement_1.operator = "=="
-        filter_statement_1.ref_value = 1
-        filter_statement_2 = MagicMock()
-        filter_statement_2.attribute = "cam.camParameters.basicContainer.stationType"
-        filter_statement_2.operator = "=="
-        filter_statement_2.ref_value = 1
-        filter.filter_statement_1 = filter_statement_1
-        filter.filter_statement_2 = filter_statement_2
-        filter.logical_operator = 0
-        query_return = self.tinydb.parse_filter_statement(MagicMock(), filter)
-        self.assertEqual(
-            query_return, "cam.camParameters.basicContainer.stationType == 1"
-        )"""
-
-    def test_search(self):
-        self.tinydb.parse_filter_statement = MagicMock()
-        self.tinydb.database.search = MagicMock(return_value=tinydb_database_example)
-        self.assertEqual(self.tinydb.search(MagicMock()), tinydb_database_example)
+        mock_print.assert_called_once()
 
     def test_create_query_search_value_error(self):
-        query_with_attribute = MagicMock()
-        operator = "nothing"
-        ref_value = 1
-        self.assertRaises(
-            ValueError,
-            self.tinydb.create_query_search,
-            query_with_attribute,
-            operator,
-            ref_value,
-        )
+        with self.assertRaises(ValueError):
+            self.tinydb.create_query_search(MagicMock(), "invalid", 1)
 
     def test_insert(self):
-        self.tinydb.database.insert = MagicMock(return_value=0)
-        self.assertEqual(self.tinydb.insert(tinydb_database_example), 0)
+        self.mock_database.insert.return_value = 42
+        self.assertEqual(self.tinydb.insert(_SAMPLE_RECORD), 42)
+        self.mock_database.insert.assert_called_once_with(_SAMPLE_RECORD)
 
     def test_get(self):
-        self.tinydb.database.get = MagicMock(return_value=tinydb_database_example)
-        self.assertEqual(self.tinydb.get(0), tinydb_database_example)
+        self.mock_database.get.return_value = _SAMPLE_RECORD
+        self.assertEqual(self.tinydb.get(1), _SAMPLE_RECORD)
+        self.mock_database.get.assert_called_once_with(doc_id=1)
+
+    def test_get_missing(self):
+        self.mock_database.get.return_value = None
+        self.assertIsNone(self.tinydb.get(99))
 
     def test_update(self):
-        self.tinydb.database.update = MagicMock()
-        self.tinydb.update(tinydb_database_example, 0)
-        self.tinydb.database.update.assert_called_once_with(
-            tinydb_database_example, doc_ids=[0]
-        )
-
-        self.assertTrue(self.tinydb.update(tinydb_database_example, 1))
+        self.assertTrue(self.tinydb.update(_SAMPLE_RECORD, 5))
+        self.mock_database.update.assert_called_once_with(_SAMPLE_RECORD, doc_ids=[5])
 
     def test_remove(self):
-        self.tinydb.database.remove = MagicMock()
-        dictionary = MagicMock()
-        dictionary.doc_id = 0
-        self.tinydb.remove(dictionary)
-        self.tinydb.database.remove.assert_called_once()
+        stored_document = Document(_SAMPLE_RECORD, doc_id=7)
+        self.mock_database.all.return_value = [stored_document]
 
-        self.assertTrue(self.tinydb.remove(dictionary))
+        self.assertTrue(self.tinydb.remove(dict(stored_document)))
+        self.mock_database.remove.assert_called_once_with(doc_ids=[7])
+
+    def test_remove_not_found(self):
+        self.mock_database.all.return_value = []
+        self.assertFalse(self.tinydb.remove(_SAMPLE_RECORD))
+        self.mock_database.remove.assert_not_called()
 
     def test_all(self):
-        self.tinydb.database.all = MagicMock(return_value=tinydb_database_example)
-        self.assertEqual(self.tinydb.all(), tinydb_database_example)
+        stored_document = Document(_SAMPLE_RECORD, doc_id=1)
+        self.mock_database.all.return_value = [stored_document]
+        self.assertEqual(self.tinydb.all(), (dict(stored_document),))
 
-    """def test_exists(self):
-        self.tinydb.database.contains = MagicMock(return_value = True)
-        self.assertTrue(self.tinydb.exists(tinydb_database_example))"""
+    def test_search_without_filter(self):
+        stored_document = Document(_SAMPLE_RECORD, doc_id=1)
+        self.mock_database.all.return_value = [stored_document]
+
+        request = MagicMock()
+        request.filter = None
+        request.data_object_type = (2,)
+
+        self.assertEqual(self.tinydb.search(request), (dict(stored_document),))
+
+    def test_exists_by_id(self):
+        self.mock_database.contains.return_value = True
+        self.assertTrue(self.tinydb.exists("dataObjectID", 10))
+        self.mock_database.contains.assert_called_once_with(doc_id=10)
+
+    def test_exists_nested_field(self):
+        stored_document = Document(_SAMPLE_RECORD, doc_id=1)
+        self.mock_database.get.return_value = stored_document
+        self.assertTrue(self.tinydb.exists("dataObject.cam", 1))
+
+    def test_exists_nested_field_not_found(self):
+        stored_document = Document({}, doc_id=1)
+        self.mock_database.get.return_value = stored_document
+        self.assertFalse(self.tinydb.exists("dataObject.cam", 1))
+

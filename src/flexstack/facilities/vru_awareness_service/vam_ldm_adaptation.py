@@ -71,7 +71,7 @@ class VRUBasicServiceLDM:
         )
         self.logging.debug(
             "Adding VAM message to LDM with; time_stamp=%d latitude=%f longitude=%f altitude=%d time_validity=%d",
-            int(TimestampIts().timestamp),
+            int(TimestampIts().timestamp_its),
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["latitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["longitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["altitude"]["altitudeValue"],

@@ -35,20 +35,12 @@ RESULT_NOT_AUTHORIZED = "Fail: Application not authorized for requested permissi
 """
 Constants for Interface IF.LDM.3, As mentioned in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.2
 """
-REGISTER_DATA_PROVIDER_RESULT_ACCEPTED = "accepted"
-REGISTER_DATA_PROVIDER_RESULT_REJECTED = "rejected"
-
-ADD_DATA_PROVIDER_RESULT_ACCEPTED = "Accepted"
-ADD_DATA_PROVIDER_RESULT_REJECTED = "unsuccessful"
 
 UPDATE_DATA_PROVIDER_RESULT_ACCEPTED = "UpdateSuccessful"
 UPDATE_DATA_PROVIDER_RESULT_REJECTED_DOES_NOT_EXIST = "UpdateRejectedDoesNotExist"
 UPDATE_DATA_PROVIDER_RESULT_REJECTED_INCONSISTENT_TYPE = (
     "UpdateRejectedInconsistentType"
 )
-
-DELETE_DATA_PROVIDER_RESULT_ACCEPTED = "DeleteSuccessful"
-DELETE_DATA_PROVIDER_RESULT_REJECTED = "DeleteRejected"
 
 """
 Constants for the Interface IF.LDM.4. As mentioned in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.3
@@ -172,8 +164,34 @@ TRAM = 11
 ROAD_SIDE_UNIT = 15
 
 """
-Operator contant
+Operator constant helpers used across database backends.
 """
+
+
+def _value_contains(candidate: object, needle: object) -> bool:
+    """Return True when ``needle`` is contained within ``candidate``."""
+    if candidate is None:
+        return False
+    if isinstance(candidate, str):
+        return str(needle) in candidate
+    if isinstance(candidate, (list, tuple, set)):
+        return needle in candidate
+    return False
+
+
+def _wrap_like_operator(target, reference, negate: bool = False):
+    """Apply a substring containment check to TinyDB query fields or raw values."""
+
+    def _predicate(value: object) -> bool:
+        result = _value_contains(value, reference)
+        return (not result) if negate else result
+
+    test_method = getattr(target, "test", None)
+    if callable(test_method):
+        return test_method(_predicate)
+    return _predicate(target)
+
+
 OPERATOR_MAPPING = {
     "==": lambda x, y: x == y,
     "!=": lambda x, y: x != y,
@@ -181,6 +199,6 @@ OPERATOR_MAPPING = {
     "<": lambda x, y: x < y,
     ">=": lambda x, y: x >= y,
     "<=": lambda x, y: x <= y,
-    "like": lambda x, y: x in y,
-    "notlike": lambda x, y: x not in y,
+    "like": lambda x, y: _wrap_like_operator(x, y),
+    "notlike": lambda x, y: _wrap_like_operator(x, y, negate=True),
 }

@@ -16,13 +16,10 @@ class LDMServiceThreads(LDMService):
     def __init__(
         self,
         ldm_maintenance: LDMMaintenance,
-        stop_event: threading.Event = None,
     ) -> None:
         super().__init__(ldm_maintenance)
         self.data_containers_lock = threading.Lock()
-        self.stop_event = stop_event
-        if stop_event is None:
-            self.stop_event = threading.Event()
+        self.stop_event = threading.Event()
 
         self.subscriptions_service_thread = threading.Thread(
             target=super().subscriptions_service, daemon=True

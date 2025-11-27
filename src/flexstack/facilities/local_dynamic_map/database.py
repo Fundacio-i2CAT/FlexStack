@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .ldm_classes import RequestDataObjectsReq
 
 
@@ -5,35 +6,23 @@ class DataBase:
     """
     Generic DataBase class that will be implemented by various classes (i.e. TinyDBDatabase, ListDatabase).
     """
-    def __init__(self, database_name: str = None, database_path: str = None):
-        """
-        Create database with a given name, returns a boolean stating if creation has been succesful.
 
-        Parameters
-        ----------
-        database_name : str
-            Name of the database to be created.
+    def delete(self) -> bool:
         """
-
-    def delete(self, database_name: str = None) -> bool:
+        Delete database, returns a boolean stating if deletion has been succesful.
         """
-        Delete database with a given name, returns a boolean stating if deletion has been succesful.
+        raise NotImplementedError("Delete Method not overriden")
 
-        Parameters
-        ----------
-        database_name : str
-            Name of the database to be deleted.
-        """
-
-    def search(self, data_request: RequestDataObjectsReq) -> list:
+    def search(self, data_request: RequestDataObjectsReq) -> tuple:
         """
         Search for data with a Filter (from ETSI ETSI EN 302 895 V1.1.1 (2014-09).
 
         Parameters
         ----------
-        query : Filter
-            Filter to be used for the search.
+        data_request : RequestDataObjectsReq
+            Data request to be used for the search.
         """
+        raise NotImplementedError("Search Method not overriden")
 
     def insert(self, data: dict) -> int:
         """
@@ -43,9 +32,15 @@ class DataBase:
         ----------
         data : dict
             Data to be inserted into the database.
+        
+        Returns
+        -------
+        int
+            Index of the inserted data.
         """
+        raise NotImplementedError("Insert Method not overriden")
 
-    def get(self, index: int) -> dict:
+    def get(self, index: int) -> dict | None:
         """
         Get data from the database with a given index.
 
@@ -53,7 +48,13 @@ class DataBase:
         ----------
         index : int
             Index of the data to be retrieved.
+        
+        Returns
+        -------
+        dict | None
+            Data retrieved from the database or None if not found.
         """
+        raise NotImplementedError("Get Method not overriden")
 
     def update(self, data: dict, index: int) -> bool:
         """
@@ -65,9 +66,15 @@ class DataBase:
             Data to be updated in the database.
         index : int
             Index of the data to be updated.
+        
+        Returns
+        -------
+        bool
+            Indicates whether update was successful.
         """
+        raise NotImplementedError("Update Method not overriden")
 
-    def remove(self, data_object: dict = None) -> bool:
+    def remove(self, data_object: dict) -> bool:
         """
         Remove data from the database with a given index, returns a boolean stating if removal has been succesful.
 
@@ -75,14 +82,26 @@ class DataBase:
         ----------
         data_object : int
             Index of the data to be removed.
+        
+        Returns
+        -------
+        bool
+            Indicates whether removal was successful.
         """
+        raise NotImplementedError("Remove Method not overriden")
 
-    def all(self) -> list:
+    def all(self) -> tuple:
         """
         Get all data from the database.
+        
+        Returns
+        -------
+        list
+            List with all data stored in the database
         """
+        raise NotImplementedError("All Method not overriden")
 
-    def exists(self, field_name: str, data_object_id: int = None) -> bool:
+    def exists(self, field_name: str, data_object_id: int) -> bool:
         """
         Check if specific field exists.
 
@@ -92,8 +111,10 @@ class DataBase:
         ----------
         field_name : str
             Name of field to be checked
+        
         Returns
         -------
         bool
             Indicates whether field exists
         """
+        raise NotImplementedError("Exists Method not overriden")

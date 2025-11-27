@@ -72,7 +72,7 @@ class CABasicServiceLDM:
         self.logging.debug(
             "Adding CAM message to LDM with; "
             "time_stamp=%d latitude=%d longitude=%d altitude=%d time_validity=%d",
-            int(TimestampIts().timestamp),
+            int(TimestampIts().timestamp_its),
             cam["cam"]["camParameters"]["basicContainer"]["referencePosition"][
                 "latitude"
             ],

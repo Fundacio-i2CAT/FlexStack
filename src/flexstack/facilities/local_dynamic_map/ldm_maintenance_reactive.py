@@ -13,7 +13,7 @@ class LDMMaintenanceReactive(LDMMaintenance):
 
     """
 
-    def add_provider_data(self, data: AddDataProviderReq) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int | None:
         index = super().add_provider_data(data)
         self.logging.debug("Adding provider data; %s", data.data_object)
         self.collect_trash()
