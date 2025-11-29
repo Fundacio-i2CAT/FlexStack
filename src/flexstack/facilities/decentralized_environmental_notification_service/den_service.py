@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 from .denm_coder import DENMCoder
 from .denm_transmission_management import DENMTransmissionManagement, VehicleData
@@ -27,7 +28,7 @@ class DecentralizedEnvironmentalNotificationService:
     """
 
     def __init__(
-        self, btp_router: BTPRouter, vehicle_data: VehicleData, ldm: LDMFacility = None
+        self, btp_router: BTPRouter, vehicle_data: VehicleData, ldm: LDMFacility | None = None
     ) -> None:
         """
         Initialize the Decentralized Environmental Notification Service.

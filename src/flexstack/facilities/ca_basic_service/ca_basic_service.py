@@ -3,10 +3,10 @@ Cooperatie Awareness Basic Service
 
 This file contains the class for the Cooperative Awareness Basic Service.
 """
-
+from __future__ import annotations
 import logging
 from ..local_dynamic_map.ldm_facility import LDMFacility
-from ..local_dynamic_map.ldm_constants import CAM
+from ..local_dynamic_map.ldm_classes import AccessPermission
 from .cam_transmission_management import (
     CAMTransmissionManagement,
     VehicleData,
@@ -41,7 +41,7 @@ class CooperativeAwarenessBasicService:
         self,
         btp_router: BTPRouter,
         vehicle_data: VehicleData,
-        ldm: LDMFacility = None,
+        ldm: LDMFacility | None = None,
     ) -> None:
         """
         Initialize the Cooperative Awareness Basic Service.
@@ -62,7 +62,7 @@ class CooperativeAwarenessBasicService:
         self.vehicle_data = vehicle_data
         ca_basic_service_ldm = None
         if ldm is not None:
-            ca_basic_service_ldm = CABasicServiceLDM(ldm, [CAM], 5)
+            ca_basic_service_ldm = CABasicServiceLDM(ldm, (AccessPermission.CAM,), 5)
         self.cam_transmission_management = CAMTransmissionManagement(
             btp_router=btp_router,
             cam_coder=self.cam_coder,

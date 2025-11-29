@@ -17,8 +17,8 @@ class TestCAMCoder(unittest.TestCase):
         asn_coder.encode = MagicMock(return_value="encoded_cam")
         asn1tools_compile_string_mock.return_value = asn_coder
         cam_coder = CAMCoder()
-        cam_coder.asn_coder.encode.return_value = "encoded_cam"
-        cam = "cam"
+        # cam_coder.asn_coder.encode.return_value = "encoded_cam"
+        cam = {"camField": "value"}
         encoded_cam = cam_coder.encode(cam)
         cam_coder.asn_coder.encode.assert_called_once_with("CAM", cam)
         self.assertEqual(encoded_cam, "encoded_cam")
@@ -29,8 +29,8 @@ class TestCAMCoder(unittest.TestCase):
         asn_coder.decode = MagicMock(return_value="decoded_cam")
         asn1tools_compile_string_mock.return_value = asn_coder
         cam_coder = CAMCoder()
-        cam_coder.asn_coder.decode.return_value = "decoded_cam"
-        encoded_cam = "encoded_cam"
+        # cam_coder.asn_coder.decode.return_value = "decoded_cam"
+        encoded_cam = b'\x30\x0a\x02\x01\x01\x16\x05value'
         decoded_cam = cam_coder.decode(encoded_cam)
         cam_coder.asn_coder.decode.assert_called_once_with("CAM", encoded_cam)
         self.assertEqual(decoded_cam, "decoded_cam")

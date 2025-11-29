@@ -30,7 +30,8 @@ class TinyDB(DataBase):
         self.database_path = os.path.abspath(database_path)
         os.makedirs(self.database_path, exist_ok=True)
         self.database_name = database_name
-        self._database_file = os.path.join(self.database_path, self.database_name)
+        self._database_file = os.path.join(
+            self.database_path, self.database_name)
         self._lock = RLock()
         self.database = tinydb.TinyDB(self._database_file)
 
@@ -121,7 +122,8 @@ class TinyDB(DataBase):
         """Recursively translate Filter definitions into TinyDB query objects."""
         if isinstance(node, Filter):
             if node.filter_statement_1 is None:
-                raise ValueError("Filter requires at least one filter statement")
+                raise ValueError(
+                    "Filter requires at least one filter statement")
             left_condition = self._build_filter_condition(
                 query, node.filter_statement_1
             )
@@ -132,7 +134,8 @@ class TinyDB(DataBase):
             if isinstance(right_operand, (list, tuple)):
                 combined_condition = left_condition
                 for sub_statement in right_operand:
-                    sub_condition = self._build_filter_condition(query, sub_statement)
+                    sub_condition = self._build_filter_condition(
+                        query, sub_statement)
                     if logical_operator == "and":
                         combined_condition = combined_condition & sub_condition
                     elif logical_operator == "or":
@@ -142,12 +145,14 @@ class TinyDB(DataBase):
                             f"Unsupported logical operator: {logical_operator}"
                         )
                 return combined_condition
-            right_condition = self._build_filter_condition(query, right_operand)
+            right_condition = self._build_filter_condition(
+                query, right_operand)
             if logical_operator == "and":
                 return left_condition & right_condition
             if logical_operator == "or":
                 return left_condition | right_condition
-            raise ValueError(f"Unsupported logical operator: {logical_operator}")
+            raise ValueError(
+                f"Unsupported logical operator: {logical_operator}")
 
         attribute_query = self._create_query_from_filter_statement(
             query, str(node.attribute)
@@ -167,7 +172,8 @@ class TinyDB(DataBase):
         """
         with self._lock:
             if data_request.filter is None:
-                documents : tuple[dict, ...] = tuple(dict(document) for document in self.database.all())
+                documents: tuple[dict, ...] = tuple(
+                    dict(document) for document in self.database.all())
                 return tuple(
                     RequestDataObjectsReq.filter_out_by_data_object_type(
                         documents,
@@ -178,7 +184,8 @@ class TinyDB(DataBase):
                 tinydb.Query(), data_request.filter
             )
             result = self.database.search(query)
-            result_documents : tuple[dict, ...] = tuple(dict(document) for document in result)
+            result_documents: tuple[dict, ...] = tuple(
+                dict(document) for document in result)
             return tuple(
                 RequestDataObjectsReq.filter_out_by_data_object_type(
                     result_documents,

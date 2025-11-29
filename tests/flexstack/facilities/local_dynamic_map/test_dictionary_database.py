@@ -9,6 +9,9 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
     Filter,
     FilterStatement,
     LogicalOperators,
+    OrderTupleValue,
+    OrderingDirection,
+    RequestDataObjectsReq,
 )
 from flexstack.facilities.local_dynamic_map.ldm_constants import CAM
 
@@ -108,42 +111,64 @@ class TestListDataBase(unittest.TestCase):
 
     @patch("builtins.print")
     def test_search_equal_operator(self, _):
-        self.database.all = MagicMock(return_value=list(database_example.values()))
+        self.database.all = MagicMock(
+            return_value=list(database_example.values()))
 
         filter_statement_1 = FilterStatement(
             "cam.camParameters.basicContainer.referencePosition.latitude",
-            ComparisonOperators(5),
+            ComparisonOperators.LESS_THAN_OR_EQUAL,
             900000001,
         )
         filter_statement_2 = FilterStatement(
             "cam.camParameters.basicContainer.referencePosition.longitude",
-            ComparisonOperators(5),
+            ComparisonOperators.LESS_THAN_OR_EQUAL,
             1800000001,
         )
 
         # Logical Operator = 0 (AND)
-        test_filter = Filter(filter_statement_1, LogicalOperators(0), filter_statement_2)
+        test_filter = Filter(filter_statement_1,
+                             LogicalOperators.AND, filter_statement_2)
 
-        request_data_objects_req = MagicMock()
-        request_data_objects_req.application_id = None
-        request_data_objects_req.data_object_type = [CAM]
-        request_data_objects_req.priority = None
-        request_data_objects_req.order = None
-        request_data_objects_req.filter = test_filter
+        request_data_objects_req = RequestDataObjectsReq(
+            application_id=1,
+            data_object_type=(CAM,),
+            priority=0,
+            order=(OrderTupleValue(
+                attribute="generationDeltaTime",
+                ordering_direction=OrderingDirection.ASCENDING),),
+            filter=test_filter
+        )
         result = self.database.search(request_data_objects_req)
-        self.assertEqual(result, list(database_example.values()))
+        self.assertEqual(result, tuple(database_example.values()))
 
         # Locical Operator = 1 (OR)
-        test_filter = Filter(filter_statement_1, LogicalOperators(1), filter_statement_2)
-        request_data_objects_req.filter = test_filter
+        test_filter = Filter(filter_statement_1,
+                             LogicalOperators(1), filter_statement_2)
+        request_data_objects_req = RequestDataObjectsReq(
+            application_id=1,
+            data_object_type=(CAM,),
+            priority=0,
+            order=(OrderTupleValue(
+                attribute="generationDeltaTime",
+                ordering_direction=OrderingDirection.ASCENDING),),
+            filter=test_filter
+        )
         result = self.database.search(request_data_objects_req)
-        self.assertEqual(result, list(database_example.values()))
+        self.assertEqual(result, tuple(database_example.values()))
 
         # Only one filter statement
         test_filter = Filter(filter_statement_1)
-        request_data_objects_req.test_filter = test_filter
+        request_data_objects_req = RequestDataObjectsReq(
+            application_id=1,
+            data_object_type=(CAM,),
+            priority=0,
+            order=(OrderTupleValue(
+                attribute="generationDeltaTime",
+                ordering_direction=OrderingDirection.ASCENDING),),
+            filter=test_filter
+        )
         result = self.database.search(request_data_objects_req)
-        self.assertEqual(result, list(database_example.values()))
+        self.assertEqual(result, tuple(database_example.values()))
 
         # Wrong path
         filter_statement_1 = FilterStatement(
@@ -153,9 +178,17 @@ class TestListDataBase(unittest.TestCase):
         )
 
         test_filter = Filter(filter_statement_1)
-        request_data_objects_req.filter = test_filter
+        request_data_objects_req = RequestDataObjectsReq(
+            application_id=1,
+            data_object_type=(CAM,),
+            priority=0,
+            order=(OrderTupleValue(
+                attribute="generationDeltaTime",
+                ordering_direction=OrderingDirection.ASCENDING),),
+            filter=test_filter
+        )
         result = self.database.search(request_data_objects_req)
-        self.assertEqual(result, [])
+        self.assertEqual(result, tuple())
 
     def test_insert(self):
         self.database.database = {}
@@ -168,17 +201,25 @@ class TestListDataBase(unittest.TestCase):
         self.assertEqual(self.database.get(1), None)
 
     def test_update(self):
-        self.database.update(database_example.get(0), 0)
-        self.assertEqual(self.database.database, database_example)
+        first_index_example = database_example.get(0)
+        if first_index_example:
+            self.database.update(first_index_example, 0)
+            self.assertEqual(self.database.database, database_example)
+        else:
+            self.fail("Intentional failure requested")
 
     def test_remove(self):
-        self.database.remove(database_example.get(0))
-        self.assertEqual(self.database.database, {})
+        first_index_example = database_example.get(0)
+        if first_index_example:
+            self.database.remove(first_index_example)
+            self.assertEqual(self.database.database, {})
+        else:
+            self.fail("Intentional failure requested")
 
     def test_all(self):
-        self.assertEqual(self.database.all(), [database_example.get(0)])
+        self.assertEqual(self.database.all(), tuple([database_example.get(0)]))
 
     def test_exists(self):
         self.assertTrue(self.database.exists("dataObjectID", 0))
-        self.assertTrue(self.database.exists("latitude"))
-        self.assertFalse(self.database.exists("velocity"))
+        self.assertTrue(self.database.exists("latitude", 0))
+        self.assertFalse(self.database.exists("velocity", 0))

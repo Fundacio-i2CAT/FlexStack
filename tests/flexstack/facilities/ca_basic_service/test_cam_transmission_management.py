@@ -19,7 +19,7 @@ class TestGenerationDeltaTime(unittest.TestCase):
         reception_timestamp_millis = (timestamp+0.3)*1000
         generation_delta_time = GenerationDeltaTime.from_timestamp(timestamp)
         self.assertEqual(generation_delta_time.as_timestamp_in_certain_point(
-            reception_timestamp_millis), timestamp*1000)
+            int(reception_timestamp_millis)), timestamp*1000)
 
     def test__gt__(self):
         timestamp = 1675871599
@@ -142,13 +142,12 @@ class TestCamTransmissionManagement(unittest.TestCase):
                     "lon": 2.073707333, "alt": 163.500, "epx": 8.754, "epy": 10.597, "epv": 31.970, "track": 0.0000, "speed": 0.011, "climb": 0.000, "eps": 0.57}
         cam_transmission_management = CAMTransmissionManagement(
             btp_router, cam_coder, vehicle_data, ca_basic_service_ldm, )
-        self.assertIsNone(cam_transmission_management.last_cam_sent)
-        
+
         with patch.object(CooperativeAwarenessMessage, 'fullfill_with_tpv_data') as mock_fullfill:
-            cam_transmission_management.send_next_cam = MagicMock()
+            cam_transmission_management._send_cam = MagicMock()
             cam_transmission_management.location_service_callback(tpv_data)
             mock_fullfill.assert_called_with(tpv_data)
-            cam_transmission_management.send_next_cam.assert_called_with()
+            cam_transmission_management._send_cam.assert_called_once()
 
     def test_send_next_cam(self):
         btp_router = MagicMock()
@@ -166,10 +165,11 @@ class TestCamTransmissionManagement(unittest.TestCase):
         )
         cam_transmission_management = CAMTransmissionManagement(
             btp_router, cam_coder, vehicle_data)
-        cam_transmission_management.send_next_cam()
-        btp_router.btp_data_request.assert_called()
+        cam = CooperativeAwarenessMessage()
+        cam_transmission_management._send_cam(cam)
+        btp_router.btp_data_request.assert_called_once()
         cam_coder.encode.assert_called_with(
-            cam_transmission_management.current_cam_to_send.cam)
+            cam.cam)
 
 
 if __name__ == '__main__':

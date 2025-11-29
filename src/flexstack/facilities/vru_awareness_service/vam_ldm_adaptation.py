@@ -28,7 +28,7 @@ class VRUBasicServiceLDM:
         Time that the messages stored in the LDM will be mantained.
     """
 
-    def __init__(self, ldm: LDMFacility, access_permissions: list, time_validity: int):
+    def __init__(self, ldm: LDMFacility, access_permissions: tuple, time_validity: int):
         self.logging = logging.getLogger("vru_basic_service")
         self.ldm_if_ldm_3 = ldm.if_ldm_3
         self.access_permissions = access_permissions
@@ -54,7 +54,7 @@ class VRUBasicServiceLDM:
         --------
         None
         """
-        timestamp = TimestampIts()
+        timestamp = TimestampIts.initialize_with_utc_timestamp_seconds()
         data = AddDataProviderReq(
             application_id=VAM,
             timestamp=timestamp,
@@ -71,7 +71,7 @@ class VRUBasicServiceLDM:
         )
         self.logging.debug(
             "Adding VAM message to LDM with; time_stamp=%d latitude=%f longitude=%f altitude=%d time_validity=%d",
-            int(TimestampIts().timestamp_its),
+            int(timestamp.timestamp_its),
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["latitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["longitude"],
             vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["altitude"]["altitudeValue"],

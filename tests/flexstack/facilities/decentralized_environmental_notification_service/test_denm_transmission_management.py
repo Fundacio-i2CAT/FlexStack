@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, patch
 from flexstack.facilities.decentralized_environmental_notification_service.denm_coder import DENMCoder
 from flexstack.facilities.decentralized_environmental_notification_service.\
     denm_transmission_management import (
-        DENMTransmissionManagement, DecentralizedEnvironmentalNotificationMessage, VehicleData
+        DENMTransmissionManagement, DecentralizedEnvironmentalNotificationMessage
     )
+from flexstack.facilities.ca_basic_service.cam_transmission_management import VehicleData
 
 
 class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
@@ -137,9 +138,10 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
 
     def test_fullfill_with_vehicle_data(self):
         """Test fullfill_with_vehicle_data function"""
-        vehicle_data = VehicleData()
-        vehicle_data.station_id = 30
-        vehicle_data.station_type = 5
+        vehicle_data = VehicleData(
+            station_id=30,
+            station_type=5,
+        )
         sequence_number = 0
 
         decentralized_environmental_notification_message = \
@@ -243,6 +245,8 @@ class TestDENMTransmissionManagement(unittest.TestCase):
     def test_transmit_denm(self):
         """Test transmit_denm function"""
         # Given
+        self.denm_transmission_management.btp_router = MagicMock()
+        self.denm_transmission_management.btp_router.btp_data_request = MagicMock()
         self.denm_transmission_management.denm_coder.encode = MagicMock()
         new_denm = MagicMock()
 
@@ -250,6 +254,6 @@ class TestDENMTransmissionManagement(unittest.TestCase):
         self.denm_transmission_management.transmit_denm(new_denm)
 
         # Then
-        self.denm_transmission_management.btp_router.btp_data_request.assert_called()
+        self.denm_transmission_management.btp_router.btp_data_request.assert_called_once()
         self.denm_transmission_management.denm_coder.encode.assert_called_once_with(
             new_denm.denm)

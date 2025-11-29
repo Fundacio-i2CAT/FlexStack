@@ -270,7 +270,7 @@ class Test_ldm_maintenance(unittest.TestCase):
         self.ldm_maintenance = LDMMaintenance(
             self.area_of_maintenance, self.database)
 
-        timestampits = TimestampIts()
+        timestampits = TimestampIts.initialize_with_utc_timestamp_seconds()
         latitude = Latitude.convert_latitude_to_its_latitude(40.7143528)
         longitude = Longitude.convert_longitude_to_its_longitude(-74.0059731)
         reference_position = ReferencePosition(
@@ -283,7 +283,7 @@ class Test_ldm_maintenance(unittest.TestCase):
             GeometricArea(Circle(radius=2), None, None),
             RelevanceArea(
                 RelevanceDistance(relevance_distance=0),
-                RelevanceTrafficDirection(relevance_traffic_direction=0),
+                RelevanceTrafficDirection.ALL_TRAFFIC_DIRECTIONS,
             ),
         )
         location = Location(reference_position, referance_area)
@@ -315,11 +315,11 @@ class Test_ldm_maintenance(unittest.TestCase):
     @patch("builtins.print")
     def test_get_provider_data(self, mock_print):
         self.database.get = MagicMock()
-        self.ldm_maintenance.get_provider_data(self.data)
+        self.ldm_maintenance.get_provider_data(0)
         assert self.database.get.called
 
         self.database.get = MagicMock(side_effect=KeyError)
-        self.ldm_maintenance.get_provider_data(self.data)
+        self.ldm_maintenance.get_provider_data(0)
         provider_data = self.database.get.assert_called_once()
         self.assertIsNone(provider_data)
         mock_print.assert_called_once()
@@ -328,23 +328,24 @@ class Test_ldm_maintenance(unittest.TestCase):
     def test_update_provider_data(self, mock_print):
         self.database.update = MagicMock()
         data_object_id = 1
-        self.ldm_maintenance.update_provider_data(data_object_id, self.data)
+        self.ldm_maintenance.update_provider_data(
+            data_object_id, self.data.data_object)
         assert self.database.update.called
 
         self.database.update = MagicMock(side_effect=KeyError)
-        self.ldm_maintenance.update_provider_data(data_object_id, self.data)
+        self.ldm_maintenance.update_provider_data(
+            data_object_id, self.data.data_object)
         self.database.update.assert_called_once()
         mock_print.assert_called_once()
 
     @patch("builtins.print")
     def test_del_provider_data(self, mock_print):
         self.database.remove = MagicMock()
-        doc_id = self.ldm_maintenance.add_provider_data(self.data)
-        self.ldm_maintenance.del_provider_data(doc_id)
+        self.ldm_maintenance.del_provider_data(self.data.data_object)
         assert self.database.remove.called
 
         self.database.remove = MagicMock(side_effect=KeyError)
-        self.ldm_maintenance.del_provider_data(self.data)
+        self.ldm_maintenance.del_provider_data(self.data.data_object)
         self.database.remove.assert_called_once()
         mock_print.assert_called_once()
 
@@ -356,7 +357,7 @@ class Test_ldm_maintenance(unittest.TestCase):
 
         self.database.all = MagicMock(side_effect=KeyError)
         all_data_containers = self.ldm_maintenance.get_all_data_containers()
-        self.assertEqual(all_data_containers, [])
+        self.assertEqual(all_data_containers, ())
 
     def test_search_data_containers(self):
         self.database.search = MagicMock(return_value=[1])
@@ -412,15 +413,10 @@ class Test_ldm_maintenance(unittest.TestCase):
             return_value=list_database_example
         )
         self.ldm_maintenance.del_provider_data = MagicMock()
-        self.ldm_maintenance.area_of_maintenance.reference_position.latitude = 407143528
-        self.ldm_maintenance.area_of_maintenance.reference_position.longitude = (
-            -740059731
-        )
-        self.ldm_maintenance.area_of_maintenance.reference_position.altitude.altitude_value = (
-            1000
-        )
-        self.ldm_maintenance.area_of_maintenance.reference_area.relevance_area.relevance_distance.compare_with_int = MagicMock(
-            return_value=True
+        self.ldm_maintenance.area_of_maintenance = Location.initializer(
+            latitude=407143528,
+            longitude=-740059731,
+            altitude_value=1000,
         )
 
         area_of_maintenance_invalidity_data_containers = (

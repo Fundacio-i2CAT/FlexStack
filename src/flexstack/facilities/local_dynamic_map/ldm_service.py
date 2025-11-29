@@ -10,7 +10,7 @@ from .ldm_classes import (
     RequestDataObjectsResp,
     RequestedDataObjectsResult,
     RequestDataObjectsReq,
-    OrderTuple,
+    OrderTupleValue,
     TimestampIts,
     Utils,
 )
@@ -150,9 +150,8 @@ class LDMService:
         """
         current_time = TimeService.time()
         if (
-            subscription["last_checked"] +
-                subscription["notification_interval"]
-            > current_time
+            subscription["last_checked"]
+            + subscription["notification_interval"] > current_time
         ):
             return
 
@@ -219,7 +218,7 @@ class LDMService:
         return ""
 
     def order_search_results(
-        self, search_results: tuple[dict, ...], orders: tuple[OrderTuple, ...]
+        self, search_results: tuple[dict, ...], orders: tuple[OrderTupleValue, ...]
     ) -> tuple[tuple[dict, ...], ...]:
         """
         Method to order search results.
@@ -390,7 +389,7 @@ class LDMService:
         filter: Filter,
         notification_interval: TimestampIts,
         multiplicity: int,
-        order: tuple[OrderTuple, ...],
+        order: tuple[OrderTupleValue, ...],
         callback: Callable[[RequestDataObjectsResp], None],
     ) -> int:
         # pylint: disable=too-many-arguments

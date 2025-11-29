@@ -373,6 +373,9 @@ class LongPositionVector:
             Dict containing the data from a GPSD TPV message.
         """
         lpv = LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            pai=self.pai,
             latitude=int(tpv_data["lat"] * 10**7),
             longitude=int(tpv_data["lon"] * 10**7),
             s=int(tpv_data["speed"] * 100),

@@ -32,7 +32,7 @@ class DataBase:
         ----------
         data : dict
             Data to be inserted into the database.
-        
+
         Returns
         -------
         int
@@ -48,7 +48,7 @@ class DataBase:
         ----------
         index : int
             Index of the data to be retrieved.
-        
+
         Returns
         -------
         dict | None
@@ -66,7 +66,7 @@ class DataBase:
             Data to be updated in the database.
         index : int
             Index of the data to be updated.
-        
+
         Returns
         -------
         bool
@@ -82,7 +82,7 @@ class DataBase:
         ----------
         data_object : int
             Index of the data to be removed.
-        
+
         Returns
         -------
         bool
@@ -93,7 +93,7 @@ class DataBase:
     def all(self) -> tuple:
         """
         Get all data from the database.
-        
+
         Returns
         -------
         list
@@ -111,7 +111,7 @@ class DataBase:
         ----------
         field_name : str
             Name of field to be checked
-        
+
         Returns
         -------
         bool

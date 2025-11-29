@@ -9,9 +9,10 @@ from .ldm_constants import (
     VALID_ITS_AID,
 )
 from .ldm_classes import (
-    DataContainer,
+    AccessPermission,
     Filter,
-    OrderTuple,
+    OrderTupleValue,
+    OrderingDirection,
     RegisterDataConsumerReq,
     RequestDataObjectsReq,
     RequestDataObjectsResp,
@@ -67,7 +68,7 @@ class InterfaceLDM4:
             and its_application_identifier in VALID_ITS_AID
         )
 
-    def check_permissions(self, permissions_granted: tuple[DataContainer, ...], data_object_id: int) -> bool:
+    def check_permissions(self, permissions_granted: tuple[AccessPermission, ...], data_object_id: int) -> bool:
         """
         Method that checks permissions to grant access to the data provider
         as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.2.1.
@@ -388,7 +389,7 @@ class InterfaceLDM4:
         """
         return priority is None or (0 <= priority <= 255)
 
-    def is_valid_order(self, order: tuple[OrderTuple, ...]) -> bool:
+    def is_valid_order(self, order: tuple[OrderTupleValue, ...]) -> bool:
         """
         Method to check if order is valid as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.3.4
 
@@ -402,7 +403,7 @@ class InterfaceLDM4:
         bool
             True if order is valid, False otherwise.
         """
-        return all(o in [1, 2] for o in order)
+        return all(o.ordering_direction in [OrderingDirection.ASCENDING, OrderingDirection.DESCENDING] for o in order)
 
     def is_valid_filter(self, data_filter: Filter) -> bool:
         """

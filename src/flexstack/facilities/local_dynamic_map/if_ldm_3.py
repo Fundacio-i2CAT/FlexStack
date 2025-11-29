@@ -20,7 +20,7 @@ from .ldm_classes import (
     UpdateDataProviderResult,
     DeleteDataProviderReq,
     DeleteDataProviderResp,
-    DataContainer,
+    AccessPermission,
 )
 from .ldm_service import LDMService
 
@@ -60,7 +60,7 @@ class InterfaceLDM3:
         """
         return its_application_identifier in VALID_ITS_AID
 
-    def check_permissions(self, permissions_granted: tuple[DataContainer, ...], data_object_id: int) -> bool:
+    def check_permissions(self, permissions_granted: tuple[AccessPermission, ...], data_object_id: int) -> bool:
         """
         Method that checks permissions to grant access to the data provider as specified in
         ETSI EN 302 895 V1.1.1 (2014-09). Section 6.2.1.
@@ -129,7 +129,7 @@ class InterfaceLDM3:
         ----------
         data_provider : DeregisterDataProviderReq
             Data provider that wants to deregister as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
-        
+
         Returns
         -------
         DeregisterDataProviderResp
@@ -152,7 +152,7 @@ class InterfaceLDM3:
         ----------
         data_provider : AddDataProviderReq
             Data provider that wants to add data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
-        
+
         Returns
         -------
         AddDataProviderResp
@@ -177,7 +177,7 @@ class InterfaceLDM3:
         ----------
         data_provider : UpdateDataProviderReq
             Data provider that wants to update data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
-        
+
         Returns
         -------
         UpdateDataProviderResp
@@ -219,7 +219,7 @@ class InterfaceLDM3:
         ----------
         data_provider : DeleteDataProviderReq
             Data provider that wants to delete data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
-        
+
         Returns
         -------
         DeleteDataProviderResp

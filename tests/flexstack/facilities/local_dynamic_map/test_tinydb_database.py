@@ -46,9 +46,11 @@ class TestTinyDB(unittest.TestCase):
 
     def test__init__(self):
         self.assertEqual(self.tinydb.database_name, self.database_name)
-        self.assertEqual(self.tinydb.database_path, os.path.abspath(self.database_path))
+        self.assertEqual(self.tinydb.database_path,
+                         os.path.abspath(self.database_path))
         self.mock_tinydb_ctor.assert_called_once_with(
-            os.path.join(os.path.abspath(self.database_path), self.database_name)
+            os.path.join(os.path.abspath(
+                self.database_path), self.database_name)
         )
 
     @patch("flexstack.facilities.local_dynamic_map.tinydb_database.os.remove")
@@ -60,7 +62,8 @@ class TestTinyDB(unittest.TestCase):
         self.assertTrue(self.tinydb.delete())
         self.mock_database.close.assert_called_once()
         self.mock_tinydb_ctor.assert_called_with(
-            os.path.join(os.path.abspath(self.database_path), self.database_name)
+            os.path.join(os.path.abspath(
+                self.database_path), self.database_name)
         )
         mock_print.assert_not_called()
 
@@ -92,7 +95,8 @@ class TestTinyDB(unittest.TestCase):
 
     def test_update(self):
         self.assertTrue(self.tinydb.update(_SAMPLE_RECORD, 5))
-        self.mock_database.update.assert_called_once_with(_SAMPLE_RECORD, doc_ids=[5])
+        self.mock_database.update.assert_called_once_with(
+            _SAMPLE_RECORD, doc_ids=[5])
 
     def test_remove(self):
         stored_document = Document(_SAMPLE_RECORD, doc_id=7)
@@ -135,4 +139,3 @@ class TestTinyDB(unittest.TestCase):
         stored_document = Document({}, doc_id=1)
         self.mock_database.get.return_value = stored_document
         self.assertFalse(self.tinydb.exists("dataObject.cam", 1))
-

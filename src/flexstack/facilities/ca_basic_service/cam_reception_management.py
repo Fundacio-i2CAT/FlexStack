@@ -3,7 +3,7 @@ CA Reception Management.
 
 This file contains the class for the CA Reception Management.
 """
-
+from __future__ import annotations
 import logging
 
 from .cam_transmission_management import GenerationDeltaTime
@@ -32,7 +32,7 @@ class CAMReceptionManagement:
         self,
         cam_coder: CAMCoder,
         btp_router: BTPRouter,
-        ca_basic_service_ldm: CABasicServiceLDM = None,
+        ca_basic_service_ldm: CABasicServiceLDM | None = None,
     ) -> None:
         """
         Initialize the CAM Reception Management.
@@ -65,8 +65,9 @@ class CAMReceptionManagement:
             BTP Data Indication.
         """
         cam = self.cam_coder.decode(btp_indication.data)
-        generation_delta_time = GenerationDeltaTime()
-        generation_delta_time.msec = cam["cam"]["generationDeltaTime"]
+        generation_delta_time = GenerationDeltaTime(
+            msec=cam["cam"]["generationDeltaTime"]
+        )
         utc_timestamp = generation_delta_time.as_timestamp_in_certain_point(
             int(TimeService.time()*1000))
         cam["utc_timestamp"] = utc_timestamp

@@ -25,28 +25,7 @@ import math
 
 from .ldm_constants import (
     EATH_RADIUS,
-    DATA_OBJECT_TYPE_ID,
-    DENM,
-    CAM,
-    POI,
-    SPATEM,
-    MAPEM,
-    IVIM,
-    EV_RSR,
-    TISTPGTRANSACTION,
-    SREM,
-    SSEM,
-    EVSCN,
-    SAEM,
-    RTCMEM,
-    CPM,
-    IMZM,
-    VAM,
-    DSM,
-    PCIM,
-    PCVM,
-    MCM,
-    PAM,
+    DATA_OBJECT_TYPE_ID
 )
 
 
@@ -64,7 +43,7 @@ class TimestampIts:
     timestamp_its: int
 
     @staticmethod
-    def initialize_with_utc_timestamp_seconds(utc_timestamp_seconds: int) -> TimestampIts:
+    def initialize_with_utc_timestamp_seconds(utc_timestamp_seconds: int | None = None) -> TimestampIts:
         """
         Initializes the TimestampIts class with a given UTC timestamp in seconds.
 
@@ -199,44 +178,57 @@ class TimeValidity:
         return int(((self.time - ITS_EPOCH)) * 1000)
 
 
-@dataclass(frozen=True)
-class DataContainer:
+class AccessPermission(IntEnum):
     """
-    Class currently not used, as no real value is added. Currenly a datacontainer is treated as a list of dicts, maybe
-    in the future some added funcionalities will be added.
+    Class that represents Access Permissions.
     """
-    data_container: dict
+    DENM = 1
+    CAM = 2
+    POI = 3
+    SPATEM = 4
+    MAPEM = 5
+    IVIM = 6
+    EV_RSR = 7
+    TISTPGTRANSACTION = 8
+    SREM = 9
+    SSEM = 10
+    EVSCN = 11
+    SAEM = 12
+    RTCMEM = 13
+    CPM = 14
+    IMZM = 15
+    VAM = 16
+    DSM = 17
+    PCIM = 18
+    PCVM = 19
+    MCM = 20
+    PAM = 21
 
     def __str__(self) -> str:
-        type_mapping = {
-            CAM: "Cooperative Awareness Message",
-            DENM: "Decentralized Environmental Notification Message",
-            POI: "Point of Interest Message",
-            SPATEM: "Signal and Phase and Timing Extended Message",
-            MAPEM: "MAP Extended Message",
-            IVIM: "Vehicle Information Message",
-            EV_RSR: "Electric Vehicle Recharging Spot Reservation Message",
-            TISTPGTRANSACTION: "Tyre Information System and Tyre Pressure Gauge Interoperability",
-            SREM: "Signal Request Extended Message",
-            SSEM: "Signal Request Status Extended Message",
-            EVSCN: "Electrical Vehicle Charging Spot Notification Message",
-            SAEM: "Services Announcement Extended Message",
-            RTCMEM: "Radio Technical Commision for Maritime Services Extended Message",
-            CPM: "Collective Perception Message",
-            IMZM: "Interface Management Zone Message",
-            VAM: "Vulnerable Road User Awareness Message",
-            DSM: "Diagnosis Logging and Status Message",
-            PCIM: "Parking Control Infrastucture Message",
-            PCVM: "Parking Control Vehicle Message",
-            MCM: "Maneuver Coordination Message",
-            PAM: "Parking Availability Message",
-        }
-
-        for data_type_id, message in type_mapping.items():
-            if DATA_OBJECT_TYPE_ID[data_type_id] in self.data_container.keys():
-                return message
-
-        return "unknown"
+        return {
+            AccessPermission.DENM: "Decentralized Environmental Notification Message",
+            AccessPermission.CAM: "Cooperative Awareness Message",
+            AccessPermission.POI: "Point of Interest Message",
+            AccessPermission.SPATEM: "Signal and Phase and Timing Extended Message",
+            AccessPermission.MAPEM: "MAP Extended Message",
+            AccessPermission.IVIM: "Vehicle Information Message",
+            AccessPermission.EV_RSR: "Electric Vehicle Recharging Spot Reservation Message",
+            AccessPermission.TISTPGTRANSACTION: "Tyre Information System and Tyre Pressure Gauge Interoperability",
+            AccessPermission.SREM: "Signal Request Extended Message",
+            AccessPermission.SSEM: "Signal Request Status Extended Message",
+            AccessPermission.EVSCN: "Electrical Vehicle Charging Spot Notification Message",
+            AccessPermission.SAEM: "Services Announcement Extended Message",
+            AccessPermission.RTCMEM: "Radio Technical Commision for Maritime Services Extended Message",
+            AccessPermission.CPM: "Collective Perception Message",
+            AccessPermission.IMZM: "Interface Management Zone Message",
+            AccessPermission.VAM: "Vulnerable Road User Awareness Message",
+            AccessPermission.DSM: "Diagnosis Logging and Status Message",
+            AccessPermission.PCIM: "Parking Control Infrastucture Message",
+            AccessPermission.PCVM: "Parking Control Vehicle Message",
+            # MCM message still not standarized. Final version pending standarization.
+            AccessPermission.MCM: "Maneuver Coordination Message",
+            AccessPermission.PAM: "Parking Availability Message",
+        }[self]
 
 
 class AuthorizationResult(IntEnum):
@@ -255,7 +247,7 @@ class AuthorizeReg:
     Class that represents an authorization request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permissions: tuple[DataContainer, ...]
+    access_permissions: tuple[AccessPermission, ...]
 
 
 @dataclass(frozen=True)
@@ -264,7 +256,7 @@ class AuthorizeResp:
     Class that represents an authorization response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permissions: tuple[DataContainer, ...]
+    access_permissions: tuple[AccessPermission, ...]
     result: AuthorizationResult
 
 
@@ -309,7 +301,7 @@ class RegisterDataProviderReq:
     Class that represents a Register Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permissions: tuple[DataContainer, ...]
+    access_permissions: tuple[AccessPermission, ...]
     time_validity: TimeValidity
 
     def to_dict(self) -> dict:
@@ -381,7 +373,7 @@ class RegisterDataProviderResp:
     Class that represent a Register Data Provder Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permisions: tuple[DataContainer, ...]
+    access_permisions: tuple[AccessPermission, ...]
     result: RegisterDataProviderResult
 
 
@@ -1185,7 +1177,7 @@ class RegisterDataConsumerReq:
     Class that represents Register Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permisions: tuple[DataContainer, ...]
+    access_permisions: tuple[AccessPermission, ...]
     area_of_interest: GeometricArea
 
 
@@ -1211,7 +1203,7 @@ class RegisterDataConsumerResp:
     Class that represents Register Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
     application_id: int
-    access_permisions: tuple[DataContainer, ...]
+    access_permisions: tuple[AccessPermission, ...]
     result: RegisterDataConsumerResult
 
 
@@ -1302,7 +1294,7 @@ class OrderingDirection(IntEnum):
 
 
 @dataclass(frozen=True)
-class OrderTuple:
+class OrderTupleValue:
     """
     Class that represents Order Tuple as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     TODO: The current implementation doesn't follow the ETSI standard. The standard says the attribute should be an int
@@ -1365,7 +1357,7 @@ class FilterStatement:
     """
     Class that represents Filter Statement as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
-    attribute: int
+    attribute: str
     operator: ComparisonOperators
     ref_value: int
 
@@ -1388,7 +1380,7 @@ class RequestDataObjectsReq:
     application_id: int
     data_object_type: tuple[int, ...]
     priority: int
-    order: tuple[OrderTuple, ...]
+    order: tuple[OrderTupleValue, ...]
     filter: Filter
 
     @staticmethod
@@ -1403,7 +1395,7 @@ class RequestDataObjectsReq:
             The current search result with all data object types (CAM, DENM, VAM, etc)
         data_object_types: tuple[int, ...]
             The data objects that want to be returned (field from RequestDataObjectReq)
-        
+
         Returns
         -------
         filtered_search_result: list[dict]
@@ -1426,7 +1418,8 @@ class RequestDataObjectsReq:
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]  # type: ignore
+                # type: ignore
+                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]
         return None
 
 
@@ -1541,7 +1534,7 @@ class SubscribeDataobjectsReq:
     filter: Filter
     notify_time: TimestampIts
     multiplicity: int
-    order: tuple[OrderTuple, ...]
+    order: tuple[OrderTupleValue, ...]
 
 
 class SubscribeDataobjectsResult(IntEnum):
@@ -1867,15 +1860,15 @@ class Utils:
         return tuple(coord / 10**7 for coord in point)
 
     @staticmethod
-    def euclidian_distance(point1, point2):
+    def euclidian_distance(point1: tuple[float, float], point2: tuple[float, float]) -> float:
         """
         Generated the euclidian distance between two points.
 
         Attributes
         ----------
-        point1 : tuple
+        point1 : tuple[float, float]
             First point.
-        point2 : tuple
+        point2 : tuple[float, float]
             Second point.
         """
         return ((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2) ** (1 / 2)

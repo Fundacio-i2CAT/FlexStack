@@ -1,29 +1,41 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from typing import Tuple, cast
+from unittest.mock import MagicMock
 
 from flexstack.facilities.local_dynamic_map.if_ldm_4 import InterfaceLDM4
 from flexstack.facilities.local_dynamic_map.ldm_classes import (
+    ComparisonOperators,
+    AccessPermission,
+    DeregisterDataConsumerAck,
     DeregisterDataConsumerReq,
     DeregisterDataConsumerResp,
     Filter,
     FilterStatement,
-    OrderTuple,
+    GeometricArea,
+    LogicalOperators,
+    OrderingDirection,
     RegisterDataConsumerReq,
     RegisterDataConsumerResp,
+    RegisterDataConsumerResult,
     RequestDataObjectsReq,
+    RequestedDataObjectsResult,
+    OrderTupleValue,
     SubscribeDataobjectsReq,
-    UnsubscribeDataobjectsReq,
-    ComparisonOperators,
+    SubscribeDataobjectsResult,
+    TimestampIts,
+    UnsubscribeDataConsumerAck,
+    UnsubscribeDataConsumerReq,
+    UnsubscribeDataConsumerResp,
 )
-
 from flexstack.facilities.local_dynamic_map.ldm_constants import (
-    VAM,
-    DENM,
     CAM,
-    MAPEM,
+    DENM,
+    VALID_ITS_AID,
+    VAM,
 )
 
-white_cam = {
+
+WHITE_CAM = {
     "header": {
         "protocolVersion": 2,
         "messageID": 2,
@@ -48,406 +60,309 @@ white_cam = {
                     },
                 },
             },
-            "highFrequencyContainer": (
-                "basicVehicleContainerHighFrequency",
-                {
-                    "heading": {"headingValue": 201, "headingConfidence": 127},
-                    "speed": {"speedValue": 16383, "speedConfidence": 127},
-                    "driveDirection": "unavailable",
-                    "vehicleLength": {
-                        "vehicleLengthValue": 1023,
-                        "vehicleLengthConfidenceIndication": "unavailable",
-                    },
-                    "vehicleWidth": 62,
-                    "longitudinalAcceleration": {
-                        "longitudinalAccelerationValue": 161,
-                        "longitudinalAccelerationConfidence": 102,
-                    },
-                    "curvature": {
-                        "curvatureValue": 1023,
-                        "curvatureConfidence": "unavailable",
-                    },
-                    "curvatureCalculationMode": "unavailable",
-                    "yawRate": {
-                        "yawRateValue": 32767,
-                        "yawRateConfidence": "unavailable",
-                    },
-                },
-            ),
         },
     },
 }
 
 
-class Test_if_ldm_4(unittest.TestCase):
+class TestInterfaceLDM4(unittest.TestCase):
     def setUp(self) -> None:
         self.ldm_service = MagicMock()
         self.if_ldm_4 = InterfaceLDM4(self.ldm_service)
 
-    def test_check_its_aid(self):
-        self.assertEqual(self.if_ldm_4.check_its_aid(1), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(2), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(3), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(4), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(5), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(6), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(7), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(8), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(9), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(10), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(11), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(12), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(13), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(14), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(15), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(16), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(17), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(18), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(19), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(20), True)
-        self.assertEqual(self.if_ldm_4.check_its_aid(21), True)
+    def test_check_its_aid_accepts_valid_ids(self) -> None:
+        for aid in VALID_ITS_AID:
+            self.assertTrue(self.if_ldm_4.check_its_aid(aid))
 
-    def test_check_permissions(self):
-        access_permisions = [DENM, CAM]
-        data_object_id = VAM
-        self.assertEqual(self.if_ldm_4.check_permissions(1, data_object_id), False)
-        self.assertEqual(
-            self.if_ldm_4.check_permissions(access_permisions, data_object_id), False
-        )
+    def test_check_its_aid_rejects_invalid_values(self) -> None:
+        self.assertFalse(self.if_ldm_4.check_its_aid("invalid"))
+        self.assertFalse(self.if_ldm_4.check_its_aid(-1))
 
-        access_permisions = [VAM]
-        data_object_id = VAM
-        self.assertEqual(
-            self.if_ldm_4.check_permissions(access_permisions, data_object_id), True
-        )
+    def test_check_permissions(self) -> None:
+        empty_permissions = cast(Tuple[AccessPermission, ...], tuple())
+        vam_permissions = cast(Tuple[AccessPermission, ...], (VAM,))
+        cam_permissions = cast(Tuple[AccessPermission, ...], (CAM,))
 
-        access_permisions = [VAM, CAM, DENM, MAPEM]
-        data_object_id = DENM
-        self.assertEqual(
-            self.if_ldm_4.check_permissions(access_permisions, data_object_id), True
-        )
+        self.assertFalse(self.if_ldm_4.check_permissions(empty_permissions, VAM))
+        self.assertTrue(self.if_ldm_4.check_permissions(vam_permissions, VAM))
+        self.assertTrue(self.if_ldm_4.check_permissions(cam_permissions, DENM))
 
-    def test_register_data_consumer(self):
-        permission_list = [CAM]
-        data_consumer_correct = RegisterDataConsumerReq(CAM, permission_list, None)
-        data_consumer_incorrect = RegisterDataConsumerReq(CAM, None, None)
-        self.assertIsInstance(
-            self.if_ldm_4.register_data_consumer(data_consumer_correct),
-            RegisterDataConsumerResp,
-        )
+    def test_register_data_consumer_accepts_valid_request(self) -> None:
+        permissions = cast(Tuple[AccessPermission, ...], (CAM,))
+        request = RegisterDataConsumerReq(CAM, permissions, GeometricArea(None, None, None))
 
-        self.assertEqual(
-            str(self.if_ldm_4.register_data_consumer(data_consumer_correct).result),
-            "accepted",
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.register_data_consumer(data_consumer_incorrect).result),
-            "rejected",
-        )
+        response = self.if_ldm_4.register_data_consumer(request)
 
-    def test_deregister_data_consumer(self):
-        self.ldm_service.del_data_consumer_its_aid = MagicMock(return_value=None)
-        self.ldm_service.get_data_consumer_its_aid = MagicMock(
-            return_value=[
-                2,
-            ]
-        )
-        data_consumer_correct = DeregisterDataConsumerReq(CAM)
-        data_consumer_incorrect = DeregisterDataConsumerReq(50)
+        self.ldm_service.add_data_consumer_its_aid.assert_called_once_with(CAM)
+        self.assertIsInstance(response, RegisterDataConsumerResp)
+        self.assertEqual(response.result, RegisterDataConsumerResult.ACCEPTED)
 
-        self.assertIsInstance(
-            self.if_ldm_4.deregister_data_consumer(data_consumer_correct),
-            DeregisterDataConsumerResp,
+    def test_register_data_consumer_rejects_invalid_request(self) -> None:
+        empty_permissions = cast(Tuple[AccessPermission, ...], tuple())
+        request = RegisterDataConsumerReq(VAM, empty_permissions, GeometricArea(None, None, None))
+
+        response = self.if_ldm_4.register_data_consumer(request)
+
+        self.assertEqual(response.result, RegisterDataConsumerResult.REJECTED)
+        self.ldm_service.add_data_consumer_its_aid.assert_not_called()
+
+    def test_deregister_data_consumer_success(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        request = DeregisterDataConsumerReq(CAM)
+
+        response = self.if_ldm_4.deregister_data_consumer(request)
+
+        self.assertEqual(response, DeregisterDataConsumerResp(CAM, DeregisterDataConsumerAck.SUCCEED))
+        self.ldm_service.del_data_consumer_its_aid.assert_called_once_with(CAM)
+
+    def test_deregister_data_consumer_not_registered(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = []
+        request = DeregisterDataConsumerReq(CAM)
+
+        response = self.if_ldm_4.deregister_data_consumer(request)
+
+        self.assertEqual(response, DeregisterDataConsumerResp(CAM, DeregisterDataConsumerAck.FAILED))
+        self.ldm_service.del_data_consumer_its_aid.assert_not_called()
+
+    def test_request_data_objects_invalid_itsa_id(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = []
+        request = RequestDataObjectsReq(
+            CAM,
+            (CAM,),
+            0,
+            cast(tuple, [1]),
+            cast(Filter, None),
         )
 
-        self.assertEqual(
-            str(self.if_ldm_4.deregister_data_consumer(data_consumer_correct).ack),
-            "succeed",
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.deregister_data_consumer(data_consumer_incorrect).ack),
-            "failed",
+        response = self.if_ldm_4.request_data_objects(request)
+
+        self.assertEqual(response.result, RequestedDataObjectsResult.INVALID_ITSA_ID)
+
+    def test_request_data_objects_invalid_data_type(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        request = RequestDataObjectsReq(
+            CAM,
+            (999,),
+            0,
+            cast(tuple, [1]),
+            cast(Filter, None),
         )
 
-    def test_request_data_objects(self):
-        # Hay un ldm_service con el registro de un data-consumer
-        self.ldm_service.get_data_consumer_its_aid = MagicMock(
-            return_value=[
-                2,
-            ]
-        )
-        self.ldm_service.query = MagicMock(
-            return_value=[
-                white_cam,
-            ]
-        )
+        response = self.if_ldm_4.request_data_objects(request)
 
-        # Se hace un datarequest
-        filter_statement_1 = FilterStatement(
-            "cam.camParameters.basicContainer.referencePosition.latitude",
-            ComparisonOperators(0),
-            900000001,
-        )
-        filter_statement_1_incorrect = FilterStatement(
-            "cam.camParameters.referencePosition.latitude",
-            ComparisonOperators(0),
-            900000001,
-        )  # wrong attribute
-        filter_statement_2 = FilterStatement(
-            "cam.camParameters.basicContainer.referencePosition.longitude",
-            ComparisonOperators(1),
-            1800000001,
-        )
+        self.assertEqual(response.result, RequestedDataObjectsResult.INVALID_DATA_OBJECT_TYPE)
 
-        # Se hace un query
-        filter = Filter(filter_statement_1, 0, filter_statement_2)
-        data_request = RequestDataObjectsReq(
-            35,
-            [
-                2,
-            ],
-            1,
-            None,
-            filter,
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result),
-            "invalidITSAID",
-        )
-
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                69,
-            ],
-            1,
-            None,
-            None,
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result),
-            "invalidDataObjectType",
-        )
-
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                2,
-            ],
+    def test_request_data_objects_invalid_priority(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        request = RequestDataObjectsReq(
+            CAM,
+            (CAM,),
             256,
-            None,
-            None,
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result),
-            "invalidPriority",
+            cast(tuple, [1]),
+            cast(Filter, None),
         )
 
-        filter = [filter_statement_1_incorrect, 0, filter_statement_2]
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                2,
-            ],
+        response = self.if_ldm_4.request_data_objects(request)
+
+        self.assertEqual(response.result, RequestedDataObjectsResult.INVALID_PRIORITY)
+
+    def test_request_data_objects_invalid_filter(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        bad_filter = cast(Filter, ["not", "filter"])
+        request = RequestDataObjectsReq(
+            CAM,
+            (CAM,),
+            0,
+            cast(tuple, [1]),
+            bad_filter,
+        )
+
+        response = self.if_ldm_4.request_data_objects(request)
+
+        self.assertEqual(response.result, RequestedDataObjectsResult.INVALID_FILTER)
+
+    def test_request_data_objects_invalid_order(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        request = RequestDataObjectsReq(
+            CAM,
+            (CAM,),
+            0,
+            cast(tuple, (1,)),
+            cast(Filter, None),
+        )
+
+        response = self.if_ldm_4.request_data_objects(request)
+
+        self.assertEqual(response.result, RequestedDataObjectsResult.INVALID_ORDER)
+
+    def test_request_data_objects_success(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        self.ldm_service.query.return_value = (({"dataObject": WHITE_CAM},),)
+        data_filter = Filter(
+            FilterStatement("cam.camParameters.basicContainer.referencePosition.latitude", ComparisonOperators.EQUAL, 900000001),
+            LogicalOperators.AND,
+            None,
+        )
+        request = RequestDataObjectsReq(
+            CAM,
+            (CAM,),
+            0,
+            cast(tuple, [1]),
+            data_filter,
+        )
+
+        response = self.if_ldm_4.request_data_objects(request)
+
+        self.assertEqual(response.result, RequestedDataObjectsResult.SUCCEED)
+        self.assertEqual(response.data_objects, ({"dataObject": WHITE_CAM},))
+
+    def test_subscribe_data_consumer_invalid_its_aid(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = []
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            cast(int, None),
+            cast(Filter, None),
+            cast(TimestampIts, None),
+            cast(int, None),
+            (OrderTupleValue(attribute="cam.generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_ITSA_ID)
+
+    def test_subscribe_data_consumer_invalid_data_object_type(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (999,),
+            cast(int, None),
+            cast(Filter, None),
+            cast(TimestampIts, None),
+            cast(int, None),
+            (OrderTupleValue(attribute="generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_DATA_OBJECT_TYPE)
+
+    def test_subscribe_data_consumer_invalid_priority(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            256,
+            cast(Filter, None),
+            cast(TimestampIts, None),
+            cast(int, None),
+            (OrderTupleValue(attribute="generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_PRIORITY)
+
+    def test_subscribe_data_consumer_invalid_filter(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        bad_filter = cast(Filter, "not a filter")
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            cast(int, None),
+            bad_filter,
+            cast(TimestampIts, None),
+            cast(int, None),
+            (OrderTupleValue(attribute="cam.generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_FILTER)
+
+    def test_subscribe_data_consumer_invalid_notify_time(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            cast(int, None),
+            cast(Filter, None),
+            TimestampIts(4398046511104),
+            cast(int, None),
+            (OrderTupleValue(attribute="generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_NOTIFICATION_INTERVAL)
+
+    def test_subscribe_data_consumer_invalid_multiplicity(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            cast(int, None),
+            cast(Filter, None),
+            cast(TimestampIts, None),
+            256,
+            (OrderTupleValue(attribute="generationDeltaTime", ordering_direction=OrderingDirection.ASCENDING),),
+        )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.INVALID_MULTIPLICITY)
+
+    def test_subscribe_data_consumer_success(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        self.ldm_service.store_new_subscription_petition.return_value = 42
+        data_filter = Filter(FilterStatement("cam.camParameters.basicContainer.referencePosition.latitude", ComparisonOperators.EQUAL, 900000001), None, None)
+        subscribe_req = SubscribeDataobjectsReq(
+            CAM,
+            (CAM,),
+            cast(int, None),
+            data_filter,
+            TimestampIts(1000),
             1,
-            None,
-            filter,
+            (OrderTupleValue(attribute="cam.camParameters.basicContainer.referencePosition.latitude", ordering_direction=OrderingDirection.ASCENDING),),
         )
+
+        response = self.if_ldm_4.subscribe_data_consumer(subscribe_req, MagicMock())
+
+        self.assertEqual(response.result, SubscribeDataobjectsResult.SUCCESSFUL)
+        self.assertEqual(response.subscription_id, 42)
+        self.ldm_service.store_new_subscription_petition.assert_called_once()
+
+    def test_unsubscribe_data_consumer_invalid_its_aid(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = []
+        request = UnsubscribeDataConsumerReq(CAM, 10)
+
+        response = self.if_ldm_4.unsubscribe_data_consumer(request)
+
+        self.assertEqual(response, UnsubscribeDataConsumerResp(CAM, 0, UnsubscribeDataConsumerAck.FAILED))
+
+    def test_unsubscribe_data_consumer_delete_failure(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        self.ldm_service.delete_subscription.return_value = False
+        request = UnsubscribeDataConsumerReq(CAM, 99)
+
+        response = self.if_ldm_4.unsubscribe_data_consumer(request)
+
         self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result),
-            "invalidFilter",
+            response,
+            UnsubscribeDataConsumerResp(CAM, 99, UnsubscribeDataConsumerAck.FAILED),
         )
 
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                2,
-            ],
-            1,
-            3,
-            None,
-        )
+    def test_unsubscribe_data_consumer_success(self) -> None:
+        self.ldm_service.get_data_consumer_its_aid.return_value = [CAM]
+        self.ldm_service.delete_subscription.return_value = True
+        request = UnsubscribeDataConsumerReq(CAM, 7)
+
+        response = self.if_ldm_4.unsubscribe_data_consumer(request)
+
         self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result), "invalidOrder"
-        )
-
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                2,
-            ],
-            None,
-            None,
-            None,
-        )
-        self.assertEqual(
-            str(self.if_ldm_4.request_data_objects(data_request).result), "succeed"
-        )
-
-        filter = Filter(filter_statement_1, 0, filter_statement_2)
-        data_request = RequestDataObjectsReq(
-            2,
-            [
-                2,
-            ],
-            None,
-            None,
-            filter,
-        )
-        self.assertEqual(
-            self.if_ldm_4.request_data_objects(data_request).data_objects,
-            [
-                white_cam,
-            ],
-        )
-
-    @patch(
-        "flexstack.facilities.local_dynamic_map.if_ldm_4.LDMService.subscriptions_service"
-    )
-    def test_subscribe_data_consumer(self, ldm_service_subscriptions_service):
-        callback_function = MagicMock()
-        self.ldm_service.get_data_consumer_its_aid = MagicMock(
-            return_value=[
-                2,
-            ]
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            5, [2, 1], None, None, None, None, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidITSAID",
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [123, 42], None, None, None, None, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidDataObjectType",
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], 256, None, None, None, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidPriority",
-        )
-
-        filter_statement_1_incorrect = FilterStatement(
-            "cam.camParameters.referencePosition.latitude",
-            ComparisonOperators(0),
-            900000001,
-        )  # wrong attribute
-        filter_statement_2 = FilterStatement(
-            "cam.camParameters.basicContainer.referencePosition.longitude",
-            ComparisonOperators(1),
-            1800000001,
-        )
-        filter = Filter(filter_statement_1_incorrect, 0, filter_statement_2)
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], None, filter, None, None, None
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], None, None, -3, None, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidNotificationInterval",
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], None, None, None, 256, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidMultiplicity",
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], None, None, None, None, OrderTuple(2, 0)
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "invalidOrder",
-        )
-
-        subscribe_data_consumer = SubscribeDataobjectsReq(
-            2, [2, 1], None, None, None, None, None
-        )
-        self.assertEqual(
-            str(
-                self.if_ldm_4.subscribe_data_consumer(
-                    subscribe_data_consumer, callback_function
-                ).result
-            ),
-            "successful",
-        )
-
-    def test_unsubscribe_data_consumer(self):
-        self.ldm_service.delete_subscription = MagicMock(return_value=False)
-        self.ldm_service.get_data_consumer_its_aid = MagicMock(
-            return_value=[
-                2,
-            ]
-        )
-
-        unsubscribe_data_consumer = UnsubscribeDataobjectsReq(5, 1212)
-        self.assertEqual(
-            str(
-                self.if_ldm_4.unsubscribe_data_consumer(
-                    unsubscribe_data_consumer
-                ).result
-            ),
-            "failed",
-        )
-
-        unsubscribe_data_consumer = UnsubscribeDataobjectsReq(2, 1)
-        self.assertEqual(
-            str(
-                self.if_ldm_4.unsubscribe_data_consumer(
-                    unsubscribe_data_consumer
-                ).result
-            ),
-            "failed",
-        )
-
-        self.ldm_service.delete_subscription = MagicMock(return_value=True)
-        unsubscribe_data_consumer = UnsubscribeDataobjectsReq(2, 1212)
-        self.assertEqual(
-            str(
-                self.if_ldm_4.unsubscribe_data_consumer(
-                    unsubscribe_data_consumer
-                ).result
-            ),
-            "accepted",
+            response,
+            UnsubscribeDataConsumerResp(CAM, 7, UnsubscribeDataConsumerAck.ACCEPTED),
         )
 
 
