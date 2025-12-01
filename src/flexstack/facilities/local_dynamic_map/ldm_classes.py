@@ -1536,13 +1536,14 @@ class SubscribeDataobjectsReq:
     multiplicity: int
     order: tuple[OrderTupleValue, ...]
 
+
 @dataclass(frozen=True)
 class SubscriptionInfo:
     """
     Non-standard class that represents Subscription Info for internal use.
     """
-    subscription_request : SubscribeDataobjectsReq
-    callback : Callable[[RequestDataObjectsResp], None]
+    subscription_request: SubscribeDataobjectsReq
+    callback: Callable[[RequestDataObjectsResp], None]
 
 
 class SubscribeDataobjectsResult(IntEnum):

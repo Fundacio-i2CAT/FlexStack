@@ -155,7 +155,8 @@ class LDMService:
         current_time = TimestampIts.initialize_with_utc_timestamp_seconds()
         notify_time = subscription.subscription_request.notify_time
         with self._lock:
-            last_checked = self.last_checked_subscriptions_time.get(subscription)
+            last_checked = self.last_checked_subscriptions_time.get(
+                subscription)
             if last_checked is None:
                 self.last_checked_subscriptions_time[subscription] = current_time
                 last_checked = current_time
@@ -245,8 +246,8 @@ class LDMService:
                 for order in orders
             )
 
-        reverse = any(order.ordering_direction ==
-                      OrderingDirection.DESCENDING for order in orders)
+        reverse = any(order.ordering_direction == OrderingDirection.DESCENDING
+                      for order in orders)
         return (tuple(sorted(search_results, key=build_key, reverse=reverse)),)
 
     def add_provider_data(self, data: AddDataProviderReq) -> int | None:
