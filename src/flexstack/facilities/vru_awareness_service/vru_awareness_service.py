@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 
-from ..local_dynamic_map.ldm_constants import VAM
+from flexstack.facilities.local_dynamic_map.ldm_classes import AccessPermission
 from .vam_ldm_adaptation import VRUBasicServiceLDM
 from .vam_transmission_management import VAMTransmissionManagement, DeviceDataProvider
 from ...btp.router import Router as BTPRouter
@@ -53,7 +53,7 @@ class VRUAwarenessService:
         self.device_data_provider = device_data_provider
         vru_basic_service_ldm = None
         if ldm is not None:
-            vru_basic_service_ldm = VRUBasicServiceLDM(ldm, [VAM], 5)
+            vru_basic_service_ldm = VRUBasicServiceLDM(ldm, (AccessPermission.VAM,), 5)
 
         self.vam_transmission_management = VAMTransmissionManagement(
             btp_router=btp_router,

@@ -120,7 +120,6 @@ class RawLinkLayer(LinkLayer):
                         and m[6:12] != self.mac_address
                     ):
                         self.receive_callback(m[14:])
-                    # if m[0:6] == b'\xff\xff\xff\xff\xff\xff' and m[6:12] == self.mac_address:
                 except NotImplementedError as e:
                     print("Error decoding packet: " + str(e))
             except OSError:

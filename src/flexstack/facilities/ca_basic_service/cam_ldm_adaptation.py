@@ -26,7 +26,7 @@ class CABasicServiceLDM:
     access_permissions: list
         List containing the application ID of all the applications that want to be accessed.
     time_validity: int
-        Time that the messages stored in the LDM will be mantained.
+        Time that the messages stored in the LDM will be mantained. (In milliseconds).
     """
 
     def __init__(self, ldm: LDMFacility, access_permissions: tuple[AccessPermission, ...], time_validity: int):

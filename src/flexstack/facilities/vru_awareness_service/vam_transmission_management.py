@@ -389,19 +389,19 @@ class VAMMessage(CooperativeAwarenessMessage):
         """
         Fullfill the vam with vehicle data.
         """
-        self.vam["header"]["stationId"] = device_data_provider.station_id
-        self.vam["vam"]["vamParameters"]["basicContainer"][
-            "stationType"
-        ] = device_data_provider.station_type
-        self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"][
-            "heading"
-        ] = device_data_provider.heading
-        self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"][
-            "speed"
-        ] = device_data_provider.speed
+        self.vam["header"]["stationId"] = int(device_data_provider.station_id)
+        self.vam["vam"]["vamParameters"]["basicContainer"]["stationType"] = int(
+            device_data_provider.station_type
+        )
+        self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"] = dict(
+            device_data_provider.heading
+        )
+        self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["speed"] = dict(
+            device_data_provider.speed
+        )
         self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"][
             "longitudinalAcceleration"
-        ] = device_data_provider.longitudinal_acceleration
+        ] = dict(device_data_provider.longitudinal_acceleration)
 
     def fullfill_gen_delta_time_with_tpv_data(self, tpv: dict) -> None:
         """
@@ -677,7 +677,7 @@ class VAMTransmissionManagement:
             length=len(data),
         )
         self.btp_router.btp_data_request(request)
-        self.logging.info(
+        self.logging.debug(
             "Sent VAM message with timestamp: %s, station_id: %s",
             vam.vam['vam']['generationDeltaTime'],
             vam.vam['header']['stationId']

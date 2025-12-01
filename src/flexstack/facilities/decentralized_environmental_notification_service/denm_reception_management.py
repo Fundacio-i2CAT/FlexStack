@@ -70,7 +70,9 @@ class DENMReceptionManagement:
         if self.ldm_facility is not None:
             data = AddDataProviderReq(
                 application_id=DENM,
-                timestamp=TimestampIts(denm["denm"]["management"]["detectionTime"]),
+                # timestamp=TimestampIts(
+                #     denm["denm"]["management"]["detectionTime"]),
+                timestamp=TimestampIts.initialize_with_utc_timestamp_seconds(),
                 location=Location.location_builder_circle(
                     latitude=denm["denm"]["management"]["eventPosition"]["latitude"],
                     longitude=denm["denm"]["management"]["eventPosition"]["longitude"],
@@ -83,9 +85,9 @@ class DENMReceptionManagement:
                 time_validity=TimeValidity(3),
             )
             self.ldm_facility.if_ldm_3.add_provider_data(data)
-            # if not isinstance(response.dataObjectID, int):
-            #     raise response.dataObjectID
-            self.logging.debug("Added DENM data to the LDM. Data: %s", data)
+            self.logging.debug("Added DENM with timestamp: %s, station_id: %s to the LDM.",
+                               data.data_object["denm"]["management"]["referenceTime"],
+                               data.data_object["header"]["stationId"],)
 
     def reception_callback(self, btp_indication: BTPDataIndication) -> None:
         """

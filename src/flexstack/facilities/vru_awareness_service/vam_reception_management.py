@@ -63,7 +63,7 @@ class VAMReceptionManagement:
         if self.vru_basic_service_ldm is not None:
             self.vru_basic_service_ldm.add_provider_data_to_ldm(vam)
         self.logging.debug("Recieved message; %s", vam)
-        self.logging.info(
+        self.logging.debug(
             "Recieved VAM message with timestamp: %s, station_id: %s",
             vam["vam"]["generationDeltaTime"],
             vam["header"]["stationId"],

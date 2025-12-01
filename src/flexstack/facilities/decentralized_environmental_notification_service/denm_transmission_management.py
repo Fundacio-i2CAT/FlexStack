@@ -195,6 +195,7 @@ class DENMTransmissionManagement:
         self.btp_router: BTPRouter = btp_router
         self.vehicle_data = vehicle_data
         self.denm_coder = denm_coder
+        self.sequence_number = 0
 
     def request_denm_sending(self, denm_request: DENRequest) -> None:
         """
@@ -267,7 +268,7 @@ class DENMTransmissionManagement:
         )
         self.btp_router.btp_data_request(request)
         self.logging.debug(
-            "Recieved DENM with timestamp: %s, station_id: %s",
+            "Sent DENM with timestamp: %s, station_id: %s",
             denm_to_send.denm["denm"]["management"]["referenceTime"],
             denm_to_send.denm["header"]["stationId"],
         )

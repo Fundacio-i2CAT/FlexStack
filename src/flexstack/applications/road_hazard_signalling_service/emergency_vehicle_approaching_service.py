@@ -1,4 +1,6 @@
+from __future__ import annotations
 from .service_access_point import DENRequest, PriorityLevel
+from ...facilities.local_dynamic_map.ldm_facility import LDMFacility
 from ...facilities.decentralized_environmental_notification_service.den_service import (
     DecentralizedEnvironmentalNotificationService,
 )
@@ -33,30 +35,22 @@ class EmergencyVehicleApproachingService:
     """
 
     def __init__(
-        self, btp_router: BTPRouter, vehicle_data, duration: int = 10000
+        self, den_service: DecentralizedEnvironmentalNotificationService, duration: int = 10000
     ) -> None:
         """
         Initialize the Emergency Vehicle Approaching Service.
 
         Parameters
         ----------
-         Parameters
-        ----------
-        btp_router : BTPRouter
-            Reference to the BTP Router for communication.
-        vehicle_data : Any
-            Vehicle-specific data used for initializing the DEN service.
+        den_service : DecentralizedEnvironmentalNotificationService
+            Decentralized Environmental Notification Service
         duration : int, optional
             Duration in milliseconds for which DENM messages will be transmitted
             (default is 10 seconds).
         """
-        self.den_service = (
-            DecentralizedEnvironmentalNotificationService(  # passar per referencia
-                btp_router, vehicle_data
-            )
-        )
+        self.den_service = den_service
         self.denm_duration = duration  # [ms] 10 seconds
-        self.denm_interval = 100
+        self.denm_interval = 1000
         self.priority_level = PriorityLevel.WARNING
         # Get DENM data to simulate the hazard detection
         self.detection_time = TimeService.timestamp_its()
