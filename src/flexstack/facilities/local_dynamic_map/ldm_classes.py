@@ -17,6 +17,7 @@ A few expeptions:
 """
 
 from __future__ import annotations
+from collections.abc import Callable
 from ...utils.time_service import TimeService, ITS_EPOCH, ELAPSED_SECONDS
 from dataclasses import dataclass
 from functools import total_ordering
@@ -1526,7 +1527,6 @@ class RequestDataObjectsResp:
 class SubscribeDataobjectsReq:
     """
     As specified in src.facilities.local_dynamic_map.if_ldm_4.py this class has been modified to fit implementation.
-    The parameter "callback : function" has been added (not in the standard)
     """
     application_id: int
     data_object_type: tuple[int, ...]
@@ -1535,6 +1535,14 @@ class SubscribeDataobjectsReq:
     notify_time: TimestampIts
     multiplicity: int
     order: tuple[OrderTupleValue, ...]
+
+@dataclass(frozen=True)
+class SubscriptionInfo:
+    """
+    Non-standard class that represents Subscription Info for internal use.
+    """
+    subscription_request : SubscribeDataobjectsReq
+    callback : Callable[[RequestDataObjectsResp], None]
 
 
 class SubscribeDataobjectsResult(IntEnum):

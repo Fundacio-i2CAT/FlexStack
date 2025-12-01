@@ -473,14 +473,8 @@ class InterfaceLDM4:
             Subscription ID (index of the subscription in the database)
         """
         return self.ldm_service.store_new_subscription_petition(
-            subscribe_data_consumer.application_id,
-            subscribe_data_consumer.data_object_type,
-            subscribe_data_consumer.priority,
-            subscribe_data_consumer.filter,
-            subscribe_data_consumer.notify_time,
-            subscribe_data_consumer.multiplicity,
-            subscribe_data_consumer.order,
-            callback,
+            subscription_request=subscribe_data_consumer,
+            callback=callback,
         )
 
     def unsubscribe_data_consumer(

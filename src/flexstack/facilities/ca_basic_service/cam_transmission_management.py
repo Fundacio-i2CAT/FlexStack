@@ -602,6 +602,7 @@ class CAMTransmissionManagement:
             GPSD TP
         """
         cam = CooperativeAwarenessMessage()
+        cam.fullfill_with_vehicle_data(self.vehicle_data)
         cam.fullfill_with_tpv_data(tpv)
 
         if self.last_cam_generation_delta_time is None:

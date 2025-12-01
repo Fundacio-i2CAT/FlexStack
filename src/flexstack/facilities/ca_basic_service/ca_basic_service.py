@@ -56,22 +56,20 @@ class CooperativeAwarenessBasicService:
             Local Dynamic Map (LDM) Service.
         """
         self.logging = logging.getLogger("ca_basic_service")
-
-        self.btp_router = btp_router
         self.cam_coder = CAMCoder()
-        self.vehicle_data = vehicle_data
         ca_basic_service_ldm = None
         if ldm is not None:
-            ca_basic_service_ldm = CABasicServiceLDM(ldm, (AccessPermission.CAM,), 5)
+            ca_basic_service_ldm = CABasicServiceLDM(
+                ldm, (AccessPermission.CAM,), 5)
         self.cam_transmission_management = CAMTransmissionManagement(
             btp_router=btp_router,
             cam_coder=self.cam_coder,
-            vehicle_data=self.vehicle_data,
+            vehicle_data=vehicle_data,
             ca_basic_service_ldm=ca_basic_service_ldm,
         )
         self.cam_reception_management = CAMReceptionManagement(
             cam_coder=self.cam_coder,
-            btp_router=self.btp_router,
+            btp_router=btp_router,
             ca_basic_service_ldm=ca_basic_service_ldm,
         )
 

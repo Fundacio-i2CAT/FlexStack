@@ -358,11 +358,11 @@ class Test_ldm_service(unittest.TestCase):
             }
         ]
 
-        self.ldm_service.pop_subscription = MagicMock()
+        self.ldm_service.remove_subscription = MagicMock()
 
         self.ldm_service.attend_subscriptions()
 
-        self.ldm_service.pop_subscription.assert_called()
+        self.ldm_service.remove_subscription.assert_called()
 
     def test_static_method_find_key_path(self):
         self.assertEqual(
@@ -441,12 +441,12 @@ class Test_ldm_service(unittest.TestCase):
             },
         ]
 
-        self.assertRaises(IndexError, self.ldm_service.pop_subscription, -1)
+        self.assertRaises(IndexError, self.ldm_service.remove_subscription, -1)
 
         mock_builtin_list.pop = MagicMock(
             return_value=self.ldm_service.subscriptions[0]
         )
-        self.ldm_service.pop_subscription(1)
+        self.ldm_service.remove_subscription(1)
         return_value = {
             "applicationId": 1,
             "data_object_type": (CAM,),
