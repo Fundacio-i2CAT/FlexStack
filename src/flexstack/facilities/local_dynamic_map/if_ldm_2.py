@@ -43,6 +43,7 @@ class Authorization:
         bool
             True if ITS AID is valid, False otherwise.
         """
+        raise NotImplementedError("TODO: Finish once Security Layer is implemented")
 
     def check_permissions(self) -> bool:
         """
@@ -53,7 +54,7 @@ class Authorization:
         bool
             True if permissions granted, False otherwise.
         """
-        # TODO: Permissions given could be different than permissions requested.
+        raise NotImplementedError("TODO: Finish once Security Layer is implemented")
 
     def check_application_authentication(self) -> bool:
         """
@@ -64,6 +65,7 @@ class Authorization:
         bool
             True if application authenticated, False otherwise.
         """
+        raise NotImplementedError("TODO: Finish once Security Layer is implemented")
 
     def generate_result(self) -> str:
         """

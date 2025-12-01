@@ -33,7 +33,18 @@ class LDMService:
 
     Attributes
     ----------
-    TODO: Add attributes
+    ldm_maintenance : LDMMaintenance
+        Backend component that stores, updates and retrieves data containers.
+    data_provider_its_aid : set[int]
+        Thread-safe set with the ITS-AID values of registered data providers.
+    data_consumer_its_aid : set[int]
+        Thread-safe set with the ITS-AID values of registered data consumers.
+    subscriptions : list[SubscriptionInfo]
+        Active subscription records registered by data consumers.
+    last_checked_subscriptions_time : dict[SubscriptionInfo, TimestampIts]
+        Tracks the last notification timestamp per subscription.
+    _lock : threading.RLock
+        Reentrant lock guarding shared mutable state in the service.
 
     """
 
@@ -60,12 +71,14 @@ class LDMService:
             if subscription.subscription_request.multiplicity is not None and subscription.subscription_request.multiplicity > len(search_result):
                 continue
 
+            ordered_search_result = search_result
             if subscription.subscription_request.order is not None:
-                search_result = self.order_search_results(
+                ordered_sequences = self.order_search_results(
                     search_result, subscription.subscription_request.order
                 )
-                search_result = search_result[0]
-                self.process_notifications(subscription, search_result)
+                if ordered_sequences:
+                    ordered_search_result = ordered_sequences[0]
+            self.process_notifications(subscription, ordered_search_result)
             data_consumer_its_aid = self.get_data_consumer_its_aid()
             if subscription.subscription_request.application_id not in data_consumer_its_aid:
                 subscriptions_to_remove.add(subscription)
@@ -140,12 +153,14 @@ class LDMService:
         None
         """
         current_time = TimestampIts.initialize_with_utc_timestamp_seconds()
-        if (
-            self.last_checked_subscriptions_time[subscription]
-            + subscription.subscription_request.notify_time > current_time
-        ):
-            return
+        notify_time = subscription.subscription_request.notify_time
         with self._lock:
+            last_checked = self.last_checked_subscriptions_time.get(subscription)
+            if last_checked is None:
+                self.last_checked_subscriptions_time[subscription] = current_time
+                last_checked = current_time
+            if notify_time is not None and last_checked + notify_time > current_time:
+                return
             self.last_checked_subscriptions_time[subscription] = current_time
 
         subscription.callback(
@@ -165,8 +180,9 @@ class LDMService:
         subscription: SubscriptionInfo
         """
         with self._lock:
-            self.subscriptions.remove(subscription)
-            self.last_checked_subscriptions_time.pop(subscription)
+            if subscription in self.subscriptions:
+                self.subscriptions.remove(subscription)
+            self.last_checked_subscriptions_time.pop(subscription, None)
 
     def find_key_paths_in_list(self, target_key: str, search_result: list) -> list[str]:
         """
@@ -286,7 +302,7 @@ class LDMService:
         provider_data_id : int
         """
         with self._lock:
-            self.data_provider_its_aid.remove(provider_data_id)
+            self.data_provider_its_aid.discard(provider_data_id)
 
     def del_data_provider_its_aid(self, its_aid: int) -> None:
         """
@@ -297,7 +313,7 @@ class LDMService:
         its_aid : int
         """
         with self._lock:
-            self.data_provider_its_aid.remove(its_aid)
+            self.data_provider_its_aid.discard(its_aid)
 
     def query(self, data_request: RequestDataObjectsReq) -> tuple[tuple[dict, ...], ...]:
         """
@@ -410,7 +426,7 @@ class LDMService:
         its_aid : int
         """
         with self._lock:
-            self.data_consumer_its_aid.remove(its_aid)
+            self.data_consumer_its_aid.discard(its_aid)
 
     def delete_subscription(self, subscription_id: int) -> bool:
         """
