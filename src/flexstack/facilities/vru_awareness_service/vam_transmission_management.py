@@ -1,7 +1,9 @@
 from __future__ import annotations
-
+from types import MappingProxyType
+from typing import Mapping
 import logging
-
+from dataclasses import dataclass, field
+import threading
 from dateutil import parser
 
 from ...facilities.local_dynamic_map.ldm_classes import Utils
@@ -17,18 +19,14 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
-from ..ca_basic_service.cam_transmission_management import (
-    GenerationDeltaTime,
-    CooperativeAwarenessMessage,
-)
+from ..ca_basic_service.cam_transmission_management import CooperativeAwarenessMessage, GenerationDeltaTime
 from . import vam_constants
 
-# from ..local_dynamic_map import LocalDynamicMap
 
-
+@dataclass(frozen=True)
 class DeviceDataProvider:
     """
-    Class that stores the vehicle data.
+    Immutable DeviceDataProvider for thread-safe access.
 
     Attributes
     ----------
@@ -36,23 +34,32 @@ class DeviceDataProvider:
         Station ID as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
     station_type : int
         Station Type as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
-    heading : dict
-       Heading as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
-    speed : dict
+    heading : Mapping[str, int]
+        Heading as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
+    speed : Mapping[str, int]
         Speed as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
-    longitudinalAcceleration : dict
+    longitudinal_acceleration : Mapping[str, int]
         Longitudinal Acceleration as specified in ETSI TS 103 300-3 V2.2.1 (2023-02).
     """
 
-    def __init__(self) -> None:
-        self.station_id = 0
-        self.station_type = 0
-        self.heading = {"value": 3601, "confidence": 127}
-        self.speed = {"speedValue": 16383, "speedConfidence": 127}
-        self.longitudinal_acceleration = {
-            "longitudinalAccelerationValue": 161,
-            "longitudinalAccelerationConfidence": 102,
-        }
+    station_id: int = 0
+    station_type: int = 0
+    heading: Mapping[str, int] = field(
+        default_factory=lambda: MappingProxyType(
+            {"value": 3601, "confidence": 127})
+    )
+    speed: Mapping[str, int] = field(
+        default_factory=lambda: MappingProxyType(
+            {"speedValue": 16383, "speedConfidence": 127})
+    )
+    longitudinal_acceleration: Mapping[str, int] = field(
+        default_factory=lambda: MappingProxyType(
+            {
+                "longitudinalAccelerationValue": 161,
+                "longitudinalAccelerationConfidence": 102,
+            }
+        )
+    )
 
 
 class PathPoint:
@@ -315,6 +322,7 @@ class MotionPredictionContainer:
         return motion_prediction_container_json
 
 
+@dataclass(frozen=True)
 class VAMMessage(CooperativeAwarenessMessage):
     """
     VAM Message class.
@@ -325,12 +333,11 @@ class VAMMessage(CooperativeAwarenessMessage):
         All the vam message in dict format as decoded by the vamCoder.
 
     """
+    vam: dict = field(
+        default_factory=lambda: VAMMessage.generate_white_vam_static())
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.vam = self.generate_white_vam()
-
-    def generate_white_vam(self) -> dict:
+    @staticmethod
+    def generate_white_vam_static() -> dict:
         """
         Generate a white vam.
         """
@@ -370,6 +377,12 @@ class VAMMessage(CooperativeAwarenessMessage):
 
         return white_vam
 
+    def generate_white_vam(self) -> dict:
+        """
+        Generate a white vam.
+        """
+        return self.generate_white_vam_static()
+
     def fullfill_with_device_data(
         self, device_data_provider: DeviceDataProvider
     ) -> None:
@@ -400,8 +413,7 @@ class VAMMessage(CooperativeAwarenessMessage):
             GPSD TPV data.
         """
         if "time" in tpv:
-            gen_delta_time = GenerationDeltaTime()
-            gen_delta_time.set_in_normal_timestamp(
+            gen_delta_time = GenerationDeltaTime.from_timestamp(
                 parser.parse(tpv["time"]).timestamp())
             self.vam["vam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
@@ -539,10 +551,10 @@ class VAMTransmissionManagement:
         # self.T_Genvam_DCC = T_GenvamMin We don't have a DCC yet.
         self.t_genvam = vam_constants.T_GENVAMMIN
         self.n_genvam = 1
-        self.last_vam_sent = None
-        self.current_vam_to_send = VAMMessage()
-        self.current_vam_to_send.fullfill_with_device_data(
-            self.device_data_provider)
+        self.last_vam_generation_delta_time: GenerationDeltaTime | None = None
+        self.last_sent_position: tuple[float, float] = (0.0, 0.0)
+        self.last_vam_info_lock = threading.Lock()
+        self.last_vam_speed: float = 0.0
 
     def location_service_callback(self, tpv: dict) -> None:
         """
@@ -606,57 +618,45 @@ class VAMTransmissionManagement:
                 - coming closer than Minimum Safe Longitudinal Distance (MSLoD) longitudinally;
                 - coming closer than Minimum Safe Vertical Distance (MSVD) vertically.
         """
-        self.current_vam_to_send.fullfill_with_tpv_data(tpv)
+        vam_to_send = VAMMessage()
+        vam_to_send.fullfill_with_device_data(self.device_data_provider)
+        vam_to_send.fullfill_with_tpv_data(tpv)
         self.logging.debug("Fullfilled VAM with TPV data %s", tpv)
 
-        if self.last_vam_sent is None:
-            self.send_next_vam()
+        if self.last_vam_generation_delta_time is None:
+            self.send_next_vam(vam=vam_to_send)
             return
-        received_generation_delta_time = GenerationDeltaTime()
-        last_sent_generation_delta_time = GenerationDeltaTime()
-        received_generation_delta_time.set_in_normal_timestamp(
+        received_generation_delta_time = GenerationDeltaTime.from_timestamp(
             parser.parse(tpv["time"]).timestamp()
         )
-        last_sent_generation_delta_time.msec = self.last_vam_sent.vam["vam"][
-            "generationDeltaTime"
-        ]
 
-        received_position = [int(tpv["lat"]), int(tpv["lon"])]
-        last_sent_position = [
-            self.last_vam_sent.vam["vam"]["vamParameters"]["basicContainer"][
-                "referencePosition"
-            ]["latitude"],
-            self.last_vam_sent.vam["vam"]["vamParameters"]["basicContainer"][
-                "referencePosition"
-            ]["longitude"],
-        ]
         diff_time: int = received_generation_delta_time - \
-            last_sent_generation_delta_time
+            self.last_vam_generation_delta_time
         if (
             diff_time
             >= self.t_genvam
         ):
-            self.send_next_vam()
+            self.send_next_vam(vam=vam_to_send)
             return
+        received_position = (tpv["lat"], tpv["lon"])
         if (
-            Utils.euclidian_distance(received_position, last_sent_position)
+            Utils.euclidian_distance(
+                received_position, self.last_sent_position)
             > vam_constants.MINREFERENCEPOINTPOSITIONCHANGETHRESHOLD
         ):
-            self.send_next_vam()
+            self.send_next_vam(vam=vam_to_send)
             return
         if (
             abs(
                 tpv["speed"]
-                - self.last_vam_sent.vam["vam"]["vamParameters"][
-                    "vruHighFrequencyContainer"
-                ]["speed"]["speedValue"]
+                - self.last_vam_speed
             )
             > vam_constants.MINGROUNDSPEEDCHANGETHRESHOLD
         ):
-            self.send_next_vam()
+            self.send_next_vam(vam=vam_to_send)
             return
 
-    def send_next_vam(self) -> None:
+    def send_next_vam(self, vam: VAMMessage) -> None:
         """
         Send the next vam.
 
@@ -664,9 +664,9 @@ class VAMTransmissionManagement:
         """
         if self.vru_basic_service_ldm is not None:
             self.vru_basic_service_ldm.add_provider_data_to_ldm(
-                self.current_vam_to_send.vam
+                vam.vam
             )
-        data = self.vam_coder.encode(self.current_vam_to_send.vam)
+        data = self.vam_coder.encode(vam.vam)
         request = BTPDataRequest(
             btp_type=CommonNH.BTP_B,
             destination_port=2018,
@@ -679,10 +679,20 @@ class VAMTransmissionManagement:
         self.btp_router.btp_data_request(request)
         self.logging.info(
             "Sent VAM message with timestamp: %s, station_id: %s",
-            self.current_vam_to_send.vam['vam']['generationDeltaTime'],
-            self.current_vam_to_send.vam['header']['stationId']
+            vam.vam['vam']['generationDeltaTime'],
+            vam.vam['header']['stationId']
         )
-        self.last_vam_sent = self.current_vam_to_send
-        self.current_vam_to_send = VAMMessage()
-        self.current_vam_to_send.fullfill_with_device_data(
-            self.device_data_provider)
+        with self.last_vam_info_lock:
+            self.last_vam_generation_delta_time = GenerationDeltaTime(
+                msec=vam.vam['vam']['generationDeltaTime'])
+            self.last_sent_position = (
+                vam.vam["vam"]["vamParameters"]["basicContainer"][
+                    "referencePosition"
+                ]["latitude"]/10**7,
+                vam.vam["vam"]["vamParameters"]["basicContainer"][
+                    "referencePosition"
+                ]["longitude"]/10**7,
+            )
+            self.last_vam_speed = vam.vam["vam"]["vamParameters"][
+                "vruHighFrequencyContainer"
+            ]["speed"]["speedValue"] / 100

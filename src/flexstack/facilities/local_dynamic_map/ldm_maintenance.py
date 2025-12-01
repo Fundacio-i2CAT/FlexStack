@@ -2,7 +2,7 @@ from __future__ import annotations
 import time
 import json
 import logging
-
+from ...utils.time_service import TimeService
 from .ldm_classes import Location, RequestDataObjectsReq, TimestampIts, AddDataProviderReq
 from .ldm_constants import (
     MAINTENANCE_AREA_MAX_ALTITUDE_DIFFERENCE,
@@ -57,7 +57,7 @@ class LDMMaintenance:
         """
         self.data_containers.delete()
 
-    def add_provider_data(self, data: AddDataProviderReq) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int | None:
         """
         Method created in order to add data into the data containers.
 
@@ -74,7 +74,7 @@ class LDMMaintenance:
 
         return doc_id
 
-    def get_provider_data(self, data_object_id) -> dict:
+    def get_provider_data(self, data_object_id: int) -> dict | None:
         """
         Method created in order to get data from the data containers.
 
@@ -83,14 +83,14 @@ class LDMMaintenance:
         data_object_id : int
         """
         try:
-            provider_data = self.data_containers.get(doc_id=data_object_id)
+            provider_data = self.data_containers.get(index=data_object_id)
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error getting data container: {str(e)}")
             provider_data = None
 
         return provider_data
 
-    def update_provider_data(self, data_object_id, data_object) -> None:
+    def update_provider_data(self, data_object_id: int, data_object: dict) -> None:
         """
         Method created in order to update data from the data containers.
 
@@ -102,15 +102,13 @@ class LDMMaintenance:
         try:
             self.data_containers.update(
                 data_object,
-                doc_ids=[
-                    data_object_id,
-                ],
+                index=data_object_id,
             )
             self.logging.debug("Data container updated: %s", data_object_id)
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error updating data container: {str(e)}")
 
-    def del_provider_data(self, data_object: dict = None) -> None:
+    def del_provider_data(self, data_object: dict) -> None:
         """
         Method created in order to delete data from the data containers.
 
@@ -121,9 +119,10 @@ class LDMMaintenance:
         try:
             self.data_containers.remove(data_object)
         except (ValueError, KeyError, json.decoder.JSONDecodeError) as e:
-            print(f"Error deleting data container: {str(e)}, data_containers {len(self.data_containers.all())}")
+            print(
+                f"Error deleting data container: {str(e)}, data_containers {len(self.data_containers.all())}")
 
-    def get_all_data_containers(self) -> list[dict]:
+    def get_all_data_containers(self) -> tuple[dict, ...]:
         """
         Method created in order to get all the data containers.
 
@@ -135,11 +134,11 @@ class LDMMaintenance:
             data_containers = self.data_containers.all()
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error getting all data containers: {str(e)}")
-            data_containers = []
+            data_containers = tuple()
 
         return data_containers
 
-    def search_data_containers(self, data_request: RequestDataObjectsReq) -> list[dict]:
+    def search_data_containers(self, data_request: RequestDataObjectsReq) -> tuple[dict, ...]:
         """
         Method created in order to search data from the data containers.
         It redirects the search of the data containers to the database.
@@ -171,7 +170,7 @@ class LDMMaintenance:
         time_invalidity_data_containers = []
         try:
             for data_container in self.get_all_data_containers():
-                if TimestampIts.initialize_with_timestamp_its(data_container["timeValidity"] + data_container["timestamp"]) < TimestampIts():
+                if TimestampIts(data_container["timeValidity"] + data_container["timestamp"]) < TimestampIts.initialize_with_utc_timestamp_seconds(int(TimeService.time())):
                     self.del_provider_data(data_container)
                     time_invalidity_data_containers.append(data_container)
         except json.decoder.JSONDecodeError as e:
@@ -212,7 +211,8 @@ class LDMMaintenance:
                 < MAINTENANCE_AREA_MAX_ALTITUDE_DIFFERENCE
             ):
                 self.del_provider_data(data_container)
-                area_maintenance_invalidity_data_containers.append(data_container)
+                area_maintenance_invalidity_data_containers.append(
+                    data_container)
 
         return area_maintenance_invalidity_data_containers
 

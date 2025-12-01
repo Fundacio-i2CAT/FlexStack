@@ -7,6 +7,7 @@ from __future__ import annotations
 from math import trunc
 import logging
 from dateutil import parser
+from dataclasses import dataclass, field
 from .cam_coder import CAMCoder
 from ...btp.router import Router as BTPRouter
 from ...btp.service_access_point import (
@@ -31,6 +32,7 @@ T_GEN_CAM_DCC = (
 )
 
 
+@dataclass(frozen=True)
 class VehicleData:
     """
     Class that stores the vehicle data.
@@ -48,50 +50,45 @@ class VehicleData:
     vehicle_width : int
         Vehicle Width as specified in ETSI TS 102 894-2 V2.3.1 (2024-08).
     """
+    station_id: int = 0
+    station_type: int = 0
+    drive_direction: str = "unavailable"
+    vehicle_length: dict = field(default_factory=lambda: {
+        "vehicleLengthValue": 1023,
+        "vehicleLengthConfidenceIndication": "unavailable",
+    })
+    vehicle_width: int = 62
 
-    def __init__(self) -> None:
-        self.station_id = 0
-        self.station_type = 0
-        self.drive_direction = "unavailable"
-        self.vehicle_length = {
-            "vehicleLengthValue": 1023,
-            "vehicleLengthConfidenceIndication": "unavailable",
-        }
-        self.vehicle_width = 62
+    def __check_valid_station_id(self) -> None:
+        if self.station_id < 0 or self.station_id > 4294967295:
+            raise ValueError("Station ID must be between 0 and 4294967295")
 
-    def set_station_type(self, station_type: int) -> None:
-        """
-        Set the station type.
+    def __check_valid_station_type(self) -> None:
+        if self.station_type < 0 or self.station_type > 15:
+            raise ValueError("Station Type must be between 0 and 15")
 
-        Parameters
-        ----------
-        station_type : int
-            Station type.
-        """
-        if station_type < 0 or station_type > 15:
-            raise ValueError("Station type must be between 0 and 15.")
-        self.station_type = station_type
-
-    def set_drive_direction(self, drive_direction: str) -> None:
-        """
-        Set the drive direction.
-
-        Parameters
-        ----------
-        drive_direction : str
-            Drive direction.
-        """
-        if drive_direction not in [
-            "forward",
-            "reverse",
-            "unavailable",
-        ]:
+    def __check_valid_drive_direction(self) -> None:
+        if self.drive_direction not in ["forward", "backward", "unavailable"]:
             raise ValueError(
-                "Drive direction must be 'forward', 'reverse' or 'unavailable'."
-            )
-        self.drive_direction = drive_direction
+                "Drive Direction must be forward, backward or unavailable")
+
+    def __check_valid_vehicle_length(self) -> None:
+        if self.vehicle_length["vehicleLengthValue"] < 0 or self.vehicle_length["vehicleLengthValue"] > 1023:
+            raise ValueError("Vehicle length must be between 0 and 1023")
+
+    def __check_valid_vehicle_width(self) -> None:
+        if self.vehicle_width < 0 or self.vehicle_width > 62:
+            raise ValueError("Vehicle width must be between 0 and 62")
+
+    def __post_init__(self) -> None:
+        self.__check_valid_station_id()
+        self.__check_valid_station_type()
+        self.__check_valid_drive_direction()
+        self.__check_valid_vehicle_length()
+        self.__check_valid_vehicle_width()
 
 
+@dataclass(frozen=True)
 class GenerationDeltaTime:
     """
     Generation Delta Time class. As specified in ETSI TS 102 894-2 V2.3.1 (2024-08).
@@ -108,22 +105,22 @@ class GenerationDeltaTime:
     msec : int
         Time in milliseconds.
     """
+    msec: int = 0
 
-    def __init__(self) -> None:
-        self.msec = 0
-
-    def set_in_normal_timestamp(self, utc_timestamp_in_seconds: float) -> None:
+    @classmethod
+    def from_timestamp(cls, utc_timestamp_in_seconds: float) -> "GenerationDeltaTime":
         """
         Set the Generation Delta Time in normal UTC timestamp. [Seconds]
 
         Parameters
         ----------
-        timestamp : int
-            Timestamp in milliseconds.
+        utc_timestamp_in_seconds : float
+            Timestamp in seconds.
         """
-        self.msec = (
+        msec = (
             utc_timestamp_in_seconds * 1000 - ITS_EPOCH_MS + ELAPSED_MILLISECONDS
         ) % 65536
+        return cls(msec=int(msec))
 
     def as_timestamp_in_certain_point(self, utc_timestamp_in_millis: int) -> float:
         """
@@ -200,6 +197,7 @@ class GenerationDeltaTime:
         return NotImplemented
 
 
+@dataclass(frozen=True)
 class CooperativeAwarenessMessage:
     """
     Cooperative Awareness Message class.
@@ -210,11 +208,11 @@ class CooperativeAwarenessMessage:
         All the CAM message in dict format as decoded by the CAMCoder.
 
     """
+    cam: dict = field(
+        default_factory=lambda: CooperativeAwarenessMessage.generate_white_cam_static())
 
-    def __init__(self) -> None:
-        self.cam = self.generate_white_cam()
-
-    def generate_white_cam(self) -> dict:
+    @staticmethod
+    def generate_white_cam_static() -> dict:
         """
         Generate a white CAM.
         """
@@ -269,6 +267,12 @@ class CooperativeAwarenessMessage:
             },
         }
 
+    def generate_white_cam(self) -> dict:
+        """
+        Generate a white CAM.
+        """
+        return self.generate_white_cam_static()
+
     def fullfill_with_vehicle_data(self, vehicle_data: VehicleData) -> None:
         """
         Fullfill the CAM with vehicle data.
@@ -302,8 +306,7 @@ class CooperativeAwarenessMessage:
             GPSD TPV data.
         """
         if "time" in tpv:
-            gen_delta_time = GenerationDeltaTime()
-            gen_delta_time.set_in_normal_timestamp(
+            gen_delta_time = GenerationDeltaTime.from_timestamp(
                 parser.parse(tpv["time"]).timestamp())
             self.cam["cam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
@@ -570,9 +573,7 @@ class CAMTransmissionManagement:
         self.ca_basic_service_ldm = ca_basic_service_ldm
         # self.T_GenCam_DCC = T_GenCamMin We don't have a DCC yet.
         self.t_gen_cam = T_GEN_CAM_MIN
-        self.last_cam_sent = None
-        self.current_cam_to_send = CooperativeAwarenessMessage()
-        self.current_cam_to_send.fullfill_with_vehicle_data(self.vehicle_data)
+        self.last_cam_generation_delta_time: GenerationDeltaTime | None = None
 
     def location_service_callback(self, tpv: dict) -> None:
         """
@@ -600,36 +601,31 @@ class CAMTransmissionManagement:
         tpv : dict
             GPSD TP
         """
-        self.current_cam_to_send.fullfill_with_tpv_data(tpv)
+        cam = CooperativeAwarenessMessage()
+        cam.fullfill_with_vehicle_data(self.vehicle_data)
+        cam.fullfill_with_tpv_data(tpv)
 
-        if self.last_cam_sent is None:
-            self.send_next_cam()
+        if self.last_cam_generation_delta_time is None:
+            self._send_cam(cam)
             return
-        received_generation_delta_time = GenerationDeltaTime()
-        last_sent_generation_delta_time = GenerationDeltaTime()
-        received_generation_delta_time.set_in_normal_timestamp(
+        received_generation_delta_time = GenerationDeltaTime.from_timestamp(
             parser.parse(tpv["time"]).timestamp()
         )
-        last_sent_generation_delta_time.msec = self.last_cam_sent.cam["cam"][
-            "generationDeltaTime"
-        ]
         if (
-            received_generation_delta_time - last_sent_generation_delta_time
+            received_generation_delta_time - self.last_cam_generation_delta_time
             >= self.t_gen_cam
         ):
-            self.send_next_cam()
-        else:
-            pass
+            self._send_cam(cam)
 
-    def send_next_cam(self) -> None:
+    def _send_cam(self, cam: CooperativeAwarenessMessage) -> None:
         """
         Send the next CAM.
         """
         if self.ca_basic_service_ldm is not None:
             self.ca_basic_service_ldm.add_provider_data_to_ldm(
-                self.current_cam_to_send.cam
+                cam.cam
             )
-        data = self.cam_coder.encode(self.current_cam_to_send.cam)
+        data = self.cam_coder.encode(cam.cam)
         request = BTPDataRequest(
             btp_type=CommonNH.BTP_B,
             destination_port=2001,
@@ -643,10 +639,10 @@ class CAMTransmissionManagement:
         self.btp_router.btp_data_request(request)
         self.logging.debug(
             "Sent CAM message with timestamp: %d, station_id: %d",
-            self.current_cam_to_send.cam["cam"]["generationDeltaTime"],
-            self.current_cam_to_send.cam["header"]["stationId"],
+            cam.cam["cam"]["generationDeltaTime"],
+            cam.cam["header"]["stationId"],
         )
 
-        self.last_cam_sent = self.current_cam_to_send
-        self.current_cam_to_send = CooperativeAwarenessMessage()
-        self.current_cam_to_send.fullfill_with_vehicle_data(self.vehicle_data)
+        self.last_cam_generation_delta_time = GenerationDeltaTime(
+            msec=cam.cam["cam"]["generationDeltaTime"]
+        )

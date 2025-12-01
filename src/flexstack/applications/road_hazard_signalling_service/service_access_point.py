@@ -179,7 +179,7 @@ class DENRequest:
             Position of the hazard.
         """
         self.priority_level = 1
-        self.detection_time = detection_time.timestamp
+        self.detection_time = detection_time.timestamp_its
         self.event_position = event_position.to_dict()
         self.lcrw_cause_code = "collisionRisk97"  # Collision risk
         self.lcrw_subcause_code = 4  # Collision risk involving VRU

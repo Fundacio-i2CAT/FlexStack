@@ -1,7 +1,9 @@
+from __future__ import annotations
 import time
 import threading
 import logging
 from ...utils.time_service import TimeService
+from ..ca_basic_service.cam_transmission_management import VehicleData
 from ...geonet.service_access_point import Area, GeoBroadcastHST, HeaderType, PacketTransportType
 from .denm_coder import DENMCoder
 from ...btp.router import Router as BTPRouter
@@ -9,23 +11,6 @@ from ...btp.service_access_point import BTPDataRequest, CommonNH, CommunicationP
 from ...applications.road_hazard_signalling_service.service_access_point import (
     DENRequest,
 )
-
-
-class VehicleData:
-    """
-    Class that stores the vehicle data.
-
-    Attributes
-    ----------
-    station_id : int
-        Station ID as specified in ETSI TS 103 831 V2.1.1 (2022-11).
-    station_type : int
-        Station Type as specified in ETSI TS 103 831 V2.1.1 (2022-11).
-    """
-
-    def __init__(self) -> None:
-        self.station_id = 0
-        self.station_type = 0
 
 
 class DecentralizedEnvironmentalNotificationMessage:
@@ -210,8 +195,6 @@ class DENMTransmissionManagement:
         self.btp_router: BTPRouter = btp_router
         self.vehicle_data = vehicle_data
         self.denm_coder = denm_coder
-        self.crw_denm = DecentralizedEnvironmentalNotificationMessage()
-        self.new_denm = DecentralizedEnvironmentalNotificationMessage()
 
     def request_denm_sending(self, denm_request: DENRequest) -> None:
         """
@@ -225,10 +208,10 @@ class DENMTransmissionManagement:
         """
         Request to send a single DENM message with the Collision Risk Warning data.
         """
-        self.crw_denm = DecentralizedEnvironmentalNotificationMessage()
-        self.crw_denm.fullfill_with_vehicle_data(self.vehicle_data)
-        self.crw_denm.fullfill_with_collision_risk_warning(denm_request)
-        self.transmit_denm(self.crw_denm)
+        crw_denm = DecentralizedEnvironmentalNotificationMessage()
+        crw_denm.fullfill_with_vehicle_data(self.vehicle_data)
+        crw_denm.fullfill_with_collision_risk_warning(denm_request)
+        self.transmit_denm(crw_denm)
 
     def trigger_denm_messages(self, denm_request: DENRequest) -> None:
         """
@@ -240,13 +223,11 @@ class DENMTransmissionManagement:
             DENM Request object.
         """
         transmission_time = 0
-
         while transmission_time < denm_request.time_period:
-            self.new_denm = DecentralizedEnvironmentalNotificationMessage()
-            self.new_denm.fullfill_with_vehicle_data(self.vehicle_data)
-            self.new_denm.fullfill_with_denrequest(denm_request)
-
-            self.transmit_denm(self.new_denm)
+            new_denm = DecentralizedEnvironmentalNotificationMessage()
+            new_denm.fullfill_with_vehicle_data(self.vehicle_data)
+            new_denm.fullfill_with_denrequest(denm_request)
+            self.transmit_denm(new_denm)
             time.sleep(denm_request.denm_interval / 1000)
             transmission_time += denm_request.denm_interval
 

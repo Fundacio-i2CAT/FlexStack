@@ -1,17 +1,19 @@
 from __future__ import annotations
 from collections.abc import Callable
 import json
+import threading
 
-from ...utils.time_service import TimeService
 from .ldm_classes import (
-    Filter,
     AddDataProviderReq,
+    OrderingDirection,
     RequestDataObjectsResp,
     RequestedDataObjectsResult,
     RequestDataObjectsReq,
-    OrderTuple,
+    OrderTupleValue,
+    SubscribeDataobjectsReq,
     TimestampIts,
     Utils,
+    SubscriptionInfo
 )
 from .ldm_constants import (
     DATA_OBJECT_TYPE_ID,
@@ -31,55 +33,59 @@ class LDMService:
 
     Attributes
     ----------
-    TODO: Add attributes
+    ldm_maintenance : LDMMaintenance
+        Backend component that stores, updates and retrieves data containers.
+    data_provider_its_aid : set[int]
+        Thread-safe set with the ITS-AID values of registered data providers.
+    data_consumer_its_aid : set[int]
+        Thread-safe set with the ITS-AID values of registered data consumers.
+    subscriptions : list[SubscriptionInfo]
+        Active subscription records registered by data consumers.
+    last_checked_subscriptions_time : dict[SubscriptionInfo, TimestampIts]
+        Tracks the last notification timestamp per subscription.
+    _lock : threading.RLock
+        Reentrant lock guarding shared mutable state in the service.
 
     """
 
     def __init__(self, ldm_maintenance: LDMMaintenance) -> None:
         self.ldm_maintenance = ldm_maintenance
-
-        self.data_provider_its_aid: list[int] = []
-        self.data_consumer_its_aid: list[int] = []
-
-        self.subscriptions: list[dict] = []
-
-    def subscriptions_service(self) -> None:
-        """
-        Method that attends subscriptions.
-
-        The method is meant to be run in a seperate thread.
-        """
-        while True:
-            self.attend_subscriptions()
+        self.data_provider_its_aid: set[int] = set()
+        self.data_consumer_its_aid: set[int] = set()
+        self.subscriptions: list[SubscriptionInfo] = []
+        self.last_checked_subscriptions_time: dict[SubscriptionInfo, TimestampIts] = {
+        }
+        self._lock = threading.RLock()
 
     def attend_subscriptions(self) -> None:
         """
         Method to attend subscriptions as specified in the ETSI EN 302 895 V1.1.1 (2014-09). Section 6.3.4.
         """
-        for subscription in self.subscriptions:
+        with self._lock:
+            subscriptions = self.subscriptions.copy()
+        subscriptions_to_remove = set()
+        for subscription in subscriptions:
             search_result = self.search_data(subscription)
             if not search_result:
                 continue
-
-            valid_search_result = self.filter_data_object_type(
-                search_result, subscription["data_object_type"]
-            )
-            if subscription["multiplicity"] is not None and subscription[
-                "multiplicity"
-            ] > len(valid_search_result):
+            if subscription.subscription_request.multiplicity is not None and subscription.subscription_request.multiplicity > len(search_result):
                 continue
 
-            if subscription["order"] is not None:
-                valid_search_result = self.order_search_results(
-                    valid_search_result, subscription["order"]
+            ordered_search_result = search_result
+            if subscription.subscription_request.order is not None:
+                ordered_sequences = self.order_search_results(
+                    search_result, subscription.subscription_request.order
                 )
+                if ordered_sequences:
+                    ordered_search_result = ordered_sequences[0]
+            self.process_notifications(subscription, ordered_search_result)
+            data_consumer_its_aid = self.get_data_consumer_its_aid()
+            if subscription.subscription_request.application_id not in data_consumer_its_aid:
+                subscriptions_to_remove.add(subscription)
+        for subscription in subscriptions_to_remove:
+            self.remove_subscription(subscription)
 
-            self.process_notifications(subscription, valid_search_result)
-
-            if subscription["applicationId"] not in self.data_consumer_its_aid:
-                self.pop_subscription(subscription["doc_id"])
-
-    def search_data(self, subscription: dict) -> list[dict]:
+    def search_data(self, subscription: SubscriptionInfo) -> tuple[dict, ...]:
         """
         Method to search data by using the filter in the subscription.
 
@@ -89,46 +95,46 @@ class LDMService:
             Subscription information (in dictionary format).
         Returns
         -------
-        list[dict]
-            list of data objects that match the filter.
+        tuple[dict, ...]
+            tuple of data objects that match the filter.
         """
         data_request = RequestDataObjectsReq(
-            subscription["applicationId"],
-            subscription["data_object_type"],
-            subscription["priority"],
-            subscription["order"],
-            subscription["filter"],
+            subscription.subscription_request.application_id,
+            subscription.subscription_request.data_object_type,
+            subscription.subscription_request.priority,
+            subscription.subscription_request.order,
+            subscription.subscription_request.filter,
         )
         return self.ldm_maintenance.data_containers.search(data_request)
 
     def filter_data_object_type(
-        self, search_result: list[dict], allowed_types: list[str]
-    ) -> list[dict]:
+        self, search_result: tuple[dict, ...], allowed_types: tuple[str, ...]
+    ) -> tuple[dict, ...]:
         """
         Method to filter data objects by type.
 
         Parameters
         ----------
-        search_result : list[dict]
-            list of data objects that match the filter.
+        search_result : tuple[dict, ...]
+            tuple of data objects that match the filter.
         allowed_types : list[str]
             list of allowed data object types
             (as specified in the ETSI TS 102 894-2 V2.2.1 (2023-10), i.e. CAM, DENM,...).
 
         Returns
         -------
-        list[dict]
-            list of data objects that match the filter and are of the allowed types.
+        tuple[dict, ...]
+            tuple of data objects that match the filter and are of the allowed types.
         """
-        return [
+        return tuple(
             result
             for result in search_result
             if self.get_object_type_from_data_object(result["dataObject"])
             in allowed_types
-        ]
+        )
 
     def process_notifications(
-        self, subscription: dict, valid_search_result: list[dict]
+        self, subscription: SubscriptionInfo, valid_search_result: tuple[dict, ...]
     ) -> None:
         """
         Method to process notifications for a subscription. It checks the notification interval and the last time
@@ -139,45 +145,45 @@ class LDMService:
         ----------
         subscription : dict
             Subscription information (in dictionary format).
-        valid_search_result : list[dict]
-            list of data objects that match the filter and are of the allowed types.
+        valid_search_result : tuple[dict]
+            tuple of data objects that match the filter and are of the allowed types.
 
         Returns
         -------
         None
         """
-        current_time = TimeService.time()
-        if (
-            subscription["last_checked"] + subscription["notification_interval"]
-            > current_time
-        ):
-            return
+        current_time = TimestampIts.initialize_with_utc_timestamp_seconds()
+        notify_time = subscription.subscription_request.notify_time
+        with self._lock:
+            last_checked = self.last_checked_subscriptions_time.get(
+                subscription)
+            if last_checked is None:
+                self.last_checked_subscriptions_time[subscription] = current_time
+                last_checked = current_time
+            if notify_time is not None and last_checked + notify_time > current_time:
+                return
+            self.last_checked_subscriptions_time[subscription] = current_time
 
-        subscription["last_checked"] = current_time
-        subscription["callback"](
+        subscription.callback(
             RequestDataObjectsResp(
-                application_id=subscription["applicationId"],
+                application_id=subscription.subscription_request.application_id,
                 data_objects=valid_search_result,
-                result=RequestedDataObjectsResult(result=0),
+                result=RequestedDataObjectsResult.SUCCEED,
             )
         )
 
-    def pop_subscription(self, index: int) -> None:
+    def remove_subscription(self, subscription: SubscriptionInfo) -> None:
         """
-        Method that removes (pops) a subscription from the subscriptions list and updates the new index values
-        in the "doc_id" field.
+        Method that removes (pops) a subscription from the subscriptions list.
 
         Parameters
         ----------
-        index : int
+        subscription: SubscriptionInfo
         """
-        if index < 0 or index >= len(self.subscriptions):
-            raise IndexError("Index out of range")
-
-        self.subscriptions.pop(index)
-
-        for i, _ in enumerate(self.subscriptions):
-            self.subscriptions[i]["doc_id"] = i
+        with self._lock:
+            if subscription in self.subscriptions:
+                self.subscriptions.remove(subscription)
+            self.last_checked_subscriptions_time.pop(subscription, None)
 
     def find_key_paths_in_list(self, target_key: str, search_result: list) -> list[str]:
         """
@@ -193,7 +199,7 @@ class LDMService:
             key_paths.append(self.find_key_path(target_key, result))
         return key_paths
 
-    def find_key_path(self, target_key: str, dictionary: dict, path: str = None) -> str:
+    def find_key_path(self, target_key: str, dictionary: dict, path: list | None = None) -> str:
         """
         Static method to find the path of a key in a dictionary.
 
@@ -213,49 +219,44 @@ class LDMService:
                 sub_path = self.find_key_path(target_key, value, path + [key])
                 if sub_path:
                     return sub_path
-        return None
+        return ""
 
     def order_search_results(
-        self, search_results: list[dict], orders: list[OrderTuple]
-    ) -> list[list[dict]]:
+        self, search_results: tuple[dict, ...], orders: tuple[OrderTupleValue, ...]
+    ) -> tuple[tuple[dict, ...], ...]:
         """
         Method to order search results.
 
         Parameters
         ----------
-        search_results : list[dict]
-        orders : list[OrderTuple]
+        search_results : tuple[dict, ...]
+            tuple of data objects that match the filter.
+        orders : tuple[OrderTuple, ...]
+            tuple of OrderTuple objects specifying the ordering.
+
+        Returns
+        -------
+        tuple[tuple[dict, ...], ...]
+            tuple of ordered tuples of data objects.
         """
-        results = []
-        for order in orders:
-            tuple_list = [
-                (
-                    index,
-                    Utils.get_nested(
-                        search_result,
-                        Utils.find_attribute(order.attribute, search_result),
-                    ),
-                )
-                for index, search_result in enumerate(search_results)
-            ]
-            if str(order.ordering_direction) == "ascending":
-                sorted_tuple_list = sorted(
-                    tuple_list, key=lambda x: x[1], reverse=False
-                )
-            else:
-                sorted_tuple_list = sorted(tuple_list, key=lambda x: x[1], reverse=True)
+        def build_key(item):
+            return tuple(
+                Utils.get_nested(
+                    item, Utils.find_attribute(order.attribute, item))
+                for order in orders
+            )
 
-            result = [search_results[tuple[0]] for tuple in sorted_tuple_list]
-            results.append(result)
-        return results
+        reverse = any(order.ordering_direction == OrderingDirection.DESCENDING
+                      for order in orders)
+        return (tuple(sorted(search_results, key=build_key, reverse=reverse)),)
 
-    def add_provider_data(self, data: AddDataProviderReq) -> int:
+    def add_provider_data(self, data: AddDataProviderReq) -> int | None:
         """
         Method created in order to add provider data into the data containers.
 
         Parameters
         ----------
-        data : dict
+        data : AddDataProviderReq
         """
         return self.ldm_maintenance.add_provider_data(data)
 
@@ -267,7 +268,8 @@ class LDMService:
         ----------
         its_aid : int
         """
-        self.data_provider_its_aid.append(its_aid)
+        with self._lock:
+            self.data_provider_its_aid.add(its_aid)
 
     def update_provider_data(self, data_object_id: int, data_object: dict) -> None:
         """
@@ -280,17 +282,7 @@ class LDMService:
         """
         self.ldm_maintenance.update_provider_data(data_object_id, data_object)
 
-    def get_provider_data(self) -> list:
-        """
-        Method to get provider data from the data containers.
-
-        Parameters
-        ----------
-        None
-        """
-        return self.ldm_maintenance.data_containers
-
-    def get_data_provider_its_aid(self) -> list[int]:
+    def get_data_provider_its_aid(self) -> set[int]:
         """
         Method to get all providers ITS_AID values.
 
@@ -298,7 +290,9 @@ class LDMService:
         ----------
         None
         """
-        return self.data_provider_its_aid
+        with self._lock:
+            data_provider_its_aid_copy = self.data_provider_its_aid.copy()
+        return data_provider_its_aid_copy
 
     def del_provider_data(self, provider_data_id: int) -> None:
         """
@@ -308,7 +302,8 @@ class LDMService:
         ----------
         provider_data_id : int
         """
-        self.data_provider_its_aid.remove(provider_data_id)
+        with self._lock:
+            self.data_provider_its_aid.discard(provider_data_id)
 
     def del_data_provider_its_aid(self, its_aid: int) -> None:
         """
@@ -318,9 +313,10 @@ class LDMService:
         ----------
         its_aid : int
         """
-        self.data_provider_its_aid.remove(its_aid)
+        with self._lock:
+            self.data_provider_its_aid.discard(its_aid)
 
-    def query(self, data_request: RequestDataObjectsReq) -> list[list[dict]]:
+    def query(self, data_request: RequestDataObjectsReq) -> tuple[tuple[dict, ...], ...]:
         """
         Method to query the data containers using the RequestDataObjectsReq object.
 
@@ -342,13 +338,14 @@ class LDMService:
                 )
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error querying data container: {str(e)}")
-            return [[]]
+            return (())
 
         # If it does then see if it needs ordering and order it
         if data_request.order is not None:
-            search_result = self.order_search_results(search_result, data_request.order)
+            search_result = self.order_search_results(
+                search_result, data_request.order)
         else:
-            search_result = [search_result]
+            search_result = (search_result,)
         return search_result
 
     def get_object_type_from_data_object(self, data_object: dict) -> str:
@@ -358,23 +355,20 @@ class LDMService:
         Parameters
         ----------
         data_object : dict
+
+        Returns
+        -------
+        str
+            data object type.
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[
-                    list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)
-                ]
-        return None
+                return data_object_type_str
+        return ""
 
     def store_new_subscription_petition(
         self,
-        application_id: int,
-        data_object_type: list[int],
-        priority: int,
-        filter: Filter,
-        notification_interval: TimestampIts,
-        multiplicity: int,
-        order: list[OrderTuple],
+        subscription_request: SubscribeDataobjectsReq,
         callback: Callable[[RequestDataObjectsResp], None],
     ) -> int:
         # pylint: disable=too-many-arguments
@@ -384,29 +378,22 @@ class LDMService:
 
         Parameters
         ----------
-        application_id : int
-        data_object_type : int
-        priority : int
-        filter : Filter
-        notification_interval : int
-        multiplicity : int
-        order : int
-        callback : function
+        subscription_request : SubscribeDataobjectsReq
+            Subscription request object containing subscription details.
+        callback: Callable[[RequestDataObjectsResp], None]
+            callback function to be called when a notification is to be sent.
         """
-        return self.subscriptions.append(
-            {
-                "applicationId": application_id,
-                "data_object_type": data_object_type,
-                "priority": priority,
-                "filter": filter,
-                "notification_interval": notification_interval,
-                "multiplicity": multiplicity,
-                "order": order,
-                "callback": callback,
-                "last_checked": TimeService.time(),
-                "doc_id": len(self.subscriptions),
-            }
+        new_subscription = SubscriptionInfo(
+            subscription_request=subscription_request,
+            callback=callback,
         )
+        with self._lock:
+            self.subscriptions.append(
+                new_subscription
+            )
+            self.last_checked_subscriptions_time[new_subscription] = TimestampIts.initialize_with_utc_timestamp_seconds(
+            )
+        return hash(new_subscription.subscription_request)
 
     def add_data_consumer_its_aid(self, its_aid: int) -> None:
         """
@@ -416,9 +403,10 @@ class LDMService:
         ----------
         its_aid : int
         """
-        self.data_consumer_its_aid.append(its_aid)
+        with self._lock:
+            self.data_consumer_its_aid.add(its_aid)
 
-    def get_data_consumer_its_aid(self) -> list[int]:
+    def get_data_consumer_its_aid(self) -> set[int]:
         """
         Method to get list of data consumer ITS_AID.
 
@@ -426,7 +414,9 @@ class LDMService:
         ----------
         None
         """
-        return self.data_consumer_its_aid
+        with self._lock:
+            data_consumer_its_aid_copy = self.data_consumer_its_aid.copy()
+        return data_consumer_its_aid_copy
 
     def del_data_consumer_its_aid(self, its_aid: int) -> None:
         """
@@ -436,17 +426,8 @@ class LDMService:
         ----------
         its_aid : int
         """
-        self.data_consumer_its_aid.remove(its_aid)
-
-    def get_data_consumer_subscriptions(self) -> list[dict]:
-        """
-        Method to get data consumer subscriptions from the subscriptions storage.
-
-        Parameters
-        ----------
-        None
-        """
-        return self.subscriptions
+        with self._lock:
+            self.data_consumer_its_aid.discard(its_aid)
 
     def delete_subscription(self, subscription_id: int) -> bool:
         """
@@ -456,8 +437,12 @@ class LDMService:
         ----------
         subscription_id : int
         """
-        try:
-            self.subscriptions.pop(subscription_id)
-            return True
-        except IndexError:
-            return False
+        with self._lock:
+            subscriptions = self.subscriptions.copy()
+        to_remove = set()
+        for subscription in subscriptions:
+            if hash(subscription.subscription_request) == subscription_id:
+                to_remove.add(subscription)
+        for subscription in to_remove:
+            self.remove_subscription(subscription)
+        return bool(to_remove)

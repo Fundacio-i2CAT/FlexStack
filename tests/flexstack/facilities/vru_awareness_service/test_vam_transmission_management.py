@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from typing import Optional
+
 from flexstack.facilities.vru_awareness_service.vam_transmission_management import (
     VAMMessage,
     VAMTransmissionManagement,
@@ -11,6 +13,10 @@ from flexstack.facilities.vru_awareness_service.vam_transmission_management impo
     PathPointPredicted,
 )
 from flexstack.facilities.vru_awareness_service.vam_coder import VAMCoder
+from flexstack.facilities.ca_basic_service.cam_transmission_management import (
+    GenerationDeltaTime,
+)
+from flexstack.facilities.vru_awareness_service import vam_constants
 
 white_vam = {
     "header": {"protocolVersion": 3, "messageId": 16, "stationId": 0},
@@ -50,11 +56,9 @@ white_vam = {
 class TestPathHistory(unittest.TestCase):
     def __init__(self, methodName: str = ...):
         super().__init__(methodName)
-        # Hardcoded values for testing purposes
         self.path_point = PathPoint(41.2, 1.6, 100, 123)
 
     def test_append(self):
-        # Try to append a path history with a path point more than 40 times and check that the path history is not appended
         path_history = PathHistory()
         for _ in range(0, 44):
             path_history.append(self.path_point)
@@ -81,11 +85,9 @@ class TestPathHistory(unittest.TestCase):
 class TestPathPrediction(unittest.TestCase):
     def __init__(self, methodName: str = ...):
         super().__init__(methodName)
-        # Hardcoded values for testing purposes
         self.path_predicted_point = PathPointPredicted(0.2, 0.6, 10)
 
     def test_append(self):
-        # Try to append a path prediction with a path point more than 15 times and check that the path prediction is not appended
         path_prediction = PathPrediction()
         for _ in range(0, 22):
             path_prediction.append(self.path_predicted_point)
@@ -116,19 +118,16 @@ class TestVAMMessage(unittest.TestCase):
         self.assertEqual(encoded_white, expected_vam)
 
     def test_fullfill_with_vehicle_data(self):
-        device_data_provider = DeviceDataProvider()
-        device_data_provider.station_id = 30
-        device_data_provider.station_type = 5
-        device_data_provider.heading["value"] = "3601"
-        device_data_provider.heading["confidence"] = "127"
-        device_data_provider.speed["speedValue"] = 16383
-        device_data_provider.speed["speedConfidence"] = 127
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationValue"
-        ] = 161
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationConfidence"
-        ] = 102
+        device_data_provider = DeviceDataProvider(
+            station_id=30,
+            station_type=5,
+            heading={"value": 3601, "confidence": 127},
+            speed={"speedValue": 16383, "speedConfidence": 127},
+            longitudinal_acceleration={
+                "longitudinalAccelerationValue": 161,
+                "longitudinalAccelerationConfidence": 102,
+            },
+        )
 
         vam_message = VAMMessage()
         vam_message.fullfill_with_device_data(device_data_provider)
@@ -199,22 +198,18 @@ class TestVAMMessage(unittest.TestCase):
 
 class TestVAMTransmissionManagement(unittest.TestCase):
     def setUp(self) -> None:
-        btp_router = MagicMock()
-        vam_coder = MagicMock()
-        device_data_provider = DeviceDataProvider()
-        device_data_provider.station_id = 30
-        device_data_provider.station_type = 5
-        device_data_provider.heading["value"] = "3601"
-        device_data_provider.heading["confidence"] = "127"
-        device_data_provider.speed["speedValue"] = 16383
-        device_data_provider.speed["speedConfidence"] = 127
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationValue"
-        ] = 161
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationConfidence"
-        ] = 102
-
+        self.btp_router = MagicMock()
+        self.vam_coder = MagicMock()
+        self.device_data_provider = DeviceDataProvider(
+            station_id=30,
+            station_type=5,
+            heading={"value": 3601, "confidence": 127},
+            speed={"speedValue": 16383, "speedConfidence": 127},
+            longitudinal_acceleration={
+                "longitudinalAccelerationValue": 161,
+                "longitudinalAccelerationConfidence": 102,
+            },
+        )
         self.tpv_data = {
             "class": "TPV",
             "device": "/dev/ttyACM0",
@@ -227,205 +222,149 @@ class TestVAMTransmissionManagement(unittest.TestCase):
             "epx": 8.754,
             "epy": 10.597,
             "epv": 31.970,
+            "epd": 0.000,
+            "altHAE": 163.500,
             "track": 0.0000,
             "speed": 0.011,
             "climb": 0.000,
             "eps": 0.57,
         }
         self.vam_transmission_management = VAMTransmissionManagement(
-            btp_router, vam_coder, device_data_provider
+            self.btp_router, self.vam_coder, self.device_data_provider
         )
-        self.vam_transmission_management.current_vam_to_send.vam = white_vam
 
-    def test_location_service_callback_setup(self):
-        """
-        Internal function to setup the test.
-        """
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data = (
-            MagicMock()
+    def _set_previous_vam_state(
+        self,
+        generation_delta_time: int = 24855,
+        speed: Optional[float] = None,
+    ) -> None:
+        self.vam_transmission_management.last_vam_generation_delta_time = GenerationDeltaTime(
+            msec=generation_delta_time
         )
-        self.vam_transmission_management.last_vam_sent = (
-            self.vam_transmission_management.current_vam_to_send
+        self.vam_transmission_management.last_sent_position = (
+            self.tpv_data["lat"],
+            self.tpv_data["lon"],
         )
-        self.vam_transmission_management.last_vam_sent.vam["vam"]["vamParameters"][
-            "vruHighFrequencyContainer"
-        ]["speed"]["speedValue"] = 0.5
+        self.vam_transmission_management.last_vam_speed = (
+            self.tpv_data["speed"] if speed is None else speed
+        )
 
-    def test_location_service_callback_first_sending(self):
-        """
-        Tests the location service callback.
-
-        Mocks the call to fullfill_with_tpv_data and checks that the method is called with the correct parameters.
-        Mocks the call to send_next_vam and checks that the method is called with the correct parameters.
-        """
+    def test_location_service_callback_first_sending(self) -> None:
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.assertIsNone(self.vam_transmission_management.last_vam_sent)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data = (
-            MagicMock()
-        )
         self.vam_transmission_management.location_service_callback(self.tpv_data)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
+
+        self.vam_transmission_management.send_next_vam.assert_called_once()
+        sent_vam: VAMMessage = self.vam_transmission_management.send_next_vam.call_args.kwargs["vam"]
+        self.assertIsInstance(sent_vam, VAMMessage)
+        self.assertEqual(
+            sent_vam.vam["header"]["stationId"],
+            self.device_data_provider.station_id,
         )
+        self.assertEqual(
+            sent_vam.vam["vam"]["vamParameters"]["basicContainer"]["referencePosition"]["latitude"],
+            int(self.tpv_data["lat"] * 10000000),
+        )
+
+    @patch(
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
+    )
+    def test_location_service_callback_generation_time_threshold(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        self._set_previous_vam_state(generation_delta_time=0)
+        self.vam_transmission_management.t_genvam = vam_constants.T_GENVAMMIN
+        self.vam_transmission_management.send_next_vam = MagicMock()
+
+        self.vam_transmission_management.location_service_callback(self.tpv_data)
+
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
     @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
     )
-    def test_location_service_callback_sending_second_vam(
-        self, mock_euclidian_distance
-    ):
-        """
-        Tests the location service callback.
-
-        Mocks the call to fullfill_with_tpv_data and checks that the method is called with the correct parameters.
-        Mocks the call to send_next_vam and checks that the method is called with the correct parameters.
-        """
-        self.test_location_service_callback_setup()
+    def test_location_service_callback_thresholds_not_met(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        self._set_previous_vam_state()
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        mock_euclidian_distance.return_value = 0
-        self.vam_transmission_management.t_genvam = 0
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
-        )
-        self.vam_transmission_management.send_next_vam.assert_called_once()
-
-    @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
-    )
-    def test_location_service_callback_euclidian_distance_not_met(
-        self, mock_euclidian_distance
-    ):
-        """
-        Test that the VAM is not sent if the euclidian distance is less than vam_constants.MINREFERENCEPOINTPOSITIONCHANGETHRESHOLD meters
-        """
-        self.test_location_service_callback_setup()
-        self.vam_transmission_management.send_next_vam = MagicMock()
-        self.vam_transmission_management.last_vam_sent.vam["vam"]["vamParameters"][
-            "basicContainer"
-        ]["referencePosition"]["latitude"] = (42.1 * 10000000)
-
-        mock_euclidian_distance.return_value = 0
-        self.vam_transmission_management.t_genvam = 500000000000
         self.vam_transmission_management.location_service_callback(self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_not_called()
 
     @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=vam_constants.MINREFERENCEPOINTPOSITIONCHANGETHRESHOLD + 1,
     )
-    def test_location_service_callback_euclidian_is_met(self, mock_euclidian_distance):
-        """
-        Test that the VAM is not sent if the euclidian distance is more than vam_constants.MINREFERENCEPOINTPOSITIONCHANGETHRESHOLD meters
-        """
-        self.test_location_service_callback_setup()
+    def test_location_service_callback_distance_threshold(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        self._set_previous_vam_state()
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        mock_euclidian_distance.return_value = 5
-        self.vam_transmission_management.t_genvam = 500000000000
         self.vam_transmission_management.location_service_callback(self.tpv_data)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
-        )
+
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
     @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
     )
-    def test_location_service_callback_euclidian_distance_met(
-        self, mock_euclidian_distance
-    ):
-        """
-        Test that the VAM is sent if the euclidian distance is less than vam_constants.MINREFERENCEPOINTPOSITIONCHANGETHRESHOLD meters
-        """
-        self.test_location_service_callback_setup()
+    def test_location_service_callback_speed_threshold(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        self._set_previous_vam_state(speed=-1.0)
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        mock_euclidian_distance.return_value = 5
-        self.vam_transmission_management.t_genvam = 500000000000
         self.vam_transmission_management.location_service_callback(self.tpv_data)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
-        )
+
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
     @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
     )
-    def test_location_service_callback_speed_difference_met(
-        self, mock_euclidian_distance
-    ):
-        """
-        Test that the VAM is sent if the difference between tpv[]"speed"] and vam speed are bigger than vam_constants.MINGROUNDSPEEDCHANGETHRESHOLD
-        """
-        self.test_location_service_callback_setup()
-        self.vam_transmission_management.send_next_vam = MagicMock()
-        self.vam_transmission_management.last_vam_sent.vam["vam"]["vamParameters"][
-            "vruHighFrequencyContainer"
-        ]["speed"]["speedValue"] = 3
-        mock_euclidian_distance.return_value = 0
-        self.vam_transmission_management.t_genvam = 500000000000
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
-        )
-        self.vam_transmission_management.send_next_vam.assert_called_once()
-
-    @patch(
-        "flexstack.facilities.local_dynamic_map.ldm_classes.Utils.euclidian_distance"
-    )
-    def test_location_service_callback_speed_not_met(self, mock_euclidian_distance):
-        """
-        Test that the VAM is not sent if the difference between tpv[]"speed"] and vam speed is smaller than vam_constants.MINGROUNDSPEEDCHANGETHRESHOLD
-        """
-        self.test_location_service_callback_setup()
+    def test_location_service_callback_speed_threshold_not_met(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        self._set_previous_vam_state(speed=0.2)
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.last_vam_sent.vam["vam"]["vamParameters"][
-            "vruHighFrequencyContainer"
-        ]["speed"]["speedValue"] = 0.5
-
-        mock_euclidian_distance.return_value = 3
-        self.vam_transmission_management.t_genvam = 500000000000
         self.vam_transmission_management.location_service_callback(self.tpv_data)
 
-        self.vam_transmission_management.current_vam_to_send.fullfill_with_tpv_data.assert_called_with(
-            self.tpv_data
-        )
         self.vam_transmission_management.send_next_vam.assert_not_called()
 
-    def test_send_next_vam(self):
-        btp_router = MagicMock()
-        btp_router.btp_data_request = MagicMock()
-        vam_coder = MagicMock()
-        vam_coder.encode = MagicMock(
-            return_value=b"\x03\x10\x00\x00\x00\x00\x00\x00\x00?ZN\x90\x0e\xb4\x9d \x0f\xff\xff\xff\x08\xed\xdd\x0f\x80\x07\x08\xfe\xff\xff\xf5\x070"
-        )
-        device_data_provider = DeviceDataProvider()
-        device_data_provider.station_id = 30
-        device_data_provider.station_type = 5
-        device_data_provider.heading["value"] = "3601"
-        device_data_provider.heading["confidence"] = "127"
-        device_data_provider.speed["speedValue"] = 16383
-        device_data_provider.speed["speedConfidence"] = 127
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationValue"
-        ] = 161
-        device_data_provider.longitudinal_acceleration[
-            "longitudinalAccelerationConfidence"
-        ] = 102
+    def test_send_next_vam(self) -> None:
+        self.btp_router.btp_data_request = MagicMock()
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
 
-        vam_transmission_management = VAMTransmissionManagement(
-            btp_router, vam_coder, device_data_provider
+        self.vam_transmission_management.send_next_vam(vam_message)
+
+        self.vam_coder.encode.assert_called_once_with(vam_message.vam)
+        self.btp_router.btp_data_request.assert_called_once()
+        self.assertEqual(
+            self.vam_transmission_management.last_vam_generation_delta_time,
+            GenerationDeltaTime(msec=vam_message.vam["vam"]["generationDeltaTime"]),
         )
-        vam_transmission_management.send_next_vam()
-        btp_router.btp_data_request.assert_called()
-        vam_coder.encode.assert_called_with(
-            vam_transmission_management.current_vam_to_send.vam
+
+    def test_send_next_vam_updates_ldm(self) -> None:
+        ldm_adapter = MagicMock()
+        manager = VAMTransmissionManagement(
+            self.btp_router,
+            self.vam_coder,
+            self.device_data_provider,
+            vru_basic_service_ldm=ldm_adapter,
         )
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
+
+        manager.send_next_vam(vam_message)
+
+        ldm_adapter.add_provider_data_to_ldm.assert_called_once_with(vam_message.vam)
 
 
 if __name__ == "__main__":

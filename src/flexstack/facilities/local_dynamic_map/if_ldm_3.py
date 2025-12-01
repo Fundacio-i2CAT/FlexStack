@@ -1,15 +1,12 @@
+from __future__ import annotations
 import logging
 
 from .ldm_constants import (
     DENM,
-    REGISTER_DATA_PROVIDER_RESULT_REJECTED,
-    REGISTER_DATA_PROVIDER_RESULT_ACCEPTED,
-    ADD_DATA_PROVIDER_RESULT_REJECTED,
-    DELETE_DATA_PROVIDER_RESULT_ACCEPTED,
-    DELETE_DATA_PROVIDER_RESULT_REJECTED,
     VALID_ITS_AID,
 )
 from .ldm_classes import (
+    DeleteDataProviderResult,
     RegisterDataProviderReq,
     RegisterDataProviderResp,
     DeregisterDataProviderReq,
@@ -17,11 +14,13 @@ from .ldm_classes import (
     DeregisterDataProviderAck,
     AddDataProviderReq,
     AddDataProviderResp,
+    RegisterDataProviderResult,
     UpdateDataProviderReq,
     UpdateDataProviderResp,
     UpdateDataProviderResult,
     DeleteDataProviderReq,
     DeleteDataProviderResp,
+    AccessPermission,
 )
 from .ldm_service import LDMService
 
@@ -53,10 +52,15 @@ class InterfaceLDM3:
         ----------
         its_application_identifier : int
             ITS-AID of the application that wants to register as a data provider
+
+        Returns
+        -------
+        bool
+            True if the ITS-AID is valid, False otherwise.
         """
         return its_application_identifier in VALID_ITS_AID
 
-    def check_permissions(self, permissions_granted: list, data_object_id: int) -> bool:
+    def check_permissions(self, permissions_granted: tuple[AccessPermission, ...], data_object_id: int) -> bool:
         """
         Method that checks permissions to grant access to the data provider as specified in
         ETSI EN 302 895 V1.1.1 (2014-09). Section 6.2.1.
@@ -64,17 +68,22 @@ class InterfaceLDM3:
 
         Parameters
         ----------
-        permissions_granted : list
+        permissions_granted : tuple[DataContainer, ...]
             List of permissions granted to the data provider
         dataObjectID : int
+            Data Object ID of the data provider
+
+        Returns
+        -------
+        bool
+            True if the data provider has permissions to access the LDM, False otherwise.
         """
-        if isinstance(permissions_granted, list):
-            if len(permissions_granted) == 0:
-                return False
-            if data_object_id == DENM:
-                return True
-            if any(permission == data_object_id for permission in permissions_granted):
-                return True
+        if len(permissions_granted) == 0:
+            return False
+        if data_object_id == DENM:
+            return True
+        if any(permission == data_object_id for permission in permissions_granted):
+            return True
         return False
 
     def register_data_provider(self, data_provider: RegisterDataProviderReq) -> RegisterDataProviderResp:
@@ -87,21 +96,28 @@ class InterfaceLDM3:
         ----------
         data_provider : RegisterDataProviderReq
             Data provider that wants to register as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
+
+        Returns
+        -------
+        RegisterDataProviderResp
+            Response to the registration request.
         """
 
         if (
             data_provider is None
             or self.check_its_aid(data_provider.application_id) is False
-            or self.check_permissions(data_provider.access_permisions, data_provider.application_id) is False
+            or self.check_permissions(data_provider.access_permissions, data_provider.application_id) is False
         ):
             return RegisterDataProviderResp(
                 data_provider.application_id,
-                None,
-                REGISTER_DATA_PROVIDER_RESULT_REJECTED,
+                data_provider.access_permissions,
+                RegisterDataProviderResult.REJECTED
             )
-        self.ldm_service.add_data_provider_its_aid(data_provider.application_id)
-        self.logging.debug("Registered new LDM Data Provider, with application id: %d", data_provider.application_id)
-        return RegisterDataProviderResp(data_provider.application_id, None, REGISTER_DATA_PROVIDER_RESULT_ACCEPTED)
+        self.ldm_service.add_data_provider_its_aid(
+            data_provider.application_id)
+        self.logging.debug(
+            "Registered new LDM Data Provider, with application id: %d", data_provider.application_id)
+        return RegisterDataProviderResp(data_provider.application_id, data_provider.access_permissions, RegisterDataProviderResult.ACCEPTED)
 
     def deregister_data_provider(self, data_provider: DeregisterDataProviderReq) -> DeregisterDataProviderResp:
         """
@@ -113,10 +129,17 @@ class InterfaceLDM3:
         ----------
         data_provider : DeregisterDataProviderReq
             Data provider that wants to deregister as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
+
+        Returns
+        -------
+        DeregisterDataProviderResp
+            Response to the deregistration request.
         """
-        self.logging.debug("Registring LDM Data Provider with application id %d", data_provider.application_id)
+        self.logging.debug(
+            "Registring LDM Data Provider with application id %d", data_provider.application_id)
         if data_provider.application_id in self.ldm_service.get_data_provider_its_aid():
-            self.ldm_service.del_data_provider_its_aid(data_provider.application_id)
+            self.ldm_service.del_data_provider_its_aid(
+                data_provider.application_id)
             return DeregisterDataProviderResp(data_provider.application_id, DeregisterDataProviderAck(0))
         return DeregisterDataProviderResp(data_provider.application_id, DeregisterDataProviderAck(1))
 
@@ -129,13 +152,21 @@ class InterfaceLDM3:
         ----------
         data_provider : AddDataProviderReq
             Data provider that wants to add data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
+
+        Returns
+        -------
+        AddDataProviderResp
+            Response to the add data request.
         """
-        self.logging.debug("Adding provider data to LDM from application_id: %d", data_provider.application_id)
+        self.logging.debug(
+            "Adding provider data to LDM from application_id: %d", data_provider.application_id)
 
         if data_provider.application_id in self.ldm_service.get_data_provider_its_aid():
-            data_object_id = self.ldm_service.add_provider_data(data_provider)  # Add data to LDM
-            return AddDataProviderResp(data_provider.application_id, data_object_id)
-        return AddDataProviderResp(data_provider.application_id, ADD_DATA_PROVIDER_RESULT_REJECTED)
+            data_object_id = self.ldm_service.add_provider_data(
+                data_provider)  # Add data to LDM
+            if data_object_id is not None:
+                return AddDataProviderResp(application_id=data_provider.application_id, data_object_id=data_object_id)
+        return AddDataProviderResp(application_id=data_provider.application_id, data_object_id=-1)
 
     def update_provider_data(self, data_provider: UpdateDataProviderReq) -> UpdateDataProviderResp:
         """
@@ -146,21 +177,29 @@ class InterfaceLDM3:
         ----------
         data_provider : UpdateDataProviderReq
             Data provider that wants to update data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
+
+        Returns
+        -------
+        UpdateDataProviderResp
+            Response to the update data request.
         """
-        self.logging.debug("Updating provider data from application_id %d", data_provider.application_id)
+        self.logging.debug(
+            "Updating provider data from application_id %d", data_provider.application_id)
         if self.ldm_service.ldm_maintenance.data_containers.exists("dataObjectID", data_provider.data_object_id):
-            data_object_type_str = self.ldm_service.get_object_type_from_data_object(data_provider.data_object)
+            data_object_type_str = self.ldm_service.get_object_type_from_data_object(
+                data_provider.data_object)
             if self.ldm_service.ldm_maintenance.data_containers.exists(
                 data_object_type_str, data_provider.data_object_id
             ):
                 new_data_object_id = self.ldm_service.update_provider_data(
                     data_provider.data_object_id, data_provider.data_object
                 )  # Update data
-                return UpdateDataProviderResp(
-                    data_provider.application_id,
-                    new_data_object_id,
-                    UpdateDataProviderResult(0),
-                )
+                if new_data_object_id is not None:
+                    return UpdateDataProviderResp(
+                        data_provider.application_id,
+                        new_data_object_id,
+                        UpdateDataProviderResult(0),
+                    )
             return UpdateDataProviderResp(
                 data_provider.application_id,
                 data_provider.data_object_id,
@@ -180,17 +219,23 @@ class InterfaceLDM3:
         ----------
         data_provider : DeleteDataProviderReq
             Data provider that wants to delete data as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section Annex B.
+
+        Returns
+        -------
+        DeleteDataProviderResp
+            Response to the delete data request.
         """
-        self.logging.debug("Deleting provider data from application id %d", data_provider.application_id)
+        self.logging.debug(
+            "Deleting provider data from application id %d", data_provider.application_id)
         if self.ldm_service.ldm_maintenance.data_containers.exists("dataObjectID", data_provider.data_object_id):
             self.ldm_service.del_provider_data(data_provider.data_object_id)
             return DeleteDataProviderResp(
                 data_provider.application_id,
                 data_provider.data_object_id,
-                DELETE_DATA_PROVIDER_RESULT_ACCEPTED,
+                DeleteDataProviderResult.SUCCEED,
             )
         return DeleteDataProviderResp(
             data_provider.application_id,
             data_provider.data_object_id,
-            DELETE_DATA_PROVIDER_RESULT_REJECTED,
+            DeleteDataProviderResult.FAILED,
         )

@@ -16,19 +16,19 @@ class LDMServiceThreads(LDMService):
     def __init__(
         self,
         ldm_maintenance: LDMMaintenance,
-        stop_event: threading.Event = None,
     ) -> None:
         super().__init__(ldm_maintenance)
         self.data_containers_lock = threading.Lock()
-        self.stop_event = stop_event
-        if stop_event is None:
-            self.stop_event = threading.Event()
+        self.stop_event = threading.Event()
 
         self.subscriptions_service_thread = threading.Thread(
-            target=super().subscriptions_service, daemon=True
+            target=self.subscriptions_service, daemon=True
         )
         self.subscriptions_service_thread.start()
 
     def subscriptions_service(self) -> None:
         while not self.stop_event.is_set():
             self.attend_subscriptions()
+            # wait up to 500 ms, return early if stop_event is set
+            if self.stop_event.wait(0.5):
+                break

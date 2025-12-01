@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from flexstack.applications.road_hazard_signalling_service.service_access_point import (
     RelevanceArea, PriorityLevel, DENRequest
 )
+from flexstack.facilities.local_dynamic_map.ldm_classes import TimestampIts
 
 
 class TestRelevanceArea(unittest.TestCase):
@@ -83,8 +84,7 @@ class TestDENRequest(unittest.TestCase):
         """Test the with_collision_risk_warning method."""
         # Given
         den_request = DENRequest()
-        detection_time = MagicMock()
-        detection_time.timestamp = 10000
+        detection_time = TimestampIts(5000)
         event_position = MagicMock()
         event_position.to_dict.return_value = {
             "latitude": 900000001,
@@ -105,7 +105,7 @@ class TestDENRequest(unittest.TestCase):
 
         # Then
         self.assertEqual(den_request.priority_level, 1)
-        self.assertEqual(den_request.detection_time, detection_time.timestamp)
+        self.assertEqual(den_request.detection_time, 5000)
         self.assertDictEqual(den_request.event_position, event_position.to_dict())
         self.assertEqual(den_request.lcrw_cause_code, "collisionRisk97")
         self.assertEqual(den_request.lcrw_subcause_code, 4)

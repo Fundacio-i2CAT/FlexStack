@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 from .denm_coder import DENMCoder
 from ...btp.service_access_point import BTPDataIndication
@@ -5,6 +6,7 @@ from ...btp.router import Router as BTPRouter
 
 from ..local_dynamic_map.ldm_facility import LDMFacility
 from ..local_dynamic_map.ldm_classes import (
+    AccessPermission,
     RegisterDataProviderReq,
     AddDataProviderReq,
     TimeValidity,
@@ -26,7 +28,7 @@ class DENMReceptionManagement:
     """
 
     def __init__(
-        self, denm_coder: DENMCoder, btp_router: BTPRouter, ldm: LDMFacility
+        self, denm_coder: DENMCoder, btp_router: BTPRouter, ldm: LDMFacility | None
     ) -> None:
         """
         Initialize the DENM Reception Management.
@@ -49,9 +51,9 @@ class DENMReceptionManagement:
             self.ldm_facility.if_ldm_3.register_data_provider(
                 RegisterDataProviderReq(
                     application_id=DENM,
-                    access_permissions=[
-                        DENM,
-                    ],
+                    access_permissions=(
+                        AccessPermission.DENM,
+                    ),
                     time_validity=TimeValidity(1000),
                 )
             )
@@ -68,7 +70,7 @@ class DENMReceptionManagement:
         if self.ldm_facility is not None:
             data = AddDataProviderReq(
                 application_id=DENM,
-                timestamp=TimestampIts.initialize_with_timestamp_its(denm["denm"]["management"]["detectionTime"]),
+                timestamp=TimestampIts(denm["denm"]["management"]["detectionTime"]),
                 location=Location.location_builder_circle(
                     latitude=denm["denm"]["management"]["eventPosition"]["latitude"],
                     longitude=denm["denm"]["management"]["eventPosition"]["longitude"],

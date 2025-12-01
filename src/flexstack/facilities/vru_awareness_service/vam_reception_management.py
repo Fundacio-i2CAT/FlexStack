@@ -56,8 +56,7 @@ class VAMReceptionManagement:
             BTP Data Indication.
         """
         vam = self.vam_coder.decode(btp_indication.data)
-        generation_delta_time = GenerationDeltaTime()
-        generation_delta_time.msec = vam["vam"]["generationDeltaTime"]
+        generation_delta_time = GenerationDeltaTime(msec=vam["vam"]["generationDeltaTime"])
         utc_timestamp = generation_delta_time.as_timestamp_in_certain_point(
             int(TimeService.time()*1000))
         vam["utc_timestamp"] = utc_timestamp

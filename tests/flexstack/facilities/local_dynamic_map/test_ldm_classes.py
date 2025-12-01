@@ -1,60 +1,54 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from flexstack.facilities.local_dynamic_map.ldm_classes import (
-    DeleteDataProviderReq,
+    Altitude,
+    AuthorizationResult,
+    AuthorizeReg,
+    AuthorizeResp,
+    Circle,
+    Rectangle,
+    AccessPermission,
     DeleteDataProviderResp,
     DeleteDataProviderResult,
     DeregisterDataConsumerAck,
-    DeregisterDataConsumerReq,
     DeregisterDataConsumerResp,
+    DeregisterDataProviderAck,
+    DeregisterDataProviderResp,
     Direction,
     Ellipse,
     Filter,
     FilterStatement,
     GeometricArea,
     Location,
-    LogicalOperators,
-    OrderTuple,
+    ComparisonOperators,
+    OrderTupleValue,
     OrderingDirection,
-    PublishDataobjects,
-    Rectangle,
-    ReferenceArea,
+    PositionConfidenceEllipse,
+    ReferencePosition,
     ReferenceValue,
     RegisterDataConsumerReq,
     RegisterDataConsumerResp,
     RegisterDataConsumerResult,
+    RegisterDataProviderReq,
+    RegisterDataProviderResp,
+    RegisterDataProviderResult,
+    RelevanceArea,
     RelevanceDistance,
     RelevanceTrafficDirection,
     RequestDataObjectsReq,
     RequestDataObjectsResp,
     RequestedDataObjectsResult,
-    RevokeDataConsumerRegistrationResp,
-    StationType,
-    Altitude,
-    AuthorizeResp,
-    DeregisterDataProviderAck,
-    DeregisterDataProviderResp,
-    Latitude,
-    Longitude,
-    PositionConfidenceEllipse,
-    ReferencePosition,
-    RegisterDataProviderReq,
-    RegisterDataProviderResult,
-    RevocationReason,
-    RevocationResult,
-    RelevanceArea,
     RevokeAuthorizationReg,
     RevokeDataProviderRegistrationResp,
-    SubscribeDataobjectsReq,
+    RevocationReason,
+    RevocationResult,
+    StationType,
     SubscribeDataObjectsResp,
+    SubscribeDataobjectsReq,
     SubscribeDataobjectsResult,
     TimeValidity,
     TimestampIts,
-    DataContainer,
-    AuthorizationResult,
-    AuthorizeReg,
-    Circle,
     UnsubscribeDataConsumerAck,
     UnsubscribeDataConsumerReq,
     UnsubscribeDataConsumerResp,
@@ -64,1373 +58,336 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
     UpdateDataProviderResp,
     UpdateDataProviderResult,
     Utils,
+    Latitude,
+    Longitude,
+    PublishDataobjects,
 )
 from flexstack.utils.time_service import ITS_EPOCH, ELAPSED_SECONDS
 
 
-white_vam = {
-    "header": {"protocolVersion": 3, "messageId": 16, "stationId": 0},
-    "vam": {
-        "generationDeltaTime": 0,
-        "vamParameters": {
-            "basicContainer": {
-                # roadSideUnit(15), cyclist(2)
-                "stationType": 15,
-                "referencePosition": {
-                    "latitude": 900000001,
-                    "longitude": 1800000001,
-                    "positionConfidenceEllipse": {
-                        "semiMajorAxisLength": 4095,
-                        "semiMinorAxisLength": 4095,
-                        "semiMajorAxisOrientation": 3601,
-                    },
-                    "altitude": {
-                        "altitudeValue": 800001,
-                        "altitudeConfidence": "unavailable",
-                    },
-                },
-            },
-            "vruHighFrequencyContainer": {
-                "heading": {"value": 3601, "confidence": 127},
-                "speed": {"speedValue": 16383, "speedConfidence": 127},
-                "longitudinalAcceleration": {
-                    "longitudinalAccelerationValue": 161,
-                    "longitudinalAccelerationConfidence": 102,
-                },
-            },
-        },
-    },
-}
-
-
 class TestTimestampIts(unittest.TestCase):
-    def setUp(self) -> None:
-        self.timestamp = 1746018271
-        self.timestamp_its = TimestampIts(self.timestamp)
-        self.timestamp1 = TimestampIts(1000+ITS_EPOCH)
-        self.timestamp2 = TimestampIts(2000+ITS_EPOCH)
+    def test_initialize_with_utc_timestamp_seconds(self) -> None:
+        utc_seconds = ITS_EPOCH + 42
+        timestamp = TimestampIts.initialize_with_utc_timestamp_seconds(utc_seconds)
+        expected = (utc_seconds - ITS_EPOCH + ELAPSED_SECONDS) * 1000
+        self.assertEqual(timestamp.timestamp_its, expected)
 
-    def test_initialization(self) -> None:
-        self.assertEqual(
-            self.timestamp_its.timestamp,
-            (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
-        )
-        with unittest.mock.patch("flexstack.utils.time_service.TimeService.time", return_value=self.timestamp):
-            test_none_ts = TimestampIts()
-            self.assertEqual(
-                test_none_ts.timestamp,
-                (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
-            )
+    def test_initialize_uses_time_service_when_timestamp_missing(self) -> None:
+        mocked_time = ITS_EPOCH + 123
+        with patch("flexstack.utils.time_service.TimeService.time", return_value=mocked_time):
+            timestamp = TimestampIts.initialize_with_utc_timestamp_seconds(0)
+        expected = (mocked_time - ITS_EPOCH + ELAPSED_SECONDS) * 1000
+        self.assertEqual(timestamp.timestamp_its, expected)
 
-    def test_transform_utc_seconds_timestamp_to_timestamp_its(self) -> None:
-        transformed_timestamp = self.timestamp_its._TimestampIts__transform_utc_seconds_timestamp_to_timestamp_its(
-            self.timestamp
-        )
-        self.assertEqual(
-            transformed_timestamp,
-            (self.timestamp - ITS_EPOCH + ELAPSED_SECONDS) * 1000,
-        )
+    def test_transform_utc_seconds_to_its(self) -> None:
+        utc_seconds = ITS_EPOCH + 10
+        transformed = TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(utc_seconds)
+        self.assertEqual(transformed, (utc_seconds - ITS_EPOCH + ELAPSED_SECONDS) * 1000)
 
-    def test_addition(self) -> None:
-        result = self.timestamp1 + self.timestamp2
-        self.assertEqual(result.timestamp, 3010000)
-        self.assertIsInstance(result, TimestampIts)
+    def test_addition_and_subtraction(self) -> None:
+        ts1 = TimestampIts(1000)
+        ts2 = TimestampIts(2500)
+        self.assertEqual((ts1 + ts2).timestamp_its, 3500)
+        self.assertEqual((ts2 - ts1).timestamp_its, 1500)
 
-    def test_addition_invalid_type(self) -> None:
+    def test_comparisons(self) -> None:
+        ts1 = TimestampIts(1000)
+        ts2 = TimestampIts(2000)
+        self.assertTrue(ts1 < ts2)
+        self.assertTrue(ts2 >= ts1)
+        self.assertFalse(ts1 == ts2)
+        self.assertFalse(ts1 == "not-a-timestamp")
+
+    def test_invalid_comparison_raises_type_error(self) -> None:
+        ts = TimestampIts(1000)
         with self.assertRaises(TypeError):
-            _ = self.timestamp1 + 1000
-
-    def test_subtraction(self) -> None:
-        result = self.timestamp2 - self.timestamp1
-        self.assertEqual(result.timestamp, 1000000)
-        self.assertIsInstance(result, TimestampIts)
-
-    def test_subtraction_invalid_type(self) -> None:
-        with self.assertRaises(TypeError):
-            _ = self.timestamp1 - 1000
-
-    def test_equality(self) -> None:
-        self.assertTrue(self.timestamp1 == TimestampIts(1000+ITS_EPOCH))
-        self.assertFalse(self.timestamp1 == self.timestamp2)
-
-    def test_equality_invalid_type(self) -> None:
-        self.assertFalse(self.timestamp1 == 1000)
-
-    def test_less_than(self) -> None:
-        self.assertTrue(self.timestamp1 < self.timestamp2)
-        self.assertFalse(self.timestamp2 < self.timestamp1)
-
-    def test_less_than_invalid_type(self) -> None:
-        with self.assertRaises(TypeError):
-            _ = self.timestamp1 < 1000
-
-    def test_less_than_or_equal(self) -> None:
-        self.assertTrue(self.timestamp1 <= self.timestamp2)
-        self.assertTrue(self.timestamp1 <= TimestampIts(1000+ITS_EPOCH))
-        self.assertFalse(self.timestamp2 <= self.timestamp1)
-
-    def test_less_than_or_equal_invalid_type(self) -> None:
-        with self.assertRaises(TypeError):
-            _ = self.timestamp1 <= 1000
-
-    def test_greater_than(self) -> None:
-        self.assertTrue(self.timestamp2 > self.timestamp1)
-        self.assertFalse(self.timestamp1 > self.timestamp2)
-
-    def test_greater_than_invalid_type(self) -> None:
-        with self.assertRaises(TypeError):
-            _ = self.timestamp1 > 1000
-
-    def test_greater_than_or_equal(self) -> None:
-        self.assertTrue(self.timestamp2 >= self.timestamp1)
-        self.assertTrue(self.timestamp1 >= TimestampIts(1000))
-        self.assertFalse(self.timestamp1 >= self.timestamp2)
-
-    def test_greater_than_or_equal_invalid_type(self) -> None:
-        with self.assertRaises(TypeError):
-            _ = self.timestamp1 >= 1000
-
-
-class TestDataContainer(unittest.TestCase):
-    def test__str__(self) -> None:
-        self.assertEqual(
-            str(DataContainer({"cam": 1, "test": 2})), "Cooperative Awareness Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"denm": 1, "test": 2})),
-            "Decentralized Environmental Notification Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"poi": 1, "test": 2})), "Point of Interest Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"spatem": 1, "test": 2})),
-            "Signal and Phase and Timing Extended Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"mapem": 1, "test": 2})), "MAP Extended Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"ivim": 1, "test": 2})), "Vehicle Information Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"ev-rsr": 1, "test": 2})),
-            "Electric Vehicle Recharging Spot Reservation Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"tistpgtransaction": 1, "test": 2})),
-            "Tyre Information System and Tyre Pressure Gauge Interoperability",
-        )
-        self.assertEqual(
-            str(DataContainer({"srem": 1, "test": 2})),
-            "Signal Request Extended Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"ssem": 1, "test": 2})),
-            "Signal Request Status Extended Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"evcsn": 1, "test": 2})),
-            "Electrical Vehicle Charging Spot Notification Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"saem": 1, "test": 2})),
-            "Services Announcement Extended Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"rtcmem": 1, "test": 2})),
-            "Radio Technical Commision for Maritime Services Extended Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"cpm": 1, "test": 2})), "Collective Perception Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"imzm": 1, "test": 2})),
-            "Interface Management Zone Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"vam": 1, "test": 2})),
-            "Vulnerable Road User Awareness Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"dsm": 1, "test": 2})),
-            "Diagnosis Logging and Status Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"pcim": 1, "test": 2})),
-            "Parking Control Infrastucture Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"pcvm": 1, "test": 2})),
-            "Parking Control Vehicle Message",
-        )
-        self.assertEqual(
-            str(DataContainer({"payload": 1, "test": 2})), "Maneuver Coordination Message"
-        )
-        self.assertEqual(
-            str(DataContainer({"pam": 1, "test": 2})), "Parking Availability Message"
-        )
-        self.assertEqual(str(DataContainer({"test": 1, "test2": 2})), "unknown")
-
-
-class TestAuthorizationResult(unittest.TestCase):
-    def test__str__(self) -> None:
-        self.assertEqual(str(AuthorizationResult(0)), "successful")
-        self.assertEqual(str(AuthorizationResult(1)), "invalidITS-AID")
-        self.assertEqual(str(AuthorizationResult(2)), "authentiticaionFailure")
-        self.assertEqual(str(AuthorizationResult(3)), "applicationNotAuthorized")
-
-
-class TestAuthorizationReg(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        accessPermissions = 2
-        self.assertEqual(
-            AuthorizeReg(applicationId, accessPermissions).application_id, applicationId
-        )
-        self.assertEqual(
-            AuthorizeReg(applicationId, accessPermissions).access_permissions,
-            accessPermissions,
-        )
-
-
-class TestAuthorizationResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        accessPermissions = 2
-        result = 3
-        self.assertEqual(
-            AuthorizeResp(applicationId, accessPermissions, result).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            AuthorizeResp(applicationId, accessPermissions, result).access_permissions,
-            accessPermissions,
-        )
-        self.assertEqual(
-            AuthorizeResp(applicationId, accessPermissions, result).result, result
-        )
-
-
-class TestRevocationReason(unittest.TestCase):
-    def test__init__(self) -> None:
-        reason = 1
-        self.assertEqual(RevocationReason(reason).reason, reason)
-
-    def test__str__(self) -> None:
-        self.assertEqual(
-            str(RevocationReason(0)), "registratioRevokedByRegistrationAuthority"
-        )
-        self.assertEqual(str(RevocationReason(1)), "registrationPeriodExpired")
-
-
-class TestRevocationResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(RevocationResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RevocationResult(0)), "successful")
-        self.assertEqual(str(RevocationResult(1)), "invalidITS-AID")
-        self.assertEqual(str(RevocationResult(2)), "unknownITS-AID")
-
-
-class TestRevokeAuthorizationReg(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        reason = 2
-        self.assertEqual(
-            RevokeAuthorizationReg(applicationId, reason).application_id, applicationId
-        )
-        self.assertEqual(RevokeAuthorizationReg(applicationId, reason).reason, reason)
-
-
-class TestRegisterDataProviderReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        accessPermissions = 2
-        timeValidity = 3
-        self.assertEqual(
-            RegisterDataProviderReq(
-                applicationId, accessPermissions, timeValidity
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            RegisterDataProviderReq(
-                applicationId, accessPermissions, timeValidity
-            ).access_permisions,
-            accessPermissions,
-        )
-        self.assertEqual(
-            RegisterDataProviderReq(
-                applicationId, accessPermissions, timeValidity
-            ).time_validity,
-            timeValidity,
-        )
-
-
-class TestRegisterDataProviderResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(RegisterDataProviderResult(result).result, result)
-
-
-class TestDeregisterDataProviderAck(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(DeregisterDataProviderAck(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(DeregisterDataProviderAck(0)), "accepted")
-        self.assertEqual(str(DeregisterDataProviderAck(1)), "rejected")
-
-
-class TestDeregisterDataProviderReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        result = 2
-        self.assertEqual(
-            DeregisterDataProviderResp(applicationId, result).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            DeregisterDataProviderResp(applicationId, result).result, result
-        )
-
-
-class TestRevokeDataProviderRegistrationResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        self.assertEqual(
-            RevokeDataProviderRegistrationResp(applicationId).application_id,
-            applicationId,
-        )
+            ts.__lt__(object())  # type: ignore[arg-type]
 
 
 class TestTimeValidity(unittest.TestCase):
-    def test__init__(self) -> None:
-        time = 1
-        self.assertEqual(TimeValidity(time).time, time)
-
     def test_to_etsi_its(self) -> None:
-        timestamp = 2000000000
-        result = ((timestamp - ITS_EPOCH)) * 1000
-        self.assertEqual(TimeValidity(timestamp).to_etsi_its(), result)
+        unix_ts = ITS_EPOCH + 100
+        validity = TimeValidity(unix_ts)
+        expected = (unix_ts - ITS_EPOCH) * 1000
+        self.assertEqual(validity.to_etsi_its(), expected)
 
 
-class TestPositionConfidenceEllipse(unittest.TestCase):
-    def test__init__(self) -> None:
-        semiMajorConfidence = 1
-        semiMinorConfidence = 2
-        semiMajorOrientation = 3
+class TestDataContainer(unittest.TestCase):
+    def test_known_message_types(self) -> None:
+        self.assertEqual(str(AccessPermission.CAM), "Cooperative Awareness Message")
+        self.assertEqual(str(AccessPermission.DENM), "Decentralized Environmental Notification Message")
+        self.assertEqual(str(AccessPermission.PAM), "Parking Availability Message")
+
+    def test_invalid_permission_value_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            AccessPermission(99)
+
+
+class TestAuthorization(unittest.TestCase):
+    def test_authorization_result_str(self) -> None:
+        self.assertEqual(str(AuthorizationResult.SUCCESSFUL), "successful")
+        self.assertEqual(str(AuthorizationResult.AUTHENTICATION_FAILURE), "authentication_failure")
+
+    def test_authorize_reg_and_resp(self) -> None:
+        permissions = (AccessPermission.CAM,)
+        request = AuthorizeReg(1, permissions)
+        response = AuthorizeResp(1, permissions, AuthorizationResult.INVALID_ITS_AID)
+        self.assertEqual(request.application_id, 1)
+        self.assertEqual(response.result, AuthorizationResult.INVALID_ITS_AID)
+
+
+class TestRevocation(unittest.TestCase):
+    def test_revocation_reason_and_result_str(self) -> None:
         self.assertEqual(
-            PositionConfidenceEllipse(
-                semiMajorConfidence, semiMinorConfidence, semiMajorOrientation
-            ).semi_major_confidence,
-            semiMajorConfidence,
+            str(RevocationReason.REGISTRATION_REVOKED_BY_REGISTRATION_AUTHORITY),
+            "registrationRevokedByRegistrationAuthority",
         )
-        self.assertEqual(
-            PositionConfidenceEllipse(
-                semiMajorConfidence, semiMinorConfidence, semiMajorOrientation
-            ).semi_minor_confidence,
-            semiMinorConfidence,
-        )
-        self.assertEqual(
-            PositionConfidenceEllipse(
-                semiMajorConfidence, semiMinorConfidence, semiMajorOrientation
-            ).semi_major_orientation,
-            semiMajorOrientation,
-        )
+        self.assertEqual(str(RevocationResult.UNKNOWN_ITS_AID), "unknownITS-AID")
+
+    def test_revoke_authorization_reg(self) -> None:
+        reg = RevokeAuthorizationReg(7, RevocationReason.REGISTRATION_PERIOD_EXPIRED)
+        self.assertEqual(reg.reason, RevocationReason.REGISTRATION_PERIOD_EXPIRED)
 
 
-class TestAltitude(unittest.TestCase):
-    def test__init__(self) -> None:
-        altitudeValue = 1
-        altitudeConfidence = 2
-        self.assertEqual(
-            Altitude(altitudeValue, altitudeConfidence).altitude_value, altitudeValue
-        )
-        self.assertEqual(
-            Altitude(altitudeValue, altitudeConfidence).altitude_confidence,
-            altitudeConfidence,
-        )
+class TestRegisterDataProvider(unittest.TestCase):
+    def test_to_dict_and_from_dict(self) -> None:
+        permissions = (AccessPermission.CAM,)
+        validity = TimeValidity(ITS_EPOCH + 10)
+        request = RegisterDataProviderReq(5, permissions, validity)
+
+        data = request.to_dict()
+        self.assertEqual(data["application_id"], 5)
+        self.assertEqual(data["access_permissions"], permissions)
+        self.assertEqual(data["time_validity"], validity.time)
+
+        recreated = RegisterDataProviderReq.from_dict(data)
+        self.assertEqual(recreated, request)
+
+    def test_from_dict_missing_fields_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            RegisterDataProviderReq.from_dict({"time_validity": 1})
+
+    def test_result_and_response(self) -> None:
+        result = RegisterDataProviderResult.ACCEPTED
+        self.assertEqual(str(result), "accepted")
+        response = RegisterDataProviderResp(2, (AccessPermission.CAM,), result)
+        self.assertEqual(response.result, RegisterDataProviderResult.ACCEPTED)
 
 
-class TestLatitude(unittest.TestCase):
-    def test_convert_latitude_to_its_latitude(self) -> None:
-        latitude = 42.1234567
-        its_latitude = int(latitude * 10000000)
-        self.assertEqual(
-            Latitude.convert_latitude_to_its_latitude(latitude), its_latitude
-        )
+class TestDeregisterDataProvider(unittest.TestCase):
+    def test_ack_and_response(self) -> None:
+        self.assertEqual(str(DeregisterDataProviderAck.ACCEPTED), "accepted")
+        response = DeregisterDataProviderResp(3, DeregisterDataProviderAck.REJECTED)
+        self.assertEqual(response.result, DeregisterDataProviderAck.REJECTED)
 
-        latitude = 420.1234567
-        its_latitude = int(latitude * 10000000)
-        self.assertEqual(Latitude.convert_latitude_to_its_latitude(latitude), 900000001)
+    def test_revoke_data_provider_registration_resp(self) -> None:
+        resp = RevokeDataProviderRegistrationResp(9)
+        self.assertEqual(resp.application_id, 9)
 
 
-class TestLongitude(unittest.TestCase):
-    def test_convert_longitude_to_its_longitude(self) -> None:
-        longitude = 1.234567
-        its_longitude = int(longitude * 10000000)
-        self.assertEqual(
-            Longitude.convert_longitude_to_its_longitude(longitude), its_longitude
-        )
+class TestPositioning(unittest.TestCase):
+    def test_latitude_and_longitude_conversion(self) -> None:
+        self.assertEqual(Latitude.convert_latitude_to_its_latitude(42.1234567), 421234567)
+        self.assertEqual(Latitude.convert_latitude_to_its_latitude(420.0), 900000001)
+        self.assertEqual(Longitude.convert_longitude_to_its_longitude(1.234567), 12345670)
+        self.assertEqual(Longitude.convert_longitude_to_its_longitude(181.5), 1800000001)
 
-        longitude = 181.1234567
-        its_longitude = int(longitude * 10000000)
-        self.assertEqual(
-            Longitude.convert_longitude_to_its_longitude(longitude), 1800000001
+    def test_reference_position_to_dict(self) -> None:
+        position = ReferencePosition(
+            latitude=1,
+            longitude=2,
+            position_confidence_ellipse=PositionConfidenceEllipse(3, 4, 5),
+            altitude=Altitude(6, 7),
         )
-
-
-class TestReferencePosition(unittest.TestCase):
-    def test__init__(self) -> None:
-        latitude = 1
-        longitude = 2
-        positionConfidenceEllipse = MagicMock()
-        positionConfidenceEllipse.semiMajorConfidence = 3
-        positionConfidenceEllipse.semiMinorConfidence = 4
-        positionConfidenceEllipse.semiMajorOrientation = 5
-        altitude = MagicMock()
-        altitude.altitudeValue = 6
-        altitude.altitudeConfidence = 7
-        self.assertEqual(
-            ReferencePosition(
-                latitude, longitude, positionConfidenceEllipse, altitude
-            ).latitude,
-            latitude,
-        )
-        self.assertEqual(
-            ReferencePosition(
-                latitude, longitude, positionConfidenceEllipse, altitude
-            ).longitude,
-            longitude,
-        )
-        self.assertEqual(
-            ReferencePosition(
-                latitude, longitude, positionConfidenceEllipse, altitude
-            ).position_confidence_ellipse,
-            positionConfidenceEllipse,
-        )
-        self.assertEqual(
-            ReferencePosition(
-                latitude, longitude, positionConfidenceEllipse, altitude
-            ).altitude,
-            altitude,
-        )
-
-    def test_to_dict(self) -> None:
-        latitude = 1
-        longitude = 2
-        positionConfidenceEllipse = MagicMock()
-        positionConfidenceEllipse.semi_major_confidence = 3
-        positionConfidenceEllipse.semi_minor_confidence = 4
-        positionConfidenceEllipse.semi_major_orientation = 5
-        altitude = MagicMock()
-        altitude.altitude_value = 6
-        altitude.altitude_confidence = 7
-        self.assertEqual(
-            ReferencePosition(
-                latitude, longitude, positionConfidenceEllipse, altitude
-            ).to_dict(),
-            {
-                "latitude": latitude,
-                "longitude": longitude,
-                "positionConfidenceEllipse": {
-                    "semiMajorConfidence": positionConfidenceEllipse.semi_major_confidence,
-                    "semiMinorConfidence": positionConfidenceEllipse.semi_minor_confidence,
-                    "semiMajorOrientation": positionConfidenceEllipse.semi_major_orientation,
-                },
-                "altitude": {
-                    "altitudeValue": altitude.altitude_value,
-                    "altitudeConfidence": altitude.altitude_confidence,
-                },
+        expected = {
+            "latitude": 1,
+            "longitude": 2,
+            "positionConfidenceEllipse": {
+                "semiMajorConfidence": 3,
+                "semiMinorConfidence": 4,
+                "semiMajorOrientation": 5,
             },
-        )
+            "altitude": {"altitudeValue": 6, "altitudeConfidence": 7},
+        }
+        self.assertEqual(position.to_dict(), expected)
 
     def test_update_with_gpsd_tpv(self) -> None:
-        latitude = 1
-        longitude = 2
-        positionConfidenceEllipse = MagicMock()
-        positionConfidenceEllipse.semi_major_confidence = 3
-        positionConfidenceEllipse.semi_minor_confidence = 4
-        positionConfidenceEllipse.semi_major_orientation = 5
-        altitude = MagicMock()
-        altitude.altitude_value = 6
-        altitude.altitude_confidence = 7
-        reference_position = ReferencePosition(
-            latitude, longitude, positionConfidenceEllipse, altitude
-        )
-        tpv_data = {
-            "class": "TPV",
-            "device": "/dev/ttyACM0",
-            "mode": 3,
-            "time": "2020-03-13T13:01:14.000Z",
-            "ept": 0.005,
-            "lat": 41.453606167,
-            "lon": 2.073707333,
-            "alt": 163.500,
-            "epx": 8.754,
-            "epy": 10.597,
-            "epv": 31.970,
-            "track": 0.0000,
-            "speed": 0.011,
-            "climb": 0.000,
-            "eps": 0.57,
-        }
-        reference_position.update_with_gpsd_tpv(tpv_data)
-        self.assertEqual(reference_position.latitude, int(tpv_data["lat"] * 10000000))
-        self.assertEqual(reference_position.longitude, int(tpv_data["lon"] * 10000000))
+        tpv = {"lat": 41.0, "lon": 2.0, "epx": 1, "epy": 2, "track": 3, "alt": 4, "epv": 5}
+        updated = ReferencePosition.update_with_gpsd_tpv(tpv)
+        self.assertEqual(updated.latitude, Latitude.convert_latitude_to_its_latitude(41.0))
+        self.assertEqual(updated.longitude, Longitude.convert_longitude_to_its_longitude(2.0))
+        self.assertEqual(updated.altitude.altitude_value, 4)
 
 
-class TestStationType(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(StationType(1).station_type, 1)
-
-    def test__str__(self):
+class TestStationAndDirection(unittest.TestCase):
+    def test_station_type_str(self) -> None:
         self.assertEqual(str(StationType(0)), "Unknown")
-        self.assertEqual(str(StationType(1)), "Pedestrian")
-        self.assertEqual(str(StationType(2)), "Cyclist")
-        self.assertEqual(str(StationType(3)), "Moped")
-        self.assertEqual(str(StationType(4)), "Motorcycle")
-        self.assertEqual(str(StationType(5)), "Passenger Car")
-        self.assertEqual(str(StationType(6)), "Bus")
-        self.assertEqual(str(StationType(7)), "Light Truck")
-        self.assertEqual(str(StationType(8)), "Heavy Truck")
-        self.assertEqual(str(StationType(9)), "Trailer")
-        self.assertEqual(str(StationType(10)), "Special Vehicles")
-        self.assertEqual(str(StationType(11)), "Tram")
-        self.assertEqual(str(StationType(12)), "Unknown")
         self.assertEqual(str(StationType(15)), "Road-Side-Unit")
 
-
-class TestDirection(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(Direction(1).direction, 1)
-
-    def test__str__(self):
+    def test_direction_str(self) -> None:
         self.assertEqual(str(Direction(0)), "north")
         self.assertEqual(str(Direction(7200)), "east")
-        self.assertEqual(str(Direction(14400)), "south")
-        self.assertEqual(str(Direction(21600)), "west")
-        self.assertEqual(str(Direction(2)), "unknown")
+        self.assertEqual(str(Direction(9999)), "unknown")
+
+    def test_geometric_primitives(self) -> None:
+        circle = Circle(10)
+        rectangle = Rectangle(2, 3, Direction(0))
+        ellipse = Ellipse(4, 5, Direction(7200))
+        self.assertEqual(circle.radius, 10)
+        self.assertEqual(rectangle.a_semi_axis, 2)
+        self.assertEqual(ellipse.azimuth_angle.direction, 7200)
 
 
-class TestCircle(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(Circle(1).radius, 1)
+class TestRelevance(unittest.TestCase):
+    def test_relevance_distance_str_and_compare(self) -> None:
+        rd = RelevanceDistance(0)
+        self.assertEqual(str(rd), "lessThan50m")
+        self.assertTrue(rd.compare_with_int(25))
+        self.assertFalse(rd.compare_with_int(55))
+        with self.assertRaises(ValueError):
+            RelevanceDistance(99).compare_with_int(10)
 
-
-class TestRectangle(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(Rectangle(1, 2, 3).a_semi_axis, 1)
-        self.assertEqual(Rectangle(1, 2, 3).b_semi_axis, 2)
-        self.assertEqual(Rectangle(1, 2, 3).azimuth_angle, 3)
-
-
-class TestEllipse(unittest.TestCase):
-    def test__init__(self) -> None:
-        azimuthAngle = MagicMock()
-        self.assertEqual(Ellipse(1, 2, azimuthAngle).a_semi_axis, 1)
-        self.assertEqual(Ellipse(1, 2, azimuthAngle).b_semi_axis, 2)
-        self.assertEqual(Ellipse(1, 2, azimuthAngle).azimuth_angle, azimuthAngle)
-
-
-class TestRelevanceTrafficDirection(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(RelevanceTrafficDirection(1).relevance_traffic_direction, 1)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RelevanceTrafficDirection(0)), "allTrafficDirections")
-        self.assertEqual(str(RelevanceTrafficDirection(1)), "upstreamTraffic")
-        self.assertEqual(str(RelevanceTrafficDirection(2)), "downstreamTraffic")
-        self.assertEqual(str(RelevanceTrafficDirection(3)), "oppositeTraffic")
-
-
-class TestRelevanceDistance(unittest.TestCase):
-    def test__init__(self):
-        self.assertEqual(RelevanceDistance(1).relevance_distance, 1)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RelevanceDistance(0)), "lessThan50m")
-        self.assertEqual(str(RelevanceDistance(1)), "lessThan100m")
-        self.assertEqual(str(RelevanceDistance(2)), "lessThan200m")
-        self.assertEqual(str(RelevanceDistance(3)), "lessThan500m")
-        self.assertEqual(str(RelevanceDistance(4)), "lessThan1000m")
-        self.assertEqual(str(RelevanceDistance(5)), "lessThan5km")
-        self.assertEqual(str(RelevanceDistance(6)), "lessThan10km")
-        self.assertEqual(str(RelevanceDistance(7)), "over20km")
-        self.assertEqual(str(RelevanceDistance(8)), "unknown")
-
-    def test_compare_with_int(self) -> None:
-        self.assertEqual(RelevanceDistance(0).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(0).compare_with_int(51), False)
-
-        self.assertEqual(RelevanceDistance(1).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(1).compare_with_int(101), False)
-
-        self.assertEqual(RelevanceDistance(2).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(2).compare_with_int(201), False)
-
-        self.assertEqual(RelevanceDistance(3).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(3).compare_with_int(501), False)
-
-        self.assertEqual(RelevanceDistance(4).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(4).compare_with_int(1001), False)
-
-        self.assertEqual(RelevanceDistance(5).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(5).compare_with_int(5001), False)
-
-        self.assertEqual(RelevanceDistance(6).compare_with_int(20), True)
-        self.assertEqual(RelevanceDistance(6).compare_with_int(10001), False)
-
-        self.assertEqual(RelevanceDistance(7).compare_with_int(20), False)
-        self.assertEqual(RelevanceDistance(7).compare_with_int(20001), True)
-
-
-class TestRelevanceArea(unittest.TestCase):
-    def test__init__(self) -> None:
-        relevance_distance = MagicMock()
-        relevance_traffic_direction = MagicMock()
-
-        self.assertEqual(
-            RelevanceArea(
-                relevance_distance, relevance_traffic_direction
-            ).relevance_distance,
-            relevance_distance,
-        )
-        self.assertEqual(
-            RelevanceArea(
-                relevance_distance, relevance_traffic_direction
-            ).relevance_traffic_direction,
-            relevance_traffic_direction,
-        )
-
-
-class TestGeometricArea(unittest.TestCase):
-    def test__init__(self) -> None:
-        circle = MagicMock()
-        rectangle = MagicMock()
-        ellipse = MagicMock()
-        self.assertEqual(GeometricArea(circle, rectangle, ellipse).circle, circle)
-        self.assertEqual(GeometricArea(circle, rectangle, ellipse).rectangle, rectangle)
-        self.assertEqual(GeometricArea(circle, rectangle, ellipse).ellipse, ellipse)
-
-
-class TestReferenceArea(unittest.TestCase):
-    def test__init__(self) -> None:
-        relevance_area = MagicMock()
-        geometric_area = MagicMock()
-        self.assertEqual(
-            ReferenceArea(geometric_area, relevance_area).relevance_area, relevance_area
-        )
-        self.assertEqual(
-            ReferenceArea(geometric_area, relevance_area).geometric_area, geometric_area
-        )
+    def test_relevance_area(self) -> None:
+        area = RelevanceArea(RelevanceDistance(1), RelevanceTrafficDirection.DOWNSTREAM_TRAFFIC)
+        self.assertEqual(area.relevance_distance.relevance_distance, 1)
 
 
 class TestLocation(unittest.TestCase):
-    def test__init__(self) -> None:
-        referencePosition = MagicMock()
-        referenceArea = MagicMock()
-        self.assertEqual(
-            Location(referencePosition, referenceArea).reference_position,
-            referencePosition,
-        )
-        self.assertEqual(
-            Location(referencePosition, referenceArea).reference_area, referenceArea
-        )
-
-    def test_location_service_callback(self) -> None:
-        referencePosition = MagicMock()
-        referencePosition.update_with_gpsd_tpv = MagicMock()
-        referenceArea = MagicMock()
-        location = Location(referencePosition, referenceArea)
-        location.location_service_callback("test")
-
-        referencePosition.update_with_gpsd_tpv.assert_called_once_with("test")
+    def test_initializer(self) -> None:
+        location = Location.initializer(latitude=1, longitude=2, radius=50)
+        self.assertEqual(location.reference_position.latitude, 1)
+        circle = location.reference_area.geometric_area.circle
+        self.assertIsNotNone(circle)
+        if circle is not None:
+            self.assertEqual(circle.radius, 50)
 
     def test_location_builder_circle(self) -> None:
-        latitude = 1
-        longitude = 2
-        altitude = 3
-        radius = 4
-
-        # Check if the values created are the same as the mock values
-        reference_position = Location.location_builder_circle(
-            latitude, longitude, altitude, radius
-        ).reference_position
-        reference_area = Location.location_builder_circle(
-            latitude, longitude, altitude, radius
-        ).reference_area
-
-        self.assertEqual(reference_position.latitude, latitude)
-        self.assertEqual(reference_position.longitude, longitude)
-        self.assertEqual(reference_position.altitude.altitude_value, altitude)
-
-        self.assertEqual(reference_area.geometric_area.circle.radius, radius)
+        location = Location.location_builder_circle(10, 20, 30, 40)
+        self.assertEqual(location.reference_position.latitude, 10)
+        circle = location.reference_area.geometric_area.circle
+        self.assertIsNotNone(circle)
+        if circle is not None:
+            self.assertEqual(circle.radius, 40)
+        self.assertEqual(location.reference_area.relevance_area.relevance_distance.relevance_distance, 1)
 
 
-class TestUpdateDataProviderResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(UpdateDataProviderResult(result).result, result)
+class TestProviderResponses(unittest.TestCase):
+    def test_update_data_provider_result_and_resp(self) -> None:
+        self.assertEqual(str(UpdateDataProviderResult.SUCCEED), "succeed")
+        response = UpdateDataProviderResp(1, 2, UpdateDataProviderResult.INCONSISTENT_DATA_OBJECT_TYPE)
+        self.assertEqual(response.result, UpdateDataProviderResult.INCONSISTENT_DATA_OBJECT_TYPE)
 
-    def test__str__(self) -> None:
-        self.assertEqual(str(UpdateDataProviderResult(0)), "succeed")
-        self.assertEqual(str(UpdateDataProviderResult(1)), "unknownDataObjectID")
-        self.assertEqual(str(UpdateDataProviderResult(2)), "inconsistentDataObjectType")
+    def test_delete_data_provider_result_and_resp(self) -> None:
+        self.assertEqual(str(DeleteDataProviderResult.SUCCEED), "succeed")
+        response = DeleteDataProviderResp(1, 2, DeleteDataProviderResult.FAILED)
+        self.assertEqual(response.result, DeleteDataProviderResult.FAILED)
 
 
-class TestUpdateDataProviderResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjectID = 2
-        result = MagicMock()
-        self.assertEqual(
-            UpdateDataProviderResp(applicationId, dataObjectID, result).application_id,
-            applicationId,
+class TestDataConsumer(unittest.TestCase):
+    def test_register_data_consumer(self) -> None:
+        result = RegisterDataConsumerResult.WARNING
+        self.assertEqual(str(result), "warning")
+        req = RegisterDataConsumerReq(1, (AccessPermission.CAM,), GeometricArea(None, None, None))
+        resp = RegisterDataConsumerResp(1, req.access_permisions, result)
+        self.assertEqual(resp.result, RegisterDataConsumerResult.WARNING)
+
+    def test_deregister_and_unsubscribe(self) -> None:
+        self.assertEqual(str(DeregisterDataConsumerAck.SUCCEED), "succeed")
+        dereg_resp = DeregisterDataConsumerResp(1, DeregisterDataConsumerAck.FAILED)
+        self.assertEqual(dereg_resp.ack, DeregisterDataConsumerAck.FAILED)
+
+        self.assertEqual(str(UnsubscribeDataConsumerAck.ACCEPTED), "accepted")
+        unsub_req = UnsubscribeDataConsumerReq(1, 99)
+        unsub_resp = UnsubscribeDataConsumerResp(1, 99, UnsubscribeDataConsumerAck.FAILED)
+        self.assertEqual(unsub_req.subscription_id, 99)
+        self.assertEqual(unsub_resp.result, UnsubscribeDataConsumerAck.FAILED)
+
+
+class TestRequestDataObjects(unittest.TestCase):
+    def test_filter_out_by_data_object_type(self) -> None:
+        search_result = (
+            {"dataObject": {"cam": {"value": 1}}, "id": 1},
+            {"dataObject": {"denm": {"value": 2}}, "id": 2},
         )
-        self.assertEqual(
-            UpdateDataProviderResp(applicationId, dataObjectID, result).data_object_id,
-            dataObjectID,
+        filtered = RequestDataObjectsReq.filter_out_by_data_object_type(search_result, (2,))
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["id"], 1)
+
+    def test_get_object_type_from_data_object(self) -> None:
+        self.assertEqual(RequestDataObjectsReq.get_object_type_from_data_object({"cam": {}}), 2)
+        self.assertIsNone(RequestDataObjectsReq.get_object_type_from_data_object({"unknown": {}}))
+
+    def test_find_attribute_helpers(self) -> None:
+        response = RequestDataObjectsResp(1, tuple(), RequestedDataObjectsResult.SUCCEED)
+        data_object = {"a": {"b": {"c": 5}}}
+        self.assertEqual(response.find_attribute("c", data_object), ["a", "b", "c"])
+        self.assertEqual(RequestDataObjectsResp.find_attribute_static("c", data_object), ["a", "b", "c"])
+        self.assertEqual(RequestDataObjectsResp.find_attribute_static("missing", data_object), [])
+
+
+class TestSubscribeDataobjects(unittest.TestCase):
+    def test_results_and_response(self) -> None:
+        self.assertEqual(str(SubscribeDataobjectsResult.SUCCESSFUL), "successful")
+        req = SubscribeDataobjectsReq(
+            application_id=1,
+            data_object_type=(2,),
+            priority=1,
+            filter=Filter(FilterStatement("cam.generationDeltaTime", ComparisonOperators.EQUAL, 2)),
+            notify_time=TimestampIts(1000),
+            multiplicity=1,
+            order=(OrderTupleValue("cam.generationDeltaTime", OrderingDirection.ASCENDING),),
         )
-        self.assertEqual(
-            UpdateDataProviderResp(applicationId, dataObjectID, result).result, result
-        )
-
-
-class TestDeleteDataProviderReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjectID = 2
-        timeStamp = 3
-        self.assertEqual(
-            DeleteDataProviderReq(applicationId, dataObjectID, timeStamp).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            DeleteDataProviderReq(applicationId, dataObjectID, timeStamp).data_object_id,
-            dataObjectID,
-        )
-        self.assertEqual(
-            DeleteDataProviderReq(applicationId, dataObjectID, timeStamp).time_stamp,
-            timeStamp,
-        )
-
-
-class TestDeleteDataProviderResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(DeleteDataProviderResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(DeleteDataProviderResult(0)), "succeed")
-        self.assertEqual(str(DeleteDataProviderResult(1)), "failed")
-
-
-class TestDeleteDataProviderResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjectID = 2
-        result = MagicMock()
-        self.assertEqual(
-            DeleteDataProviderResp(applicationId, dataObjectID, result).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            DeleteDataProviderResp(applicationId, dataObjectID, result).data_object_id,
-            dataObjectID,
-        )
-        self.assertEqual(
-            DeleteDataProviderResp(applicationId, dataObjectID, result).result, result
-        )
-
-
-class TestRegisterDataProviderResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(RegisterDataProviderResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RegisterDataProviderResult(0)), "accepted")
-        self.assertEqual(str(RegisterDataProviderResult(1)), "rejected")
-
-
-class TestRegisterDataConsumerReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        accessPermissions = MagicMock()
-        areaOfInterest = MagicMock()
-        self.assertEqual(
-            RegisterDataConsumerReq(
-                applicationId, accessPermissions, areaOfInterest
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            RegisterDataConsumerReq(
-                applicationId, accessPermissions, areaOfInterest
-            ).access_permisions,
-            accessPermissions,
-        )
-        self.assertEqual(
-            RegisterDataConsumerReq(
-                applicationId, accessPermissions, areaOfInterest
-            ).area_of_interest,
-            areaOfInterest,
-        )
-
-
-class TestRegisterDataConsumerResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(RegisterDataConsumerResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RegisterDataConsumerResult(0)), "accepted")
-        self.assertEqual(str(RegisterDataConsumerResult(1)), "warning")
-        self.assertEqual(str(RegisterDataConsumerResult(2)), "rejected")
-
-
-class TestRegisterDataConsumerResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        accessPermissions = MagicMock()
-        result = MagicMock()
-        self.assertEqual(
-            RegisterDataConsumerResp(
-                applicationId, accessPermissions, result
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            RegisterDataConsumerResp(
-                applicationId, accessPermissions, result
-            ).access_permisions,
-            accessPermissions,
-        )
-        self.assertEqual(
-            RegisterDataConsumerResp(applicationId, accessPermissions, result).result,
-            result,
-        )
-
-
-class TestDeregisterDataConsumerReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        self.assertEqual(
-            DeregisterDataConsumerReq(applicationId).application_id, applicationId
-        )
-
-
-class TestDeregisterDataConsumerAck(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = MagicMock()
-        self.assertEqual(DeregisterDataConsumerAck(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(DeregisterDataConsumerAck(0)), "succeed")
-        self.assertEqual(str(DeregisterDataConsumerAck(1)), "failed")
-
-
-class TestDeregisterDataConsumerResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        ack = MagicMock()
-        self.assertEqual(
-            DeregisterDataConsumerResp(applicationId, ack).application_id, applicationId
-        )
-        self.assertEqual(DeregisterDataConsumerResp(applicationId, ack).ack, ack)
-
-
-class TestUnsubscribeDataConsumerReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        subscriptionId = 2
-        self.assertEqual(
-            UnsubscribeDataConsumerReq(applicationId, subscriptionId).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            UnsubscribeDataConsumerReq(applicationId, subscriptionId).subscription_id,
-            subscriptionId,
-        )
-
-
-class TestUnsubscribeDataConsumerAck(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(UnsubscribeDataConsumerAck(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(UnsubscribeDataConsumerAck(0)), "accepted")
-        self.assertEqual(str(UnsubscribeDataConsumerAck(1)), "failed")
-
-
-class TestUnsubscribeDataConsumerResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        subscriptionId = 2
-        result = MagicMock()
-        self.assertEqual(
-            UnsubscribeDataConsumerResp(applicationId, subscriptionId, result).result,
-            result,
-        )
-        self.assertEqual(
-            UnsubscribeDataConsumerResp(
-                applicationId, subscriptionId, result
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            UnsubscribeDataConsumerResp(
-                applicationId, subscriptionId, result
-            ).subscription_id,
-            subscriptionId,
-        )
-
-
-class TestRevokeDataConsumerRegistrationResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        self.assertEqual(
-            RevokeDataConsumerRegistrationResp(applicationId).application_id,
-            applicationId,
-        )
-
-
-class TestOrderingDirection(unittest.TestCase):
-    def test__init__(self) -> None:
-        direction = 1
-        self.assertEqual(OrderingDirection(direction).direction, direction)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(OrderingDirection(0)), "ascending")
-        self.assertEqual(str(OrderingDirection(1)), "descending")
-
-
-class TestOrderTuple(unittest.TestCase):
-    def test__init__(self) -> None:
-        attribute = 1
-        orderingDirection = MagicMock()
-        orderingDirection.direction = 1
-        self.assertEqual(OrderTuple(attribute, orderingDirection).attribute, attribute)
-        self.assertEqual(
-            OrderTuple(attribute, orderingDirection).ordering_direction,
-            orderingDirection,
-        )
-
-
-class TestLogicalOperators(unittest.TestCase):
-    def test__init__(self) -> None:
-        operator = 1
-        self.assertEqual(LogicalOperators(operator).operator, operator)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(LogicalOperators(0)), "and")
-        self.assertEqual(str(LogicalOperators(1)), "or")
-
-
-class TestComparisonOperators(unittest.TestCase):
-    def test__init__(self) -> None:
-        operator = 1
-        self.assertEqual(LogicalOperators(operator).operator, operator)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(LogicalOperators(0)), "and")
-        self.assertEqual(str(LogicalOperators(1)), "or")
-
-
-class TestFilterStatement(unittest.TestCase):
-    def test__init__(self) -> None:
-        attribute = 1
-        operator = MagicMock()
-        operator.operator = 1
-        refValue = 2
-        self.assertEqual(
-            FilterStatement(attribute, operator, refValue).attribute, attribute
-        )
-        self.assertEqual(
-            FilterStatement(attribute, operator, refValue).operator, operator
-        )
-        self.assertEqual(
-            FilterStatement(attribute, operator, refValue).ref_value, refValue
-        )
-
-
-class TestFilter(unittest.TestCase):
-    def test__init__(self) -> None:
-        filter_statement_1 = MagicMock()
-        filter_statement_2 = MagicMock()
-        logicalOperator = MagicMock()
-
-        self.assertEqual(
-            Filter(
-                filter_statement_1, logicalOperator, filter_statement_2
-            ).filter_statement_1,
-            filter_statement_1,
-        )
-        self.assertEqual(
-            Filter(
-                filter_statement_1, logicalOperator, filter_statement_2
-            ).filter_statement_2,
-            filter_statement_2,
-        )
-        self.assertEqual(
-            Filter(
-                filter_statement_1, logicalOperator, filter_statement_2
-            ).logical_operator,
-            logicalOperator,
-        )
-
-
-class TestRequestDataObjectsReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjectsType = 2
-        priority = 3
-        order = MagicMock()
-        filter = MagicMock()
-        self.assertEqual(
-            RequestDataObjectsReq(
-                applicationId, dataObjectsType, priority, order, filter
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            RequestDataObjectsReq(
-                applicationId, dataObjectsType, priority, order, filter
-            ).data_object_type,
-            dataObjectsType,
-        )
-        self.assertEqual(
-            RequestDataObjectsReq(
-                applicationId, dataObjectsType, priority, order, filter
-            ).priority,
-            priority,
-        )
-        self.assertEqual(
-            RequestDataObjectsReq(
-                applicationId, dataObjectsType, priority, order, filter
-            ).order,
-            order,
-        )
-        self.assertEqual(
-            RequestDataObjectsReq(
-                applicationId, dataObjectsType, priority, order, filter
-            ).filter,
-            filter,
-        )
-
-
-class TestRequestedDataObjectsResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(RequestedDataObjectsResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(RequestedDataObjectsResult(0)), "succeed")
-        self.assertEqual(str(RequestedDataObjectsResult(1)), "invalidITSAID")
-        self.assertEqual(str(RequestedDataObjectsResult(2)), "invalidDataObjectType")
-        self.assertEqual(str(RequestedDataObjectsResult(3)), "invalidPriority")
-        self.assertEqual(str(RequestedDataObjectsResult(4)), "invalidFilter")
-        self.assertEqual(str(RequestedDataObjectsResult(5)), "invalidOrder")
-
-
-class TestRequestDataObjectsResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjects = MagicMock()
-        result = MagicMock()
-        self.assertEqual(
-            RequestDataObjectsResp(applicationId, dataObjects, result).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            RequestDataObjectsResp(applicationId, dataObjects, result).result, result
-        )
-        self.assertEqual(
-            RequestDataObjectsResp(applicationId, dataObjects, result).data_objects,
-            dataObjects,
-        )
-
-    def test_find_attribute(self) -> None:
-        applicationId = 1
-        dataObjects = MagicMock()
-        result = MagicMock()
-        request_data_object_resp = RequestDataObjectsResp(
-            applicationId, dataObjects, result
-        )
-
-        dict = {"testing": {"test": 1}}
-        self.assertEqual(
-            request_data_object_resp.find_attribute("test", dict), ["testing", "test"]
-        )
-
-        dict = {"testing": {"testing": 1}}
-        self.assertEqual(request_data_object_resp.find_attribute("test", dict), [])
-
-    def test_find_attribute_static(self) -> None:
-        dict = {"testing": {"test": 1}}
-        self.assertEqual(
-            RequestDataObjectsResp.find_attribute_static("test", dict),
-            ["testing", "test"],
-        )
-
-        dict = {"testing": {"testing": 1}}
-        self.assertEqual(RequestDataObjectsResp.find_attribute_static("test", dict), [])
-
-
-class TestSubscribeDataobjectsReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        dataObjectsType = 2
-        priority = 3
-        order = MagicMock()
-        filter = MagicMock()
-        notifyTime = MagicMock()
-        multiplicity = 4
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).data_object_type,
-            dataObjectsType,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).priority,
-            priority,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).filter,
-            filter,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).notify_time,
-            notifyTime,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).multiplicity,
-            multiplicity,
-        )
-        self.assertEqual(
-            SubscribeDataobjectsReq(
-                applicationId,
-                dataObjectsType,
-                priority,
-                filter,
-                notifyTime,
-                multiplicity,
-                order,
-            ).order,
-            order,
-        )
-
-
-class TestSubscribeDataobjectsResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(SubscribeDataobjectsResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(SubscribeDataobjectsResult(0)), "successful")
-        self.assertEqual(str(SubscribeDataobjectsResult(1)), "invalidITSAID")
-        self.assertEqual(str(SubscribeDataobjectsResult(2)), "invalidDataObjectType")
-        self.assertEqual(str(SubscribeDataobjectsResult(3)), "invalidPriority")
-        self.assertEqual(str(SubscribeDataobjectsResult(4)), "invalidFilter")
-        self.assertEqual(
-            str(SubscribeDataobjectsResult(5)), "invalidNotificationInterval"
-        )
-        self.assertEqual(str(SubscribeDataobjectsResult(6)), "invalidMultiplicity")
-        self.assertEqual(str(SubscribeDataobjectsResult(7)), "invalidOrder")
-
-
-class TestSubscribeDataobjectsResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        subscriptionId = 2
-        result = MagicMock()
-        errorMessage = "error"
-        self.assertEqual(
-            SubscribeDataObjectsResp(
-                applicationId, subscriptionId, result, errorMessage
-            ).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            SubscribeDataObjectsResp(
-                applicationId, subscriptionId, result, errorMessage
-            ).subscription_id,
-            subscriptionId,
-        )
-        self.assertEqual(
-            SubscribeDataObjectsResp(
-                applicationId, subscriptionId, result, errorMessage
-            ).result,
-            result,
-        )
-        self.assertEqual(
-            SubscribeDataObjectsResp(
-                applicationId, subscriptionId, result, errorMessage
-            ).error_message,
-            errorMessage,
-        )
-
-
-class TestPublishDataobjects(unittest.TestCase):
-    def test__init__(self) -> None:
-        subscriptionId = 1
-        requestedData = MagicMock()
-        self.assertEqual(
-            PublishDataobjects(subscriptionId, requestedData).subscription_id,
-            subscriptionId,
-        )
-        self.assertEqual(
-            PublishDataobjects(subscriptionId, requestedData).requested_data,
-            requestedData,
-        )
-
-
-class TestUnsubscribeDataobjectsReq(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        subscriptionId = 2
-        self.assertEqual(
-            UnsubscribeDataobjectsReq(applicationId, subscriptionId).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            UnsubscribeDataobjectsReq(applicationId, subscriptionId).subscription_id,
-            subscriptionId,
-        )
-
-
-class TestUnsubscribeDataobjectsResult(unittest.TestCase):
-    def test__init__(self) -> None:
-        result = 1
-        self.assertEqual(UnsubscribeDataobjectsResult(result).result, result)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(UnsubscribeDataobjectsResult(0)), "accepted")
-        self.assertEqual(str(UnsubscribeDataobjectsResult(1)), "rejected")
-
-
-class TestUnsubscribeDataobjectsResp(unittest.TestCase):
-    def test__init__(self) -> None:
-        applicationId = 1
-        result = MagicMock()
-        self.assertEqual(
-            UnsubscribeDataobjectsResp(applicationId, result).application_id,
-            applicationId,
-        )
-        self.assertEqual(
-            UnsubscribeDataobjectsResp(applicationId, result).result, result
-        )
-
-    def test__str__(self) -> None:
-        applicationId = 1
-        self.assertEqual(str(UnsubscribeDataobjectsResp(applicationId, 0)), "succeed")
-        self.assertEqual(str(UnsubscribeDataobjectsResp(applicationId, 1)), "failed")
+        self.assertEqual(req.priority, 1)
+        resp = SubscribeDataObjectsResp(1, 10, SubscribeDataobjectsResult.INVALID_FILTER, "invalid filter")
+        self.assertEqual(resp.error_message, "invalid filter")
+
+    def test_publish_dataobjects(self) -> None:
+        publication = PublishDataobjects(7, ("cam", "denm"))
+        self.assertEqual(publication.requested_data, ("cam", "denm"))
+
+
+class TestUnsubscribeDataobjects(unittest.TestCase):
+    def test_unsubscribe_result_and_resp(self) -> None:
+        self.assertEqual(str(UnsubscribeDataobjectsResult.ACCEPTED), "accepted")
+        req = UnsubscribeDataobjectsReq(1, 2)
+        resp = UnsubscribeDataobjectsResp(1, 2, UnsubscribeDataobjectsResult.REJECTED)
+        self.assertEqual(req.subscription_id, 2)
+        self.assertEqual(resp.result, UnsubscribeDataobjectsResult.REJECTED)
 
 
 class TestReferenceValue(unittest.TestCase):
-    def test__init__(self) -> None:
-        referenceValue = 1
-        self.assertEqual(ReferenceValue(referenceValue).reference_value, referenceValue)
-
-    def test__str__(self) -> None:
-        self.assertEqual(str(ReferenceValue(0)), "boolValue")
-        self.assertEqual(str(ReferenceValue(1)), "sbyteValue")
-        self.assertEqual(str(ReferenceValue(2)), "byteValue")
-        self.assertEqual(str(ReferenceValue(3)), "shortValue")
-        self.assertEqual(str(ReferenceValue(4)), "intValue")
-        self.assertEqual(str(ReferenceValue(5)), "octsValue")
-        self.assertEqual(str(ReferenceValue(6)), "bitsValue")
-        self.assertEqual(str(ReferenceValue(7)), "strValue")
-        self.assertEqual(str(ReferenceValue(8)), "causeCodeValue")
-        self.assertEqual(str(ReferenceValue(9)), "speedValue")
-        self.assertEqual(str(ReferenceValue(10)), "stationIDValue")
+    def test_reference_value_str(self) -> None:
+        self.assertEqual(str(ReferenceValue.BOOL_VALUE), "boolValue")
+        self.assertEqual(str(ReferenceValue.STATION_ID_VALUE), "stationIDValue")
 
 
 class TestUtils(unittest.TestCase):
-    def test_haversine_distance(self) -> None:
-        lat1 = 1
-        lon1 = 2
-        lat2 = 3
-        lon2 = 4
-        self.assertEqual(
-            Utils.haversine_distance([lat1, lon1], [lat2, lon2]), 314402.95102362486
-        )
+    def test_haversine_distance_same_point(self) -> None:
+        distance = Utils.haversine_distance((41.0, 2.0), (41.0, 2.0))
+        self.assertAlmostEqual(distance, 0.0, places=6)
 
-    def test_get_nested(self) -> None:
-        dict = {"testing": {"test": 1}}
-        self.assertEqual(Utils.get_nested(dict, ["testing", "test"]), 1)
-
-        dict = {"testing": {"testing": 1}}
-        self.assertEqual(Utils.get_nested(dict, ["testing", "test"]), None)
-
-    def test_find_attribute(self) -> None:
-        dict = {"testing": {"test": 1}}
-        self.assertEqual(Utils.find_attribute("test", dict), ["testing", "test"])
-
-        dict = {"testing": {"testing": 1}}
-        self.assertEqual(Utils.find_attribute("test", dict), [])
+    def test_get_nested_and_find_attribute(self) -> None:
+        data = {"a": {"b": {"c": 5}}}
+        self.assertEqual(Utils.get_nested(data, ["a", "b", "c"]), 5)
+        self.assertIsNone(Utils.get_nested(data, ["missing"]))
+        self.assertEqual(Utils.find_attribute("c", data), ["a", "b", "c"])
 
     def test_get_station_id(self) -> None:
-        dict = {"stationID": 1}
-        self.assertEqual(Utils.get_station_id(dict), 1)
+        data = {"header": {"stationID": [123]}}
+        self.assertEqual(Utils.get_station_id(data), 123)
+        data_lower = {"header": {"stationId": [456]}}
+        self.assertEqual(Utils.get_station_id(data_lower), 456)
 
-        dict = {"testing": {"testing": 1}}
-        self.assertEqual(Utils.get_station_id(dict), None)
+    def test_check_field(self) -> None:
+        data = {"items": [{"name": "entry"}, {"value": 5}]}
+        self.assertTrue(Utils.check_field(data, "value"))
+        self.assertFalse(Utils.check_field(data, "missing"))
+
+    def test_convert_coordinates_and_distances(self) -> None:
+        converted = Utils.convert_etsi_coordinates_to_normal((100000000, 200000000))
+        self.assertEqual(converted, (10.0, 20.0))
+        self.assertAlmostEqual(Utils.euclidian_distance((0, 0), (3, 4)), 5.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

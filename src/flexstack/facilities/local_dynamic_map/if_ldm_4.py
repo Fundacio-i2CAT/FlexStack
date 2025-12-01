@@ -9,8 +9,10 @@ from .ldm_constants import (
     VALID_ITS_AID,
 )
 from .ldm_classes import (
+    AccessPermission,
     Filter,
-    OrderTuple,
+    OrderTupleValue,
+    OrderingDirection,
     RegisterDataConsumerReq,
     RequestDataObjectsReq,
     RequestDataObjectsResp,
@@ -66,7 +68,7 @@ class InterfaceLDM4:
             and its_application_identifier in VALID_ITS_AID
         )
 
-    def check_permissions(self, permissions_granted: list, data_object_id: int) -> bool:
+    def check_permissions(self, permissions_granted: tuple[AccessPermission, ...], data_object_id: int) -> bool:
         """
         Method that checks permissions to grant access to the data provider
         as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.2.1.
@@ -78,15 +80,14 @@ class InterfaceLDM4:
             List of permissions granted to the data provider
         dataObjectID : int
         """
-        if isinstance(permissions_granted, list):
-            if len(permissions_granted) == 0:
-                return False
-            for permission in permissions_granted:
-                if permission == data_object_id:
-                    return True
-                # TODO: Change SPATEM and MAPEM!!! DENMs have access to all data objects.
-                if data_object_id in (DENM, SPATEM, MAPEM):
-                    return True
+        if len(permissions_granted) == 0:
+            return False
+        for permission in permissions_granted:
+            if permission == data_object_id:
+                return True
+            # TODO: Change SPATEM and MAPEM!!! DENMs have access to all data objects.
+            if data_object_id in (DENM, SPATEM, MAPEM):
+                return True
         return False
 
     def register_data_consumer(
@@ -111,9 +112,10 @@ class InterfaceLDM4:
             is False
         ):
             return RegisterDataConsumerResp(
-                data_consumer.application_id, None, RegisterDataConsumerResult(2)
+                data_consumer.application_id, tuple(), RegisterDataConsumerResult(2)
             )
-        self.ldm_service.add_data_consumer_its_aid(data_consumer.application_id)
+        self.ldm_service.add_data_consumer_its_aid(
+            data_consumer.application_id)
         self.logging.debug(
             "Registered new LDM Data Consumer with application_id %d",
             data_consumer.application_id,
@@ -138,7 +140,8 @@ class InterfaceLDM4:
         )
 
         if data_consumer.application_id in self.ldm_service.get_data_consumer_its_aid():
-            self.ldm_service.del_data_consumer_its_aid(data_consumer.application_id)
+            self.ldm_service.del_data_consumer_its_aid(
+                data_consumer.application_id)
             return DeregisterDataConsumerResp(
                 data_consumer.application_id, DeregisterDataConsumerAck(0)
             )
@@ -168,32 +171,32 @@ class InterfaceLDM4:
             not in self.ldm_service.get_data_consumer_its_aid()
         ):
             return RequestDataObjectsResp(
-                data_request.application_id, None, RequestedDataObjectsResult(1)
+                data_request.application_id, (), RequestedDataObjectsResult.INVALID_ITSA_ID
             )
         for data_object_type in data_request.data_object_type:
             if data_object_type not in DATA_OBJECT_TYPE_ID:
                 return RequestDataObjectsResp(
-                    data_request.application_id, None, RequestedDataObjectsResult(2)
+                    data_request.application_id, (), RequestedDataObjectsResult.INVALID_DATA_OBJECT_TYPE
                 )
 
         if data_request.priority is not None:
             if data_request.priority < 0 or data_request.priority > 255:
                 return RequestDataObjectsResp(
-                    data_request.application_id, None, RequestedDataObjectsResult(3)
+                    data_request.application_id, (), RequestedDataObjectsResult.INVALID_PRIORITY
                 )
         if data_request.order is not None:
             if not isinstance(data_request.order, list):
                 return RequestDataObjectsResp(
                     data_request.application_id,
-                    None,
-                    RequestedDataObjectsResult(5),
+                    (),
+                    RequestedDataObjectsResult.INVALID_ORDER,
                 )
         if data_request.filter is not None:
             if not isinstance(data_request.filter, Filter):
                 return RequestDataObjectsResp(
-                    data_request.application_id, None, RequestedDataObjectsResult(4)
+                    data_request.application_id, (), RequestedDataObjectsResult.INVALID_FILTER
                 )
-        data_objects: list = self.ldm_service.query(
+        data_objects: tuple[tuple[dict, ...], ...] = self.ldm_service.query(
             data_request
         )  # Find data objects in LDM Maintance DataBases
         self.logging.debug(
@@ -202,7 +205,7 @@ class InterfaceLDM4:
             len(data_objects),
         )
         return RequestDataObjectsResp(
-            data_request.application_id, data_objects, RequestedDataObjectsResult(0)
+            data_request.application_id, data_objects[0], RequestedDataObjectsResult.SUCCEED
         )
 
     def subscribe_data_consumer(
@@ -255,14 +258,14 @@ class InterfaceLDM4:
         return SubscribeDataObjectsResp(
             subscribe_data_consumer.application_id,
             subscription_id,
-            SubscribeDataobjectsResult(0),
-            None,
+            SubscribeDataobjectsResult.SUCCESSFUL,
+            "",
         )
 
     def validate_subscribe_data_consumer(
         self,
         subscribe_data_consumer: SubscribeDataobjectsReq,
-    ) -> SubscribeDataObjectsResp:
+    ) -> SubscribeDataObjectsResp | None:
         """
         Method that groups all the validation methods for the SubscribeDataobjectsReq
 
@@ -273,74 +276,66 @@ class InterfaceLDM4:
 
         Returns
         -------
-        Optional[SubscribeDataObjectsResp]
+        SubscribeDataObjectsResp | None
             SubscribeDataObjectsResp with error message if there is an error, None otherwise.
         """
-        result_code = None
-        error_message = None
-
         if not self.is_valid_its_aid(subscribe_data_consumer.application_id):
-            result_code = 1
-            error_message = "Invalid ITS-AID"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_ITSA_ID,
+                "Invalid ITS-AID",
+            )
 
         if not self.is_valid_data_object_type(subscribe_data_consumer.data_object_type):
-            result_code = 2
-            error_message = "Invalid data object type"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_DATA_OBJECT_TYPE,
+                "Invalid data object type",
+            )
 
         if not self.is_valid_priority(subscribe_data_consumer.priority):
-            result_code = 3
-            error_message = "Invalid priority"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_PRIORITY,
+                "Invalid priority",
+            )
 
         if not self.is_valid_order(subscribe_data_consumer.order):
-            result_code = 7
-            error_message = "Invalid order"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_ORDER,
+                "Invalid order",
+            )
 
         if not self.is_valid_filter(subscribe_data_consumer.filter):
-            result_code = 4
-            error_message = "Invalid filter"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_FILTER,
+                "Invalid filter",
+            )
 
         if not self.is_valid_notify_time(subscribe_data_consumer.notify_time):
-            result_code = 5
-            error_message = "Invalid notifyTime"
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_NOTIFICATION_INTERVAL,
+                "Invalid notifyTime",
+            )
 
         if not self.is_valid_multiplicity(subscribe_data_consumer.multiplicity):
-            result_code = 6
-            error_message = "Invalid multiplicity"
-
-        if result_code is not None:
-            return self.invalid_response(
-                subscribe_data_consumer.application_id, result_code, error_message
+            return SubscribeDataObjectsResp(
+                subscribe_data_consumer.application_id,
+                0,
+                SubscribeDataobjectsResult.INVALID_MULTIPLICITY,
+                "Invalid multiplicity",
             )
 
         return None
-
-    def invalid_response(
-        self, application_id: int, result_code: int, error_message: str
-    ) -> SubscribeDataObjectsResp:
-        """
-        Method to create SubscribeDataObjectResp with error message as specified
-        in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.3.4
-
-        Parameters
-        ----------
-        application_id : int
-            Application ID of the data consumer
-        result_code : int
-            Result code of the response
-        error_message : str
-            Error message to be included in the response
-
-        Returns
-        -------
-        SubscribeDataObjectsResp
-            SubscribeDataObjectsResp with error message
-        """
-        return SubscribeDataObjectsResp(
-            application_id,
-            None,
-            SubscribeDataobjectsResult(result_code),
-            error_message,
-        )
 
     def is_valid_its_aid(self, application_id: int) -> bool:
         """
@@ -359,7 +354,7 @@ class InterfaceLDM4:
         """
         return application_id in self.ldm_service.get_data_consumer_its_aid()
 
-    def is_valid_data_object_type(self, data_object_type: str) -> bool:
+    def is_valid_data_object_type(self, data_object_type: tuple[int, ...]) -> bool:
         """
         Method to check if data_object_types are valid as specified in CDD TS 102 894-2.
 
@@ -394,13 +389,13 @@ class InterfaceLDM4:
         """
         return priority is None or (0 <= priority <= 255)
 
-    def is_valid_order(self, order: list[OrderTuple]) -> bool:
+    def is_valid_order(self, order: tuple[OrderTupleValue, ...]) -> bool:
         """
         Method to check if order is valid as specified in ETSI EN 302 895 V1.1.1 (2014-09). Section 6.3.4
 
         Parameters
         ----------
-        order : int
+        order : tuple[OrderTuple, ...]
             Order to be checked
 
         Returns
@@ -408,9 +403,7 @@ class InterfaceLDM4:
         bool
             True if order is valid, False otherwise.
         """
-        return order is None or (
-            isinstance(order, list) and all(o in [1, 2] for o in order)
-        )
+        return all(o.ordering_direction in [OrderingDirection.ASCENDING, OrderingDirection.DESCENDING] for o in order)
 
     def is_valid_filter(self, data_filter: Filter) -> bool:
         """
@@ -442,7 +435,7 @@ class InterfaceLDM4:
         bool
             True if notifyTime is valid, False otherwise.
         """
-        return notify_time is None or (0 <= notify_time <= 4398046511103)
+        return notify_time is None or (0 <= notify_time.timestamp_its <= 4398046511103)
 
     def is_valid_multiplicity(self, multiplicity: int) -> bool:
         """
@@ -480,14 +473,8 @@ class InterfaceLDM4:
             Subscription ID (index of the subscription in the database)
         """
         return self.ldm_service.store_new_subscription_petition(
-            subscribe_data_consumer.application_id,
-            subscribe_data_consumer.data_object_type,
-            subscribe_data_consumer.priority,
-            subscribe_data_consumer.filter,
-            subscribe_data_consumer.notify_time,
-            subscribe_data_consumer.multiplicity,
-            subscribe_data_consumer.order,
-            callback,
+            subscription_request=subscribe_data_consumer,
+            callback=callback,
         )
 
     def unsubscribe_data_consumer(
@@ -514,15 +501,15 @@ class InterfaceLDM4:
         ):
             return UnsubscribeDataConsumerResp(
                 unsubscribe_data_consumer.application_id,
-                None,
-                UnsubscribeDataConsumerAck(1),
+                0,
+                UnsubscribeDataConsumerAck.FAILED,
             )
 
         if not isinstance(unsubscribe_data_consumer.subscription_id, int):
             return UnsubscribeDataConsumerResp(
                 unsubscribe_data_consumer.application_id,
                 unsubscribe_data_consumer.subscription_id,
-                UnsubscribeDataConsumerAck(1),
+                UnsubscribeDataConsumerAck.FAILED,
             )
 
         if not self.ldm_service.delete_subscription(

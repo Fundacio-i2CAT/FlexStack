@@ -1,6 +1,9 @@
+from __future__ import annotations
 import logging
+
 from ...facilities.local_dynamic_map.ldm_classes import (
     AddDataProviderReq,
+    AccessPermission,
     Location,
     RegisterDataProviderReq,
     TimeValidity,
@@ -26,7 +29,7 @@ class CABasicServiceLDM:
         Time that the messages stored in the LDM will be mantained.
     """
 
-    def __init__(self, ldm: LDMFacility, access_permissions: list, time_validity: int):
+    def __init__(self, ldm: LDMFacility, access_permissions: tuple[AccessPermission, ...], time_validity: int):
         self.logging = logging.getLogger("ca_basic_service")
         self.ldm_if_ldm_3 = ldm.if_ldm_3
         self.access_permissions = access_permissions
@@ -49,7 +52,7 @@ class CABasicServiceLDM:
         cam: dict
             Cooperative Awareness Message in a python dictionary format.
         """
-        timestamp = TimestampIts()
+        timestamp = TimestampIts.initialize_with_utc_timestamp_seconds()
         data = AddDataProviderReq(
             application_id=CAM,
             timestamp=timestamp,
@@ -72,7 +75,7 @@ class CABasicServiceLDM:
         self.logging.debug(
             "Adding CAM message to LDM with; "
             "time_stamp=%d latitude=%d longitude=%d altitude=%d time_validity=%d",
-            int(TimestampIts().timestamp),
+            int(timestamp.timestamp_its),
             cam["cam"]["camParameters"]["basicContainer"]["referencePosition"][
                 "latitude"
             ],
