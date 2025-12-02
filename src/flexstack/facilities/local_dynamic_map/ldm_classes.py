@@ -163,7 +163,7 @@ class TimeValidity:
     Attributes
     ----------
     time : int
-        The time validity in Normal Unix Format.
+        The time validity in Normal Unix Format (Seconds).
     """
     time: int
 

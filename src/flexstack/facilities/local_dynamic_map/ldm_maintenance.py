@@ -170,7 +170,7 @@ class LDMMaintenance:
         time_invalidity_data_containers = []
         try:
             for data_container in self.get_all_data_containers():
-                if TimestampIts(data_container["timeValidity"] + data_container["timestamp"]) < TimestampIts.initialize_with_utc_timestamp_seconds(int(TimeService.time())):
+                if TimestampIts((data_container["timeValidity"]*1000) + data_container["timestamp"]) < TimestampIts.initialize_with_utc_timestamp_seconds(int(TimeService.time())):
                     self.del_provider_data(data_container)
                     time_invalidity_data_containers.append(data_container)
         except json.decoder.JSONDecodeError as e:
