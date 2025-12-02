@@ -1036,7 +1036,7 @@ class AddDataProviderReq:
                     relevance_distance=reference_area_data["relevanceArea"]["relevanceDistance"]
                 ),
                 relevance_traffic_direction=RelevanceTrafficDirection(reference_area_data[
-                    "relevanceArea"]["relevaneTrafficDirection"]
+                    "relevanceArea"]["relevanceTrafficDirection"]
                 ),
             ),
         )
