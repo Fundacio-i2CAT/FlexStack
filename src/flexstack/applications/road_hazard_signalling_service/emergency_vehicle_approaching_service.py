@@ -1,10 +1,8 @@
 from __future__ import annotations
 from .service_access_point import DENRequest, PriorityLevel
-from ...facilities.local_dynamic_map.ldm_facility import LDMFacility
 from ...facilities.decentralized_environmental_notification_service.den_service import (
     DecentralizedEnvironmentalNotificationService,
 )
-from ...btp.router import Router as BTPRouter
 from ...utils.time_service import TimeService
 
 
