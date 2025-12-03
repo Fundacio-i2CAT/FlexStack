@@ -6,6 +6,7 @@ from .ldm_classes import (
     Location,
     SubscribeDataobjectsReq,
     SubscribeDataObjectsResp,
+    RequestDataObjectsResp,
     RegisterDataConsumerReq,
     RegisterDataConsumerResp,
     Filter,
@@ -28,25 +29,12 @@ from .ldm_facility import LDMFacility
 from .exceptions import LDMMaintenanceKeyError, LDMServiceKeyError, LDMDatabaseKeyError
 
 
-from flexstack.facilities.local_dynamic_map.ldm_classes import (
-    Location,
-    SubscribeDataobjectsReq,
-    SubscribeDataObjectsResp,
-    RequestDataObjectsResp,
-    RegisterDataConsumerReq,
-    RegisterDataConsumerResp,
-    Filter,
-    FilterStatement,
-    ComparisonOperators,
-    AccessPermission,
-)
-
 class LDMFactory:
-    """ Factory class to create a Local Dynamic Map Facility."""
+    """Factory class to create a Local Dynamic Map Facility."""
 
     def __init__(self) -> None:
         self.ldm = None
-    
+
     def create_ldm(
         self,
         ldm_location: Location,
@@ -126,8 +114,12 @@ class LDMFactory:
         self.ldm = ldm_facility
         return ldm_facility
 
-
-    def subscribe_to_ldm(self, own_station_id: int, ldm_location: Location, callback_function: Callable[[RequestDataObjectsResp], None],) -> None:
+    def subscribe_to_ldm(
+        self,
+        own_station_id: int,
+        ldm_location: Location,
+        callback_function: Callable[[RequestDataObjectsResp], None],
+    ) -> None:
         """
         Method to subscribe to the LDM Facility.
 
@@ -145,7 +137,7 @@ class LDMFactory:
         """
         if self.ldm is None:
             raise Exception("LDM Facility not initialized. Please create an LDM Facility first.")
-        
+
         register_data_consumer_reponse: RegisterDataConsumerResp = self.ldm.if_ldm_4.register_data_consumer(
             RegisterDataConsumerReq(
                 application_id=AccessPermission.CAM,
@@ -155,7 +147,6 @@ class LDMFactory:
         )
         if register_data_consumer_reponse.result == 2:
             raise Exception(f"Failed to register data consumer: {str(register_data_consumer_reponse)}")
-
 
         subscribe_data_consumer_response: SubscribeDataObjectsResp = self.ldm.if_ldm_4.subscribe_data_consumer(
             SubscribeDataobjectsReq(
