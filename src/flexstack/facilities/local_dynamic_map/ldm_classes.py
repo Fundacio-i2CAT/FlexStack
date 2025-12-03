@@ -1530,11 +1530,11 @@ class SubscribeDataobjectsReq:
     """
     application_id: int
     data_object_type: tuple[int, ...]
-    priority: int
-    filter: Filter
-    notify_time: TimestampIts
-    multiplicity: int
-    order: tuple[OrderTupleValue, ...]
+    priority: int = None
+    filter: Filter = None
+    notify_time: TimestampIts = TimestampIts(1)
+    multiplicity: int = 1
+    order: tuple[OrderTupleValue, ...] = None
 
 
 @dataclass(frozen=True)
