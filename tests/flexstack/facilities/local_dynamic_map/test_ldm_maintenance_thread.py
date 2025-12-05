@@ -13,7 +13,7 @@ TEST_DATA = {"key": "value"}
 class TestLDMMaintenanceThread(unittest.TestCase):
     @patch("threading.Lock")
     @patch("threading.Thread")
-    def setUp(self, mock_thread, mock_lock):
+    def setUp(self, mock_thread: MagicMock, mock_lock: MagicMock):
         self.threading_thread = MagicMock()
         self.threading_thread.start = MagicMock(return_value=None)
         mock_thread.return_value = self.threading_thread
@@ -22,14 +22,13 @@ class TestLDMMaintenanceThread(unittest.TestCase):
 
         self.location = MagicMock()
         self.database = MagicMock()
-        self.stop_event = MagicMock()
         self.ldm_maintenance_thread = LDMMaintenanceThread(
-            self.location, self.database, self.stop_event
+            self.location, self.database
         )
 
     def test__init__(self):
         self.threading_thread.start.assert_called_once()
-        self.mock_lock.assert_called_once()
+        self.mock_lock.assert_called()
 
     @patch("builtins.super")
     def test_add_data_provider(self, mock_super):

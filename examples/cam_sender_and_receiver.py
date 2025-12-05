@@ -8,6 +8,7 @@ if _src_dir not in sys.path:
 
 # Configure logging
 import random
+import time
 from flexstack.facilities.local_dynamic_map.ldm_classes import ComparisonOperators
 from flexstack.facilities.ca_basic_service.cam_transmission_management import (
     VehicleData,
@@ -33,7 +34,7 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
     SubscribeDataobjectsResult,
     TimestampIts,
 )
-from flexstack.facilities.local_dynamic_map.factory import ldm_factory
+from flexstack.facilities.local_dynamic_map.factory import LDMFactory
 from flexstack.utils.static_location_service import ThreadStaticLocationService
 from flexstack.btp.router import Router as BTPRouter
 from flexstack.geonet.gn_address import GNAddress, M, ST, MID
@@ -106,7 +107,8 @@ def main():
         rectangle=None,
         ellipse=None,
     )
-    ldm = ldm_factory(
+    ldm_factory = LDMFactory()
+    ldm = ldm_factory.create_ldm(
         ldm_location,
         ldm_maintenance_type="Reactive",
         ldm_service_type="Reactive",
@@ -180,9 +182,15 @@ def main():
     )
 
     gn_router.link_layer = link_layer
-    print("Press Ctrl+C to stop the program.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
+    
+    location_service.stop_event.set()
     location_service.location_service_thread.join()
-
+    link_layer.sock.close()
 
 if __name__ == "__main__":
     main()

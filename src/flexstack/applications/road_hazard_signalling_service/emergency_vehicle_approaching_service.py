@@ -76,7 +76,6 @@ class EmergencyVehicleApproachingService:
                 - "lon" : Longitude in decimal degrees.
                 - "altHAE" : Altitude in meters above the WGS-84 ellipsoid.
         """
-        request = DENRequest()
         if "lat" in tpv.keys():
             self.event_position["latitude"] = int(tpv["lat"] * 10000000)
         if "lon" in tpv.keys():
@@ -92,6 +91,6 @@ class EmergencyVehicleApproachingService:
                     tpv["altHAE"] * 100
                 )
 
-        request.with_emergency_vehicle_approaching(self)
+        request = DENRequest.with_emergency_vehicle_approaching(self)
         self.den_service.denm_transmission_management.request_denm_sending(
             request)

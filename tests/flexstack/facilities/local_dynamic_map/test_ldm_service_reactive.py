@@ -8,12 +8,16 @@ from flexstack.facilities.local_dynamic_map.ldm_service_reactive import (
 
 
 class TestLDMServiceReactive(unittest.TestCase):
-    def setUp(self):
+    @patch("time.monotonic")
+    def setUp(self, mock_monotonic):
+        mock_monotonic.return_value = 0.0
         self.ldm_maintenance = MagicMock()
         self.ldm_service = LDMServiceReactive(self.ldm_maintenance)
 
     @patch("builtins.super")
-    def test_add_provider_data(self, mock_ldm_service):
+    @patch("time.monotonic")
+    def test_add_provider_data(self, mock_monotonic, mock_ldm_service):
+        mock_monotonic.return_value = 1000.0
         mock_ldm_service().add_provider_data = MagicMock(return_value=1)
         self.ldm_service.attend_subscriptions = MagicMock()
         test_dict = {"a": 1, "b": 2}

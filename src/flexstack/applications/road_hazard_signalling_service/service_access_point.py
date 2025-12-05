@@ -1,14 +1,15 @@
 from __future__ import annotations
-from enum import Enum
 from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from enum import Enum
 from ...facilities.local_dynamic_map.ldm_classes import ReferencePosition, TimestampIts
-
 if TYPE_CHECKING:
     from .emergency_vehicle_approaching_service import (
         EmergencyVehicleApproachingService,
     )
 
 
+@dataclass(frozen=True)
 class RelevanceArea:
     """
     Class to define the relevance area of the DENM.
@@ -22,22 +23,8 @@ class RelevanceArea:
         Relevance direction from the vehicle to a traffic hazard
         or to its future position.
     """
-
-    def __init__(self, r_distance: int, r_direction: int) -> None:
-        """
-        Initialize the relevance area of the DENM.
-
-        Parameters
-        ----------
-        r_distance : int
-            Relevance distance from the vehicle to a traffic hazard
-            or to its future position.
-        r_direction : int
-            Relevance direction from the vehicle to a traffic hazard
-            or to its future position.
-        """
-        self.relevance_distance = r_distance
-        self.relevance_direction = r_direction
+    relevance_distance: int
+    relevance_direction: int
 
 
 class PriorityLevel(Enum):
@@ -56,6 +43,7 @@ class PriorityLevel(Enum):
     PRECRASH = 0
 
 
+@dataclass(frozen=True)
 class DENRequest:
     """
     Class for storing the data of the DENM.
@@ -106,37 +94,32 @@ class DENRequest:
         Relevance area for the emergency vehicle approaching use case.
         Defines the farthest future position of the emergency vehicle.
     """
+    denm_interval: int = 100
+    priority_level: PriorityLevel = PriorityLevel.WARNING
+    # Data elements values
+    detection_time: int = 0
+    time_period: int = 0
+    quality: int = 7
+    event_position: dict = field(default_factory=dict)
+    heading: int = 0  # or N/A
+    confidence: int = 2  # or N/A
+    # traceID = N/A
+    # waypoints = N/A
+    # Emergency Vehicle Approaching specific data elements
+    relevance_distance: str | None = None
+    relevance_traffic_direction: str | None = None
+    rhs_cause_code: str | None = None
+    rhs_subcause_code: int | None = None
+    rhs_event_speed: int | None = None
+    rhs_vehicle_type: int | None = None
+    # Longitudinal Collision Risk Warning specific data elements
+    lcrw_cause_code: str | None = None
+    lcrw_subcause_code: int | None = None
 
-    def __init__(self) -> None:
-        """
-        Initialize the specific data of the DENM.
-        """
-
-        self.denm_interval = 100
-        self.priority_level = 1
-        # Data elements values
-        self.detection_time = 0
-        self.time_period = 0
-        self.quality = 7
-        self.event_position = {}
-        self.heading = 0  # or N/A
-        self.confidence = 2  # or N/A
-        # self.traceID = N/A
-        # self.waypoints = N/A
-        # Emergency Vehicle Approaching specific data elements
-        self.relevance_distance: str = None
-        self.relevance_traffic_direction: str = None
-        self.rhs_cause_code: str = None
-        self.rhs_subcause_code: int = None
-        self.rhs_event_speed: int = None
-        self.rhs_vehicle_type: int = None
-        # Longitudinal Collision Risk Warning specific data elements
-        self.lcrw_cause_code: str = None
-        self.lcrw_subcause_code: int = None
-
+    @staticmethod
     def with_emergency_vehicle_approaching(
-        self, service: "EmergencyVehicleApproachingService"
-    ) -> None:
+        service: "EmergencyVehicleApproachingService"
+    ) -> DENRequest:
         """
         Fulfills the DENM Request for Emergency Vehicle Approaching Service
 
@@ -145,29 +128,29 @@ class DENRequest:
         service : EmergencyVehicleApproachingService
             Emergency Vehicle Approaching Service object
         """
-        self.denm_interval = service.denm_interval
-        self.priority_level = service.priority_level
+        return DENRequest(
+            denm_interval=service.denm_interval,
+            priority_level=service.priority_level,
+            # Relevance area parameters
+            relevance_distance="lessThan200m",
+            relevance_traffic_direction="upstreamTraffic",
+            # DENMTermination = "isCancellation"
+            # Data elements values
+            detection_time=service.detection_time,
+            time_period=service.denm_duration,
+            event_position=service.event_position,
+            # Specific use cases data elemenets
+            rhs_cause_code="emergencyVehicleApproaching95",
+            rhs_subcause_code=1,  # [OPTIONAL]
+            rhs_event_speed=30,  # 108 km/h
+            rhs_vehicle_type=0,
+            # rhs_relevance_area=RelevanceArea(4, 0),
+        )
 
-        # Relevance area parameters
-        self.relevance_distance = "lessThan200m"
-        self.relevance_traffic_direction = "upstreamTraffic"
-        # self.DENMTermination = "isCancellation"
-
-        # Data elements values
-        self.detection_time = service.detection_time
-        self.time_period = service.denm_duration
-        self.event_position = service.event_position
-
-        # Specific use cases data elemenets
-        self.rhs_cause_code = "emergencyVehicleApproaching95"
-        self.rhs_subcause_code = 1  # [OPTIONAL]
-        self.rhs_event_speed = 30  # 108 km/h
-        self.rhs_vehicle_type = 0
-        # self.rhs_relevance_area = RelevanceArea(4, 0)
-
+    @staticmethod
     def with_collision_risk_warning(
-        self, detection_time: TimestampIts, event_position: ReferencePosition
-    ) -> None:
+        detection_time: TimestampIts, event_position: ReferencePosition
+    ) -> DENRequest:
         """
         Fulfills the DENM Request for Longitudinal Collision Risk Warnings
 
@@ -178,8 +161,10 @@ class DENRequest:
         event_position : ReferencePosition
             Position of the hazard.
         """
-        self.priority_level = 1
-        self.detection_time = detection_time.timestamp_its
-        self.event_position = event_position.to_dict()
-        self.lcrw_cause_code = "collisionRisk97"  # Collision risk
-        self.lcrw_subcause_code = 4  # Collision risk involving VRU
+        return DENRequest(
+            priority_level=PriorityLevel.WARNING,
+            detection_time=detection_time.timestamp_its,
+            event_position=event_position.to_dict(),
+            lcrw_cause_code="collisionRisk97",  # Collision risk
+            lcrw_subcause_code=4  # Collision risk involving VRU
+        )

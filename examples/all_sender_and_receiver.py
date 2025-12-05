@@ -1,11 +1,21 @@
+from __future__ import annotations
+import os
+import sys
+# Ensure ../src (relative to this file) is on PYTHONPATH so local modules can be imported
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_src_dir = os.path.normpath(os.path.join(_this_dir, "..", "src"))
+if _src_dir not in sys.path:
+    sys.path.insert(0, _src_dir)
+
 import logging
+import time
 from flexstack.linklayer.raw_link_layer import RawLinkLayer
 from flexstack.geonet.router import Router as GNRouter
 from flexstack.geonet.mib import MIB
 from flexstack.geonet.gn_address import GNAddress, M, ST, MID
 from flexstack.btp.router import Router as BTPRouter
 from flexstack.utils.static_location_service import ThreadStaticLocationService, generate_tpv_dict_with_current_timestamp
-from flexstack.facilities.local_dynamic_map.factory import ldm_factory
+from flexstack.facilities.local_dynamic_map.factory import LDMFactory
 from flexstack.facilities.local_dynamic_map.ldm_classes import (
     AccessPermission,
     Circle,
@@ -42,13 +52,6 @@ from flexstack.applications.road_hazard_signalling_service.emergency_vehicle_app
 )
 from flexstack.facilities.local_dynamic_map.ldm_classes import ComparisonOperators
 import random
-import os
-import sys
-# Ensure ../src (relative to this file) is on PYTHONPATH so local modules can be imported
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_src_dir = os.path.normpath(os.path.join(_this_dir, "..", "src"))
-if _src_dir not in sys.path:
-    sys.path.insert(0, _src_dir)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -82,9 +85,9 @@ def generate_random_mac_address(locally_administered: bool = True, multicast: bo
 POSITION_COORDINATES = [41.386931, 2.112104]
 MAC_ADDRESS = generate_random_mac_address()
 STATION_ID = random.randint(1, 2147483647)
-SEND_CAMS = False
-SEND_VAMS = False
-SEND_DENMS = False
+SEND_CAMS = True
+SEND_VAMS = True
+SEND_DENMS = True
 
 
 def main():
@@ -121,7 +124,8 @@ def main():
         rectangle=None,
         ellipse=None,
     )
-    ldm = ldm_factory(
+    ldm = LDMFactory()
+    ldm = ldm.create_ldm(
         ldm_location,
         ldm_maintenance_type="Reactive",
         ldm_service_type="Reactive",
@@ -146,7 +150,6 @@ def main():
     def cam_ldm_subscription_callback(data: RequestDataObjectsResp) -> None:
         print(
             f'Notified CAM from : {data.data_objects[0]["dataObject"]["header"]["stationId"]}')
-        print(len(data.data_objects))
 
     subscribe_data_consumer_response: SubscribeDataObjectsResp = (
         ldm.if_ldm_4.subscribe_data_consumer(
@@ -159,7 +162,7 @@ def main():
                                                                  STATION_ID)),
                 notify_time=TimestampIts(0),
                 multiplicity=1,
-                order=(OrderTupleValue(attribute="cam.generationDeltaTime",
+                order=(OrderTupleValue(attribute="utc_timestamp",
                                        ordering_direction=OrderingDirection.DESCENDING),),
             ),
             cam_ldm_subscription_callback,
@@ -172,7 +175,6 @@ def main():
     def vam_ldm_subscription_callback(data: RequestDataObjectsResp) -> None:
         print(
             f'Notified VAM from : {data.data_objects[0]["dataObject"]["header"]["stationId"]}')
-        print(len(data.data_objects))
 
     subscribe_data_consumer_response: SubscribeDataObjectsResp = (
         ldm.if_ldm_4.subscribe_data_consumer(
@@ -185,7 +187,7 @@ def main():
                                                                  STATION_ID)),
                 notify_time=TimestampIts(0),
                 multiplicity=1,
-                order=(OrderTupleValue(attribute="vam.generationDeltaTime",
+                order=(OrderTupleValue(attribute="utc_timestamp",
                                        ordering_direction=OrderingDirection.DESCENDING),),
             ),
             vam_ldm_subscription_callback,
@@ -273,8 +275,15 @@ def main():
 
     gn_router.link_layer = link_layer
     print("Press Ctrl+C to stop the program.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
+    
+    location_service.stop_event.set()
     location_service.location_service_thread.join()
-
+    link_layer.sock.close()
 
 if __name__ == "__main__":
     main()

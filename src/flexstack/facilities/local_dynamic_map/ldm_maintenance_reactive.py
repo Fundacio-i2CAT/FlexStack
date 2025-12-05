@@ -1,6 +1,11 @@
 from __future__ import annotations
+import time
+import threading
 from .ldm_maintenance import LDMMaintenance
-from .ldm_classes import AddDataProviderReq
+from .ldm_classes import AddDataProviderReq, Location
+from .database import DataBase
+
+TRASH_COLLECTION_INTERVAL = 1.0  # seconds
 
 
 class LDMMaintenanceReactive(LDMMaintenance):
@@ -13,8 +18,16 @@ class LDMMaintenanceReactive(LDMMaintenance):
 
     """
 
+    def __init__(self, area_of_maintenance: Location, data_base: DataBase) -> None:
+        super().__init__(area_of_maintenance, data_base)
+        self.last_trash_collection_time: float = time.monotonic()
+        self.lock = threading.Lock()
+
     def add_provider_data(self, data: AddDataProviderReq) -> int | None:
         index = super().add_provider_data(data)
         self.logging.debug("Adding provider data; %s", data.data_object)
-        self.collect_trash()
+        if time.monotonic() - self.last_trash_collection_time >= TRASH_COLLECTION_INTERVAL:
+            self.collect_trash()
+            with self.lock:
+                self.last_trash_collection_time = time.monotonic()
         return index

@@ -201,7 +201,7 @@ class LDMMaintenance:
             )
             if (
                 self.area_of_maintenance.reference_area.relevance_area.relevance_distance.compare_with_int(
-                    distance_between_points_and_maintenance_area
+                    int(distance_between_points_and_maintenance_area)
                 )
                 and (
                     data_container["location"]["referencePosition"]["altitude"]["altitudeValue"]

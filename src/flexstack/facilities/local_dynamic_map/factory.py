@@ -3,6 +3,7 @@ from collections.abc import Callable
 import logging
 
 from .ldm_classes import (
+    GeometricArea,
     Location,
     SubscribeDataobjectsReq,
     SubscribeDataObjectsResp,
@@ -78,7 +79,7 @@ class LDMFactory:
             ldm_maintenance = LDMMaintenanceReactive(ldm_location, ldm_database)
             logs.info('LDM Maintenance "Reactive" configured.')
         elif ldm_maintenance_type == "Thread":
-            ldm_maintenance = LDMMaintenanceThread(ldm_location, ldm_database, None)
+            ldm_maintenance = LDMMaintenanceThread(ldm_location, ldm_database)
             logs.info('LDM Maintenance "Thread" configured.')
         else:
             logs.error(
@@ -117,7 +118,7 @@ class LDMFactory:
     def subscribe_to_ldm(
         self,
         own_station_id: int,
-        ldm_location: Location,
+        area_of_interest: GeometricArea,
         callback_function: Callable[[RequestDataObjectsResp], None],
     ) -> None:
         """
@@ -142,7 +143,7 @@ class LDMFactory:
             RegisterDataConsumerReq(
                 application_id=AccessPermission.CAM,
                 access_permisions=(AccessPermission.CAM, AccessPermission.VAM),
-                area_of_interest=ldm_location,
+                area_of_interest=area_of_interest,
             )
         )
         if register_data_consumer_reponse.result == 2:

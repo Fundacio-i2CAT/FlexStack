@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-
+from flexstack.applications.road_hazard_signalling_service.service_access_point import DENRequest
 from flexstack.facilities.decentralized_environmental_notification_service.denm_coder import DENMCoder
 from flexstack.facilities.decentralized_environmental_notification_service.\
     denm_transmission_management import (
@@ -28,112 +28,114 @@ class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
     def test_fullfill_with_denrequest(self, time_mock):
         """Test DENMCoder decoding"""
         # Given
-        denm_request = MagicMock()
-        denm_request.detection_time = 20000
-        denm_request.denm_interval = 100
-        denm_request.relevance_distance = "lessThan200m"
-        denm_request.relevance_traffic_direction = "upstreamTraffic"
-        denm_request.event_position = {
-            "latitude": 900000001,
-            "longitude": 1800000001,
-            "positionConfidenceEllipse": {
-                "semiMajorConfidence": 4095,
-                "semiMinorConfidence": 4095,
-                "semiMajorOrientation": 3601
+        den_request = DENRequest(
+            detection_time=20000,
+            denm_interval=100,
+            relevance_distance="lessThan200m",
+            relevance_traffic_direction="upstreamTraffic",
+            event_position={
+                "latitude": 900000001,
+                "longitude": 1800000001,
+                "positionConfidenceEllipse": {
+                    "semiMajorConfidence": 4095,
+                    "semiMinorConfidence": 4095,
+                    "semiMajorOrientation": 3601
+                },
+                "altitude": {
+                    "altitudeValue": 800001,
+                    "altitudeConfidence": "unavailable"
+                }
             },
-            "altitude": {
-                "altitudeValue": 800001,
-                "altitudeConfidence": "unavailable"
-            }
-        }
-        denm_request.heading = 0
-        denm_request.confidence = 2
-        denm_request.quality = 7
-        denm_request.rhs_cause_code = "emergencyVehicleApproaching95"
-        denm_request.rhs_subcause_code = 1
-        denm_request.rhs_event_speed = 30
-        denm_request.rhs_vehicle_type = 0
+            heading=0,
+            confidence=2,
+            quality=7,
+            rhs_cause_code="emergencyVehicleApproaching95",
+            rhs_subcause_code=1,
+            rhs_event_speed=30,
+            rhs_vehicle_type=0,
+        )
 
         # When
         decentralized_environmental_notification_message = \
             DecentralizedEnvironmentalNotificationMessage()
         decentralized_environmental_notification_message.fullfill_with_denrequest(
-            denm_request)
+            den_request)
 
         # Then
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['detectionTime'], denm_request.detection_time)
+                         ['management']['detectionTime'], den_request.detection_time)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['TransmissionInterval'], denm_request.denm_interval)
+                         ['management']['TransmissionInterval'], den_request.denm_interval)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['relevanceDistance'], denm_request.relevance_distance)
+                         ['management']['relevanceDistance'], den_request.relevance_distance)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
                          ['management']['relevanceTrafficDirection'],
-                         denm_request.relevance_traffic_direction)
+                         den_request.relevance_traffic_direction)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['informationQuality'], denm_request.quality)
+                         ['situation']['informationQuality'], den_request.quality)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['eventPosition'], denm_request.event_position)
+                         ['management']['eventPosition'], den_request.event_position)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['location']['eventPositionHeading']['value'], denm_request.heading)
+                         ['location']['eventPositionHeading']['value'], den_request.heading)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
                          ['location']['eventPositionHeading']['confidence'],
-                         denm_request.confidence)
+                         den_request.confidence)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['eventType']['ccAndScc'][0], denm_request.rhs_cause_code)
+                         ['situation']['eventType']['ccAndScc'][0], den_request.rhs_cause_code)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['eventType']['ccAndScc'][1], denm_request.rhs_subcause_code)
+                         ['situation']['eventType']['ccAndScc'][1], den_request.rhs_subcause_code)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['location']['eventSpeed']['speedValue'], denm_request.rhs_event_speed)
+                         ['location']['eventSpeed']['speedValue'], den_request.rhs_event_speed)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['location']['eventSpeed']['speedConfidence'], int(denm_request.confidence/2))
+                         ['location']['eventSpeed']['speedConfidence'], int(den_request.confidence/2))
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['stationType'], denm_request.rhs_vehicle_type)
+                         ['management']['stationType'], den_request.rhs_vehicle_type)
         time_mock.assert_called_once()
 
     @patch('flexstack.utils.time_service.TimeService.time')
     def test_fullfill_with_collision_risk_warning(self, time_mock):
         """Test fullfill_with_collision_risk_warning function"""
         # Given
-        denm_request = MagicMock()
-        denm_request.detection_time = 20000
-        denm_request.denm_interval = 100
-        denm_request.event_position = {
-            "latitude": 900000001,
-            "longitude": 1800000001,
-            "positionConfidenceEllipse": {
-                "semiMajorConfidence": 4095,
-                "semiMinorConfidence": 4095,
-                "semiMajorOrientation": 3601
+        den_request = DENRequest(
+            detection_time=20000,
+            denm_interval=100,
+            event_position={
+                "latitude": 900000001,
+                "longitude": 1800000001,
+                "positionConfidenceEllipse": {
+                    "semiMajorConfidence": 4095,
+                    "semiMinorConfidence": 4095,
+                    "semiMajorOrientation": 3601
+                },
+                "altitude": {
+                    "altitudeValue": 800001,
+                    "altitudeConfidence": "unavailable"
+                }
             },
-            "altitude": {
-                "altitudeValue": 800001,
-                "altitudeConfidence": "unavailable"
-            }
-        }
-        denm_request.quality = 7
-        denm_request.lcrw_cause_code = "collisionRisk97"
-        denm_request.lcrw_subcause_code = 4
+            quality=7,
+            lcrw_cause_code="collisionRisk97",
+            lcrw_subcause_code=4
+        )
 
         # When
         decentralized_environmental_notification_message = \
             DecentralizedEnvironmentalNotificationMessage()
         decentralized_environmental_notification_message.fullfill_with_collision_risk_warning(
-            denm_request)
+            den_request)
 
         # Then
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['detectionTime'], denm_request.detection_time)
+                         ['management']['detectionTime'], den_request.detection_time)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['TransmissionInterval'], denm_request.denm_interval)
+                         ['management']['TransmissionInterval'], den_request.denm_interval)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['management']['eventPosition'], denm_request.event_position)
+                         ['management']['eventPosition'], den_request.event_position)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['informationQuality'], denm_request.quality)
+                         ['situation']['informationQuality'], den_request.quality)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['eventType']['ccAndScc'][0], denm_request.lcrw_cause_code)
+                         ['situation']['eventType']['ccAndScc'][0], den_request.lcrw_cause_code)
         self.assertEqual(decentralized_environmental_notification_message.denm['denm']
-                         ['situation']['eventType']['ccAndScc'][1], denm_request.lcrw_subcause_code)
+                         ['situation']['eventType']['ccAndScc'][1], den_request.lcrw_subcause_code)
         time_mock.assert_called_once()
 
     def test_fullfill_with_vehicle_data(self):
@@ -174,19 +176,19 @@ class TestDENMTransmissionManagement(unittest.TestCase):
     def test_request_denm_sending(self, thread_mock):
         """Test request_denm_sending function"""
         # Given
-        denm_request = MagicMock()
+        den_request = DENRequest()
         created_thread_mock = MagicMock()
         thread_mock.return_value = created_thread_mock
         mock_start = MagicMock()
         created_thread_mock.start = mock_start
 
         # When
-        self.denm_transmission_management.request_denm_sending(denm_request)
+        self.denm_transmission_management.request_denm_sending(den_request)
 
         # Then
         thread_mock.assert_called_once_with(
             target=self.denm_transmission_management.trigger_denm_messages,
-            args=[denm_request])
+            args=[den_request])
         mock_start.assert_called_once()
 
     @patch.object(DecentralizedEnvironmentalNotificationMessage,
@@ -197,18 +199,18 @@ class TestDENMTransmissionManagement(unittest.TestCase):
                                               mock_fullfill_with_collision_risk_warning):
         """Test send_collision_risk_warning_denm function"""
         # Given
-        denm_request = MagicMock()
+        den_request = DENRequest()
         self.denm_transmission_management.transmit_denm = MagicMock()
 
         # When
         self.denm_transmission_management.send_collision_risk_warning_denm(
-            denm_request)
+            den_request)
 
         # Then
         mock_fullfill_with_vehicle_data.assert_called_once_with(
             self.denm_transmission_management.vehicle_data)
         mock_fullfill_with_collision_risk_warning.assert_called_once_with(
-            denm_request)
+            den_request)
         self.denm_transmission_management.transmit_denm.assert_called_once()
 
     @patch.object(DecentralizedEnvironmentalNotificationMessage,
@@ -220,9 +222,10 @@ class TestDENMTransmissionManagement(unittest.TestCase):
                                    mock_fullfill_with_vehicle_data):
         """Test trigger_denm_messages function"""
         # Given
-        denm_request = MagicMock()
-        denm_request.time_period = 10000
-        denm_request.denm_interval = 100
+        den_request = DENRequest(
+            time_period=10000,
+            denm_interval=100
+        )
         self.denm_transmission_management.transmit_denm = MagicMock()
         self.denm_transmission_management.denm_coder.encode = MagicMock(
             return_value=b'\x02\x01\x00\x00\x00\x00\xcf\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
@@ -230,17 +233,17 @@ class TestDENMTransmissionManagement(unittest.TestCase):
             b'\x00\x00\x008\x00\x01\xbf\xff\xfd\xc2?\x80/\xff\xff\xff\xff\xc78')
 
         # When
-        self.denm_transmission_management.trigger_denm_messages(denm_request)
+        self.denm_transmission_management.trigger_denm_messages(den_request)
 
         # Then
         self.assertEqual(self.denm_transmission_management.transmit_denm.call_count,
-                         denm_request.time_period / denm_request.denm_interval)
+                         den_request.time_period / den_request.denm_interval)
         self.assertEqual(mock_fullfill_with_vehicle_data.call_count,
-                         denm_request.time_period / denm_request.denm_interval)
+                         den_request.time_period / den_request.denm_interval)
         self.assertEqual(mock_fullfill_with_denrequest.call_count,
-                         denm_request.time_period / denm_request.denm_interval)
+                         den_request.time_period / den_request.denm_interval)
         self.assertEqual(sleep_mock.call_count,
-                         denm_request.time_period / denm_request.denm_interval)
+                         den_request.time_period / den_request.denm_interval)
 
     def test_transmit_denm(self):
         """Test transmit_denm function"""

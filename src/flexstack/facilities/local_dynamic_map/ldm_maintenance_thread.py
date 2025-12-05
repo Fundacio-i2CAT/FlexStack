@@ -19,11 +19,10 @@ class LDMMaintenanceThread(LDMMaintenance):
         self,
         area_of_maintenance: Location,
         data_base: DataBase,
-        stop_event: threading.Event,
     ) -> None:
         super().__init__(area_of_maintenance, data_base)
         self.data_containers_lock = threading.Lock()
-        self.stop_event = stop_event
+        self.stop_event = threading.Event()
         self.ldm_maintenance_thread = threading.Thread(
             target=self.run, daemon=True)
         self.ldm_maintenance_thread.start()

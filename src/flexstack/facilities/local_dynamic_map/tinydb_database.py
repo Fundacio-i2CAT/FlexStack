@@ -17,19 +17,21 @@ class TinyDB(DataBase):
     This class is used to store data in a TinyDB database. TinyDB is a lightweight document oriented database.
     """
 
-    def __init__(self, database_name: str, database_path: str):
+    def __init__(self, database_name: str | None = None, database_path: str | None = None):
         """
         Parameters
         ----------
         path : str
             Path to the database file.
         """
-        if database_path is None:
-            raise ValueError(
-                "Database path not specified. Using TinyDB requires a path")
-        self.database_path = os.path.abspath(database_path)
+        handled_database_path = database_path
+        if handled_database_path is None:
+            handled_database_path = os.getcwd()
+        self.database_path = os.path.abspath(handled_database_path)
         os.makedirs(self.database_path, exist_ok=True)
         self.database_name = database_name
+        if self.database_name is None:
+            self.database_name = "ldm_tinydb.json"
         self._database_file = os.path.join(
             self.database_path, self.database_name)
         self._lock = RLock()
