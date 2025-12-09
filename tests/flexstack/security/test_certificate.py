@@ -527,13 +527,13 @@ class TestCertificateIssuer(unittest.TestCase):
         self.certificate_issuer.set_issuer_as_self = MagicMock()
         self.certificate_issuer.sign_certificate = MagicMock()
         self.certificate_issuer.issue_certificate(
-            self.certificate, self.issuer)
+            self.issuer, self.issuer)
         self.certificate_issuer.certificate_is_self_signed.assert_called_once_with(
-            self.certificate, self.issuer)
+            self.issuer, self.issuer)
         self.certificate_issuer.set_issuer_as_self.assert_called_once_with(
-            self.certificate)
+            self.issuer)
         self.certificate_issuer.sign_certificate.assert_called_once_with(
-            self.certificate, self.certificate)
+            self.issuer, self.issuer)
         # Not self signed case
         self.certificate_issuer.certificate_is_self_signed = MagicMock(
             return_value=False)
