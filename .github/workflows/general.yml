@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        python-version:
+          ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -48,12 +49,6 @@ jobs:
           coverage xml
           coverage html
           coverage report -m --fail-under=93
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: true
-          verbose: true
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
@@ -93,28 +88,8 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pylint
-      - name: Run Pylint and Save Score
-        run: |
-          pylint_output=$(pylint src/flexstack/ --fail-under=9.49)
-          echo "$pylint_output"
-          
-          # Use grep and awk to extract the final score (e.g., 9.50/10)
-          SCORE=$(echo "$pylint_output" | grep "Your code has been rated at" | awk '{print $NF}' | cut -d'/' -f1)
-          echo "PYLINT_SCORE=$SCORE" >> $GITHUB_ENV
-      
-      - name: Create Pylint Score Badge
-        uses: anzp/github-action-badge@v1
-        with:
-          label: Pylint Score
-          status: ${{ env.PYLINT_SCORE }}
-          color: yellow # You can choose a different color
-          path: badge-pylint-score.svg
-          
-      - name: Upload Pylint Score Badge
-        uses: actions/upload-artifact@v4
-        with:
-          name: pylint-badge
-          path: badge-pylint-score.svg
+      - name: Run Pylint
+        run: pylint src/flexstack/ --fail-under=9.49
   
   pyright:
     name: Run Pyright

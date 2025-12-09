@@ -1424,7 +1424,7 @@ class RequestDataObjectsReq:
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)] # type: ignore
+                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]  # type: ignore
         return None
 
 
