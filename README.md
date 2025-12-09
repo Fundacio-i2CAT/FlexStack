@@ -2,6 +2,8 @@
 
 <!--<img src="doc/img/logo.png" alt="V2X Flex Stack" width="200"/>--> <img src="https://raw.githubusercontent.com/Fundacio-i2CAT/FlexStack/refs/heads/master/doc/img/i2cat_logo.png" alt="i2CAT Logo" width="200"/>
 
+[![Flake8 Status](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml/badge.svg?branch=master&job=flake8&label=Flake8%20Status)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+
 # Short description
 
 FlexStack(R) is a software library implementing the ETSI C-ITS protocol stack. Its aim is to facilitate and accelerate the development and integration of software applications on vehicles, vulnerable road users (VRU), and roadside infrastructure that requires the exchange of V2X messages (compliant with ETSI standards) with other actors of the V2X ecosystem.
