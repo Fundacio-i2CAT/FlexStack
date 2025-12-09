@@ -14,14 +14,14 @@ class ECDSABackend:
         """
         raise NotImplementedError("All the ECDSA backends should implement this")
 
-    def get_public_key(self, identifier: int) -> dict:
+    def get_public_key(self, identifier: int) -> tuple:
         """
         Returns the public key of the key pair with the identifier.
         It returns as a dict to be oer encoded as PublicVerificationKey in oer.
         """
         raise NotImplementedError("All the ECDSA backends should implement this")
 
-    def sign(self, data: bytes, identifier: int) -> dict:
+    def sign(self, data: bytes, identifier: int) -> tuple:
         """
         Signs the array of bytes. With the Key that corresponds to the identifier of the private key.
         The signature must be received in IEEE 1609.2 format.
@@ -82,7 +82,7 @@ class PythonECDSABackend(ECDSABackend):
         self.keys[identifier] = key
         return identifier
 
-    def get_public_key(self, identifier: int) -> dict:
+    def get_public_key(self, identifier: int) -> tuple:
         """
         Returns the public key of the key pair with the identifier.
         It returns as a dict to be oer encoded as PublicVerificationKey in oer.
@@ -113,7 +113,7 @@ class PythonECDSABackend(ECDSABackend):
             ),
         )
 
-    def sign(self, data: bytes, identifier: int) -> dict:
+    def sign(self, data: bytes, identifier: int) -> tuple:
         """
         Signs the array of bytes. With the Key that corresponds to the identifier of the private key.
 

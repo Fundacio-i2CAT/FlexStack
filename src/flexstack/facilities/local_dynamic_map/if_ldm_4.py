@@ -295,7 +295,7 @@ class InterfaceLDM4:
                 "Invalid data object type",
             )
 
-        if not self.is_valid_priority(subscribe_data_consumer.priority):
+        if subscribe_data_consumer.priority is not None and not self.is_valid_priority(subscribe_data_consumer.priority):
             return SubscribeDataObjectsResp(
                 subscribe_data_consumer.application_id,
                 0,
@@ -303,7 +303,7 @@ class InterfaceLDM4:
                 "Invalid priority",
             )
 
-        if not self.is_valid_order(subscribe_data_consumer.order):
+        if subscribe_data_consumer.order is not None and not self.is_valid_order(subscribe_data_consumer.order):
             return SubscribeDataObjectsResp(
                 subscribe_data_consumer.application_id,
                 0,
@@ -311,7 +311,7 @@ class InterfaceLDM4:
                 "Invalid order",
             )
 
-        if not self.is_valid_filter(subscribe_data_consumer.filter):
+        if subscribe_data_consumer.filter is not None and not self.is_valid_filter(subscribe_data_consumer.filter):
             return SubscribeDataObjectsResp(
                 subscribe_data_consumer.application_id,
                 0,

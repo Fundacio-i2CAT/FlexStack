@@ -8,9 +8,11 @@ This module is based in ETSI TS 102 723-8 V1.1.1 (2016-04)
 
 from __future__ import annotations
 from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
 
 
+@dataclass(frozen=True)
 class SNSIGNRequest:
     """
     SN-SIGN.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.1.2
@@ -34,24 +36,13 @@ class SNSIGNRequest:
     key_handle : int (optional)
         An indicator for the security entity to decide which key to use
     """
-
-    def __init__(
-        self,
-        tbs_message_length: int,
-        tbs_message: bytes,
-        its_aid: int,
-        permissions_length: int,
-        permissions: bytes,
-        context_information: bytes = None,
-        key_handle: int = None,
-    ):
-        self.tbs_message_length: int = tbs_message_length
-        self.tbs_message: bytes = tbs_message
-        self.its_aid: int = its_aid
-        self.permissions_length: int = permissions_length
-        self.permissions: bytes = permissions
-        self.context_information: bytes = context_information
-        self.key_handle: int = key_handle
+    tbs_message_length: int
+    tbs_message: bytes
+    its_aid: int
+    permissions_length: int
+    permissions: bytes
+    context_information: bytes | None = None
+    key_handle: int | None = None
 
     def __repr__(self):
         return (
@@ -70,6 +61,7 @@ class SNSIGNRequest:
         )
 
 
+@dataclass(frozen=True)
 class SNSIGNConfirm:
     """
     SN-SIGN.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.1.3
@@ -82,10 +74,8 @@ class SNSIGNConfirm:
     sec_message : bytes
         Signed message
     """
-
-    def __init__(self, sec_message_length: int, sec_message: bytes):
-        self.sec_message_length: int = sec_message_length
-        self.sec_message: bytes = sec_message
+    sec_message_length: int
+    sec_message: bytes
 
     def __repr__(self):
         return f"SNSIGNConfirm(sec_message_length={self.sec_message_length}, sec_message={self.sec_message})"
@@ -94,6 +84,7 @@ class SNSIGNConfirm:
         return f"SNSIGNConfirm(sec_message_length={self.sec_message_length}, sec_message={self.sec_message})"
 
 
+@dataclass(frozen=True)
 class SNVERIFYRequest:
     """
     SN-VERIFY.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.2.2
@@ -110,18 +101,10 @@ class SNVERIFYRequest:
     message : bytes
         Message to be verified
     """
-
-    def __init__(
-        self,
-        sec_header_length: int,
-        sec_header: bytes,
-        message_length: int,
-        message: bytes,
-    ):
-        self.sec_header_length: int = sec_header_length
-        self.sec_header: bytes = sec_header
-        self.message_length: int = message_length
-        self.message: bytes = message
+    sec_header_length: int
+    sec_header: bytes
+    message_length: int
+    message: bytes
 
     def __repr__(self):
         return (
@@ -173,6 +156,7 @@ class ReportVerify(Enum):
     INCOMPATIBLE_PROTOCOL = 11
 
 
+@dataclass(frozen=True)
 class SNVERIFYConfirm:
     """
     SN-VERIFY.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.2.3
@@ -191,20 +175,11 @@ class SNVERIFYConfirm:
     permissions : bytes
         Permissions of the signer (Max length 31 octets)
     """
-
-    def __init__(
-        self,
-        report: ReportVerify,
-        certificate_id: bytes,
-        its_aid_length: int,
-        its_aid: bytes,
-        permissions: bytes,
-    ):
-        self.report: ReportVerify = report
-        self.certificate_id: bytes = certificate_id
-        self.its_aid_length: int = its_aid_length
-        self.its_aid: bytes = its_aid
-        self.permissions: bytes = permissions
+    report: ReportVerify
+    certificate_id: bytes
+    its_aid_length: int
+    its_aid: bytes
+    permissions: bytes
 
     def __repr__(self):
         return (
@@ -221,6 +196,7 @@ class SNVERIFYConfirm:
         )
 
 
+@dataclass(frozen=True)
 class SNENCRYPTRequest:
     """
     SN-ENCRYPT.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.3.2
@@ -239,20 +215,11 @@ class SNENCRYPTRequest:
     context_information : bytes (optional)
         Context information
     """
-
-    def __init__(
-        self,
-        tbe_payload_length: int,
-        tbe_payload: bytes,
-        target_id_list_length: int,
-        target_id_list: list[bytes],
-        context_information: bytes = None,
-    ):
-        self.tbe_payload_length: int = tbe_payload_length
-        self.tbe_payload: bytes = tbe_payload
-        self.target_id_list_length: int = target_id_list_length
-        self.target_id_list: list[bytes] = target_id_list
-        self.context_information: bytes = context_information
+    tbe_payload_length: int
+    tbe_payload: bytes
+    target_id_list_length: int
+    target_id_list: list[bytes]
+    context_information: bytes
 
     def __repr__(self):
         return (
@@ -269,6 +236,7 @@ class SNENCRYPTRequest:
         )
 
 
+@dataclass(frozen=True)
 class SNENCRYPTConfirm:
     """
     SN-ENCRYPT.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.3.3
@@ -281,10 +249,8 @@ class SNENCRYPTConfirm:
     encrypted_message : bytes
         Encrypted message
     """
-
-    def __init__(self, encrypted_message_length: int, encrypted_message: bytes):
-        self.encrypted_message_length: int = encrypted_message_length
-        self.encrypted_message: bytes = encrypted_message
+    encrypted_message_length: int
+    encrypted_message: bytes
 
     def __repr__(self):
         return (
@@ -299,6 +265,7 @@ class SNENCRYPTConfirm:
         )
 
 
+@dataclass(frozen=True)
 class SNDECRYPTRequest:
     """
     SN-DECRYPT.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.4.2
@@ -311,10 +278,8 @@ class SNDECRYPTRequest:
     encrypted_message : bytes
         Encrypted message
     """
-
-    def __init__(self, encrypted_message_length: int, encrypted_message: bytes):
-        self.encrypted_message_length: int = encrypted_message_length
-        self.encrypted_message: bytes = encrypted_message
+    encrypted_message_length: int
+    encrypted_message: bytes
 
     def __repr__(self):
         return (
@@ -348,6 +313,7 @@ class ReportDecrypt(Enum):
     INCOMPATIBLE_PROTOCOL = 3
 
 
+@dataclass(frozen=True)
 class SNDECRYPTConfirm:
     """
     SN-DECRYPT.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.4.3
@@ -362,16 +328,9 @@ class SNDECRYPTConfirm:
     report : ReportDecrypt
         Decryption report
     """
-
-    def __init__(
-        self,
-        plaintext_message_length: int,
-        plaintext_message: bytes,
-        report: ReportDecrypt,
-    ):
-        self.plaintext_message_length: int = plaintext_message_length
-        self.plaintext_message: bytes = plaintext_message
-        self.report: ReportDecrypt = report
+    plaintext_message_length: int
+    plaintext_message: bytes
+    report: ReportDecrypt
 
     def __repr__(self):
         return (
@@ -405,6 +364,7 @@ class SNIDCHANGEEVENTCommand(Enum):
     DEREG = 3
 
 
+@dataclass(frozen=True)
 class SNIDCHANGEEVENTIndication:
     """
     SN-ID-CHANGE-EVENT.indication class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.6.2
@@ -419,16 +379,9 @@ class SNIDCHANGEEVENTIndication:
     subscriber_data : bytes (optional)
         Subscriber data
     """
-
-    def __init__(
-        self,
-        command: SNIDCHANGEEVENTCommand,
-        identifier: bytes,
-        subscriber_data: bytes = None,
-    ):
-        self.command: SNIDCHANGEEVENTCommand = command
-        self.identifier: bytes = identifier
-        self.subscriber_data: bytes = subscriber_data
+    command: SNIDCHANGEEVENTCommand
+    identifier: bytes
+    subscriber_data: bytes | None = None
 
     def __repr__(self):
         return (
@@ -443,6 +396,7 @@ class SNIDCHANGEEVENTIndication:
         )
 
 
+@dataclass(frozen=True)
 class SNIDCHANGEEVENTResponse:
     """
     SN-ID-CHANGE-EVENT.response class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.6.3
@@ -453,9 +407,7 @@ class SNIDCHANGEEVENTResponse:
     return_code : bool
         Acknowledgement of the command
     """
-
-    def __init__(self, return_code: bool):
-        self.return_code: bool = return_code
+    return_code: bool
 
     def __repr__(self):
         return f"SNIDCHANGEEVENTResponse(return_code={self.return_code})"
@@ -464,6 +416,7 @@ class SNIDCHANGEEVENTResponse:
         return f"SNIDCHANGEEVENTResponse(return_code={self.return_code})"
 
 
+@dataclass(frozen=True)
 class SNIDCHANGESUBSCRIBERequest:
     """
     SN-ID-CHANGE-SUBSCRIBE.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.5.2
@@ -477,15 +430,8 @@ class SNIDCHANGESUBSCRIBERequest:
         Subscriber data
     """
 
-    def __init__(
-        self,
-        idchange_event_hook: Callable[[SNIDCHANGEEVENTIndication, bytes], None],
-        subscriber_data: bytes = None,
-    ):
-        self.idchange_event_hook: Callable[[SNIDCHANGEEVENTIndication, bytes], None] = (
-            idchange_event_hook
-        )
-        self.subscriber_data: bytes = subscriber_data
+    idchange_event_hook: Callable[[SNIDCHANGEEVENTIndication, bytes], None]
+    subscriber_data: bytes | None = None
 
     def __repr__(self):
         return (
@@ -500,6 +446,7 @@ class SNIDCHANGESUBSCRIBERequest:
         )
 
 
+@dataclass(frozen=True)
 class SNIDCHANGESUBSCRIBEConfirm:
     """
     SN-ID-CHANGE-SUBSCRIBE.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.5.3
@@ -511,8 +458,7 @@ class SNIDCHANGESUBSCRIBEConfirm:
         Subscription handle for unsubscribe (64 bits range)
     """
 
-    def __init__(self, subscription: int):
-        self.subscription: int = subscription
+    subscription: int
 
     def __repr__(self):
         return f"SNIDCHANGESUBSCRIBEConfirm(subscription={self.subscription})"
@@ -521,6 +467,7 @@ class SNIDCHANGESUBSCRIBEConfirm:
         return f"SNIDCHANGESUBSCRIBEConfirm(subscription={self.subscription})"
 
 
+@dataclass(frozen=True)
 class SNIDCHANGEUNSUBSCRIBERequest:
     """
     SN-IDCHANGE-UNSUBSCRIBE.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.7.2
@@ -531,9 +478,7 @@ class SNIDCHANGEUNSUBSCRIBERequest:
     subscription : int
         Subscription handle, given through Mandatory subscribe (64 bits range)
     """
-
-    def __init__(self, subscription: int):
-        self.subscription: int = subscription
+    subscription: int
 
     def __repr__(self):
         return f"SNIDCHANGEUNSUBSCRIBERequest(subscription={self.subscription})"
@@ -542,6 +487,7 @@ class SNIDCHANGEUNSUBSCRIBERequest:
         return f"SNIDCHANGEUNSUBSCRIBERequest(subscription={self.subscription})"
 
 
+@dataclass(frozen=True)
 class SNIDCHANGEUNSUBSCRIBEConfirm:
     """
     SN-IDCHANGE-UNSUBSCRIBE.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.7.3
@@ -557,6 +503,7 @@ class SNIDCHANGEUNSUBSCRIBEConfirm:
         return "SNIDCHANGEUNSUBSCRIBEConfirm()"
 
 
+@dataclass(frozen=True)
 class SNIDCHANGETRIGGERRequest:
     """
     SN-ID-CHANGE-TRIGGER.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.8.2
@@ -572,6 +519,7 @@ class SNIDCHANGETRIGGERRequest:
         return "SNIDCHANGETRIGGERRequest()"
 
 
+@dataclass(frozen=True)
 class SNIDCHANGETRIGGERConfirm:
     """
     SN-ID-CHANGE-TRIGGER.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.8.3
@@ -587,6 +535,7 @@ class SNIDCHANGETRIGGERConfirm:
         return "SNIDCHANGETRIGGERConfirm()"
 
 
+@dataclass(frozen=True)
 class SNIDLOCKRequest:
     """
     SN-ID-LOCK.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.9.2
@@ -598,8 +547,7 @@ class SNIDLOCKRequest:
         Number of seconds to lock (1 octet)
     """
 
-    def __init__(self, duration: int):
-        self.duration: int = duration
+    duration: int
 
     def __repr__(self):
         return f"SNIDLOCKRequest(duration={self.duration})"
@@ -608,6 +556,7 @@ class SNIDLOCKRequest:
         return f"SNIDLOCKRequest(duration={self.duration})"
 
 
+@dataclass(frozen=True)
 class SNIDLOCKConfirm:
     """
     SN-ID-LOCK.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.9.3
@@ -619,8 +568,7 @@ class SNIDLOCKConfirm:
         Handle to unlock manually (64 bits range)
     """
 
-    def __init__(self, lock_handle: int):
-        self.lock_handle: int = lock_handle
+    lock_handle: int
 
     def __repr__(self):
         return f"SNIDLOCKConfirm(lock_handle={self.lock_handle})"
@@ -629,6 +577,7 @@ class SNIDLOCKConfirm:
         return f"SNIDLOCKConfirm(lock_handle={self.lock_handle})"
 
 
+@dataclass(frozen=True)
 class SNIDUNLOCKRequest:
     """
     SN-ID-UNLOCK.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.10.2
@@ -640,8 +589,7 @@ class SNIDUNLOCKRequest:
         Handle to unlock manually (64 bits range)
     """
 
-    def __init__(self, lock_handle: int):
-        self.lock_handle: int = lock_handle
+    lock_handle: int
 
     def __repr__(self):
         return f"SNIDUNLOCKRequest(lock_handle={self.lock_handle})"
@@ -650,6 +598,7 @@ class SNIDUNLOCKRequest:
         return f"SNIDUNLOCKRequest(lock_handle={self.lock_handle})"
 
 
+@dataclass(frozen=True)
 class SNIDUNLOCKConfirm:
     """
     SN-ID-UNLOCK.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.10.3
@@ -719,6 +668,7 @@ class SNLOGSECURITYEVENTEventEvidenceType(Enum):
     DENM = 0x02
 
 
+@dataclass(frozen=True)
 class SNLOGSECURITYEVENTRequest:
     # pylint: disable=too-many-arguments
     """
@@ -748,32 +698,16 @@ class SNLOGSECURITYEVENTRequest:
     event_evidence_content : bytes (optional)
         Event evidence content
     """
-
-    def __init__(
-        self,
-        event_type: SNLOGSECURITYEVENTEventType,
-        neighbour_id_list_length: int,
-        neighbour_id_list: list[bytes],
-        event_time: int,
-        event_location: dict = None,
-        event_evidence_list_length: int = None,
-        event_evidence_list: list[dict] = None,
-        event_evidence_type: SNLOGSECURITYEVENTEventEvidenceType = None,
-        event_evidence_content_length: int = None,
-        event_evidence_content: bytes = None,
-    ):
-        self.event_type: SNLOGSECURITYEVENTEventType = event_type
-        self.neighbour_id_list_length: int = neighbour_id_list_length
-        self.neighbour_id_list: list[bytes] = neighbour_id_list
-        self.event_time: int = event_time
-        self.event_location: dict = event_location
-        self.event_evidence_list_length: int = event_evidence_list_length
-        self.event_evidence_list: list[dict] = event_evidence_list
-        self.event_evidence_type: SNLOGSECURITYEVENTEventEvidenceType = (
-            event_evidence_type
-        )
-        self.event_evidence_content_length: int = event_evidence_content_length
-        self.event_evidence_content: bytes = event_evidence_content
+    event_type: SNLOGSECURITYEVENTEventType
+    neighbour_id_list_length: int
+    neighbour_id_list: list[bytes]
+    event_time: int
+    event_location: dict | None = None
+    event_evidence_list_length: int | None = None
+    event_evidence_list: list[dict] | None = None
+    event_evidence_type: SNLOGSECURITYEVENTEventEvidenceType | None = None
+    event_evidence_content_length: int | None = None
+    event_evidence_content: bytes | None = None
 
     def __repr__(self):
         return (
@@ -798,6 +732,7 @@ class SNLOGSECURITYEVENTRequest:
         )
 
 
+@dataclass(frozen=True)
 class SNLOGSECURITYEVENTConfirm:
     """
     SN-LOG-SECURITY-EVENT.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.11.3
@@ -816,6 +751,7 @@ class SNLOGSECURITYEVENTConfirm:
         return "SNLOGSECURITYEVENTConfirm()"
 
 
+@dataclass(frozen=True)
 class SNENCAPRequest:
     """
     SN-ENCAP.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.12.2
@@ -842,28 +778,15 @@ class SNENCAPRequest:
     target_id_list : list[bytes] (optional)
         List of target IDs
     """
-
-    def __init__(
-        self,
-        tbe_packet_length: int,
-        tbe_packet: bytes,
-        sec_services: int = None,
-        its_aid_length: int = None,
-        its_aid: int = None,
-        permissions: bytes = None,
-        context_information: bytes = None,
-        target_id_list_length: int = None,
-        target_id_list: list[bytes] = None,
-    ):
-        self.tbe_packet_length: int = tbe_packet_length
-        self.tbe_packet: bytes = tbe_packet
-        self.sec_services: int = sec_services
-        self.its_aid_length: int = its_aid_length
-        self.its_aid: int = its_aid
-        self.permissions: bytes = permissions
-        self.context_information: bytes = context_information
-        self.target_id_list_length: int = target_id_list_length
-        self.target_id_list: list[bytes] = target_id_list
+    tbe_packet_length: int
+    tbe_packet: bytes
+    sec_services: int | None = None
+    its_aid_length: int | None = None
+    its_aid: int | None = None
+    permissions: bytes | None = None
+    context_information: bytes | None = None
+    target_id_list_length: int | None = None
+    target_id_list: list[bytes] | None = None
 
     def __repr__(self):
         return (
@@ -882,6 +805,7 @@ class SNENCAPRequest:
         )
 
 
+@dataclass(frozen=True)
 class SNENCAPConfirm:
     """
     SN-ENCAP.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.12.3
@@ -894,10 +818,8 @@ class SNENCAPConfirm:
     sec_packet : bytes
         Security packet
     """
-
-    def __init__(self, sec_packet_length: int, sec_packet: bytes):
-        self.sec_packet_length: int = sec_packet_length
-        self.sec_packet: bytes = sec_packet
+    sec_packet_length: int
+    sec_packet: bytes
 
     def __repr__(self):
         return f"SNENCAPConfirm(sec_packet_length={self.sec_packet_length}, sec_packet={self.sec_packet})"
@@ -906,6 +828,7 @@ class SNENCAPConfirm:
         return f"SNENCAPConfirm(sec_packet_length={self.sec_packet_length}, sec_packet={self.sec_packet})"
 
 
+@dataclass(frozen=True)
 class SNDECAPRequest:
     """
     SN-DECAP.request class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.13.2
@@ -918,10 +841,8 @@ class SNDECAPRequest:
     sec_packet : bytes
         Security packet
     """
-
-    def __init__(self, sec_packet_length: int, sec_packet: bytes):
-        self.sec_packet_length: int = sec_packet_length
-        self.sec_packet: bytes = sec_packet
+    sec_packet_length: int
+    sec_packet: bytes
 
     def __repr__(self):
         return f"SNDECAPRequest(sec_packet_length={self.sec_packet_length}, sec_packet={self.sec_packet})"
@@ -969,6 +890,7 @@ class SNDECAPReport(Enum):
     DECRYPTION_ERROR = 13
 
 
+@dataclass(frozen=True)
 class SNDECAPConfirm:
     """
     SN-DECAP.confirm class as specified in ETSI TS 102 723-8 V1.1.1 (2016-04) 5.2.13.3
@@ -991,24 +913,13 @@ class SNDECAPConfirm:
     permissions : bytes (optional)
         SSP associated with the ITS AID (Max length 31 octets)
     """
-
-    def __init__(
-        self,
-        plaintext_packet_length: int,
-        plaintext_packet: bytes,
-        report: SNDECAPReport,
-        certificate_id: bytes = None,
-        its_aid_length: int = None,
-        its_aid: int = None,
-        permissions: bytes = None,
-    ):
-        self.plaintext_packet_length: int = plaintext_packet_length
-        self.plaintext_packet: bytes = plaintext_packet
-        self.report: SNDECAPReport = report
-        self.certificate_id: bytes = certificate_id
-        self.its_aid_length: int = its_aid_length
-        self.its_aid: int = its_aid
-        self.permissions: bytes = permissions
+    plaintext_packet_length: int
+    plaintext_packet: bytes
+    report: SNDECAPReport
+    certificate_id: bytes | None = None
+    its_aid_length: int | None = None
+    its_aid: int | None = None
+    permissions: bytes | None = None
 
     def __repr__(self):
         return (

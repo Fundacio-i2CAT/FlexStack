@@ -59,7 +59,7 @@ class CertificateLibrary:
         for at_certificate in at_certificates:
             self.add_authorization_ticket(at_certificate)
 
-    def get_issuer_certificate(self, certificate: Certificate) -> Certificate:
+    def get_issuer_certificate(self, certificate: Certificate) -> Certificate | None:
         """
         Get the issuer certificate of a certificate.
 
@@ -74,6 +74,8 @@ class CertificateLibrary:
             The issuer certificate. It returns None if the issuer is self.
             Or issuer not found.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         if certificate.certificate["issuer"][0] == "self":
             return None
         if certificate.certificate["issuer"][0] == "sha256AndDigest":
@@ -156,14 +158,14 @@ class CertificateLibrary:
         if issuer_certificate is not None and certificate.verify(issuer_certificate):
             self.own_certificates[certificate.as_hashedid8()] = certificate
 
-    def get_authorization_ticket_by_hashedid8(self, hashedid8: bytes) -> Certificate:
+    def get_authorization_ticket_by_hashedid8(self, hashedid8: bytes) -> Certificate | None:
         """
         Get an authorization ticket by its hashedid8.
 
         Parameters
         ----------
-        hashedid8 : bytes
-            The hashedid8 of the authorization ticket.
+        hashedid8 : bytes | None
+            The hashedid8 of the authorization ticket, None if not found.
         """
         if hashedid8 in self.known_authorization_tickets.keys():
             return self.known_authorization_tickets[hashedid8]
@@ -171,7 +173,7 @@ class CertificateLibrary:
 
     def verify_sequence_of_certificates(
         self, certificates: list[dict], coder: SecurityCoder, backend: ECDSABackend
-    ) -> Certificate:
+    ) -> Certificate | None:
         """
         Verification of a sequence of certificates as specified in IEEE 1609.2. Signer Identifer.
         The first certificate is the authorization ticket. And then each one is the issuer of the one before.

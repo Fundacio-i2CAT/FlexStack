@@ -1416,11 +1416,15 @@ class RequestDataObjectsReq:
         Parameters
         ----------
         data_object : dict
+
+        Returns
+        -------
+        str | None
+            The data object type as string or None if not found.
         """
         for data_object_type_str in data_object.keys():
             if data_object_type_str in DATA_OBJECT_TYPE_ID.values():
-                # type: ignore
-                return list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)]
+                return str(list(DATA_OBJECT_TYPE_ID.keys())[list(DATA_OBJECT_TYPE_ID.values()).index(data_object_type_str)])
         return None
 
 
@@ -1526,15 +1530,15 @@ class RequestDataObjectsResp:
 @dataclass(frozen=True)
 class SubscribeDataobjectsReq:
     """
-    As specified in src.facilities.local_dynamic_map.if_ldm_4.py this class has been modified to fit implementation.
+    As specified in facilities.local_dynamic_map.if_ldm_4.py this class has been modified to fit implementation.
     """
     application_id: int
     data_object_type: tuple[int, ...]
-    priority: int = None
-    filter: Filter = None
+    priority: int | None = None
+    filter: Filter | None = None
     notify_time: TimestampIts = TimestampIts(1)
     multiplicity: int = 1
-    order: tuple[OrderTupleValue, ...] = None
+    order: tuple[OrderTupleValue, ...] | None = None
 
 
 @dataclass(frozen=True)

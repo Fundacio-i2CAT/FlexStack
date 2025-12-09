@@ -28,12 +28,13 @@ class Certificate:
         """
         self.coder: SecurityCoder = coder
         self.backend: ECDSABackend = backend
-        self.verifier: CertificateVerifier = CertificateVerifier(coder, backend)
-        self.certificate: dict = None
-        self.issuer: "Certificate" = None
+        self.verifier: CertificateVerifier = CertificateVerifier(
+            coder, backend)
+        self.certificate: dict | None = None
+        self.issuer: Certificate | None = None
         self.verified: bool = False
 
-    def from_dict(self, certificate: dict, issuer: "Certificate" = None) -> None:
+    def from_dict(self, certificate: dict, issuer: Certificate | None = None) -> None:
         """
         Sets up the certificate from a dictionary.
 
@@ -47,7 +48,7 @@ class Certificate:
         self.certificate = deepcopy(certificate)
         self.verified = self.verify(issuer)
 
-    def decode(self, certificate: bytes, issuer: "Certificate" = None) -> None:
+    def decode(self, certificate: bytes, issuer: Certificate | None = None) -> None:
         """
         Decode the certificate and set it up in the Certificate object.
 
@@ -55,8 +56,8 @@ class Certificate:
         ----------
         certificate : bytes
             The certificate to be decoded.
-        issuer : Certificate
-            The issuer of the certificate
+        issuer : Certificate | None
+            The issuer of the certificate. None if self signed.
         """
         self.from_dict(
             self.coder.decode_etsi_ts_103097_certificate(certificate), issuer
@@ -71,6 +72,8 @@ class Certificate:
         bytes
             The certificate as a hashedid8.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         m = sha256()
         m.update(self.coder.encode_etsi_ts_103097_certificate(self.certificate))
         return m.digest()[-8:]
@@ -84,6 +87,8 @@ class Certificate:
         bytes
             The certificate as bytes.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         return self.coder.encode_etsi_ts_103097_certificate(self.certificate)
 
     def get_list_of_its_aid(self) -> list[int]:
@@ -95,6 +100,8 @@ class Certificate:
         list[int]
             The list of ITS AID.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         to_return = []
         for psid_ssp in self.certificate["toBeSigned"]["appPermissions"]:
             to_return.append(psid_ssp["psid"])
@@ -143,7 +150,7 @@ class Certificate:
             ),
         }
 
-    def get_issuer_hashedid8(self) -> bytes:
+    def get_issuer_hashedid8(self) -> bytes | None:
         """
         Returns the issuer HashedId8 stored in the dict.
 
@@ -155,15 +162,17 @@ class Certificate:
         Raises
         ------
         ValueError
-            If the issuer type is unknown
+            If the issuer type is unknown or the certificate is not initialized.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         if self.certificate["issuer"][0] == "sha256AndDigest":
             return self.certificate["issuer"][1]
         if self.certificate["issuer"][0] == "self":
             return None
         raise ValueError("Unknown issuer type")
 
-    def verify(self, issuer: "Certificate" = None) -> bool:
+    def verify(self, issuer: Certificate | None = None) -> bool:
         """
         Verify the certificate.
 
@@ -183,6 +192,8 @@ class Certificate:
         str
             The certificate as a string.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         return str(self.certificate["toBeSigned"]["id"][1])
 
 
@@ -215,7 +226,7 @@ class OwnCertificate(Certificate):
         self.as_clear_certificate()
 
     def initialize_certificate(
-        self, to_be_signed_certificate: dict, issuer: "OwnCertificate" = None
+        self, to_be_signed_certificate: dict, issuer: OwnCertificate | None = None
     ) -> None:
         """
         Initializes the certificate.
@@ -227,6 +238,8 @@ class OwnCertificate(Certificate):
         issuer : OwnCertificate
             The issuer of the certificate. If None, the certificate will be self signed.
         """
+        if self.certificate is None:
+            raise ValueError("Certificate not initialized")
         if self.verify_to_be_signed_certificate(to_be_signed_certificate):
             self.certificate["toBeSigned"] = deepcopy(to_be_signed_certificate)
             self.certificate["toBeSigned"]["verifyKeyIndicator"] = (
@@ -269,7 +282,7 @@ class OwnCertificate(Certificate):
         """
         self.certificate_issuer.issue_certificate(certificate, self)
 
-    def sign_message(self, message: bytes) -> bytes:
+    def sign_message(self, message: bytes) -> tuple:
         """
         Sign a message with the private key.
 
@@ -279,8 +292,8 @@ class OwnCertificate(Certificate):
 
         Returns
         -------
-        bytes
-            The signed message.
+        dict
+            The signature of the message.
         """
         return self.backend.sign(message, self.key_id)
 
@@ -325,6 +338,8 @@ class CertificateVerifier:
         bool
             True if the signature is NISTP256, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         return certificate.certificate["signature"][0] == "ecdsaNistP256Signature"
 
     def verification_key_is_nist_p256(self, certificate: Certificate) -> bool:
@@ -341,6 +356,8 @@ class CertificateVerifier:
         bool
             True if the verification key is NISTP256, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         return (
             certificate.certificate["toBeSigned"]["verifyKeyIndicator"][0]
             == "verificationKey"
@@ -362,6 +379,8 @@ class CertificateVerifier:
         bool
             True if the certificate is self signed, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         return (
             certificate.certificate["issuer"][0] == "self"
             and certificate.certificate["issuer"][1] == "sha256"
@@ -381,6 +400,8 @@ class CertificateVerifier:
         bool
             True if the certificate is issued, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         return (
             certificate.certificate["issuer"][0] == "sha256AndDigest"
             and len(certificate.certificate["issuer"][1]) == 8
@@ -402,6 +423,8 @@ class CertificateVerifier:
         bool
             True if the issuer corresponds to the certificate stated issuer, False otherwise
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         return certificate.certificate["issuer"][1] == issuer.as_hashedid8()
 
     def verify_signature(
@@ -426,7 +449,8 @@ class CertificateVerifier:
         """
         try:
             return self.backend.verify_with_pk(
-                self.coder.encode_ToBeSignedCertificate(to_be_signed_certificate),
+                self.coder.encode_ToBeSignedCertificate(
+                    to_be_signed_certificate),
                 signature,
                 verification_key,
             )
@@ -447,6 +471,8 @@ class CertificateVerifier:
         bool
             True if the certificate is valid, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         if self.certificate_is_self_signed(certificate):
             if self.signature_is_nist_p256(
                 certificate
@@ -507,6 +533,8 @@ class CertificateVerifier:
             if self.signature_is_nist_p256(
                 certificate
             ) and self.verification_key_is_nist_p256(certificate):
+                if certificate.certificate is None or issuer.certificate is None:
+                    raise ValueError("Certificate not initialized")
                 if self.verify_signature(
                     certificate.certificate["toBeSigned"],
                     certificate.certificate["signature"],
@@ -516,7 +544,7 @@ class CertificateVerifier:
                     return True
         return False
 
-    def verify(self, certificate: Certificate, issuer: Certificate = None) -> bool:
+    def verify(self, certificate: Certificate, issuer: Certificate | None = None) -> bool:
         """
         Verify the certificate.
 
@@ -524,8 +552,8 @@ class CertificateVerifier:
         ----------
         certificate : Certificate
             The certificate to be verified.
-        issuer : Certificate
-            The issuer of the certificate.
+        issuer : Certificate | None
+            The issuer of the certificate. None if self signed.
 
         Returns
         -------
@@ -587,6 +615,8 @@ class CertificateIssuer:
         certificate : Certificate
             The certificate to be set.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         certificate.certificate["issuer"] = ("self", "sha256")
 
     def set_issuer(self, certificate: Certificate, issuer: OwnCertificate) -> None:
@@ -600,7 +630,10 @@ class CertificateIssuer:
         issuer : OwnCertificate
             The issuer of the certificate.
         """
-        certificate.certificate["issuer"] = ("sha256AndDigest", issuer.as_hashedid8())
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
+        certificate.certificate["issuer"] = (
+            "sha256AndDigest", issuer.as_hashedid8())
 
     def check_enough_min_chain_length_for_issuer(self, issuer: OwnCertificate) -> bool:
         """
@@ -616,6 +649,8 @@ class CertificateIssuer:
         bool
             True if the chain of trust is lengthy enough, False otherwise.
         """
+        if issuer.certificate is None:
+            raise ValueError("Certificate not initialized")
         issuer_permissions = issuer.certificate["toBeSigned"]["certIssuePermissions"]
         if not any(
             permission["minChainLength"] < 1 for permission in issuer_permissions
@@ -643,6 +678,8 @@ class CertificateIssuer:
         list[int]
             The list of PSID.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         to_return = []
         if self.certificate_wants_cert_issue_permissions(certificate):
             cert_issue_permissions = certificate.certificate["toBeSigned"][
@@ -670,6 +707,8 @@ class CertificateIssuer:
         list[int]
             The list of PSID.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         cert_app_permissions = certificate.certificate["toBeSigned"]["appPermissions"]
         to_return = []
         for elem in cert_app_permissions:
@@ -690,12 +729,14 @@ class CertificateIssuer:
         list[int]
             The list of needed permissions.
         """
-        to_return = self.get_list_of_psid_from_cert_issue_permissions(certificate)
-        to_return.extend(self.get_list_of_psid_from_app_permissions(certificate))
+        to_return = self.get_list_of_psid_from_cert_issue_permissions(
+            certificate)
+        to_return.extend(
+            self.get_list_of_psid_from_app_permissions(certificate))
         to_return = list(dict.fromkeys(to_return))
         return to_return
 
-    def get_list_of_allowed_persmissions(self, issuer: OwnCertificate) -> list[int]:
+    def get_list_of_allowed_persmissions(self, issuer: Certificate) -> list[int]:
         """
         Gets the list of allowed permissions.
 
@@ -709,6 +750,8 @@ class CertificateIssuer:
         list[int]
             The list of allowed permissions.
         """
+        if issuer.certificate is None:
+            raise ValueError("Certificate not initialized")
         to_return = []
         issuer_permissions = []
         if self.certificate_wants_cert_issue_permissions(issuer):
@@ -757,6 +800,8 @@ class CertificateIssuer:
         bool
             True if the certificate has all permissions, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         if "certIssuePermissions" in certificate.certificate["toBeSigned"]:
             cert_issue_permissions: list = certificate.certificate["toBeSigned"][
                 "certIssuePermissions"
@@ -807,6 +852,8 @@ class CertificateIssuer:
         bool
             True if the certificate wants certificate issue permissions, False otherwise.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         if "certIssuePermissions" in certificate.certificate["toBeSigned"]:
             return True
         return False
@@ -824,6 +871,8 @@ class CertificateIssuer:
         issuer : OwnCertificate
             The issuer of the certificate.
         """
+        if certificate.certificate is None or issuer.certificate is None:
+            raise ValueError("Certificate not initialized")
         if self.certificate_wants_cert_issue_permissions(certificate):
             needed_issuing_permissions_capability = (
                 self.get_list_of_psid_from_cert_issue_permissions(certificate)
@@ -843,7 +892,8 @@ class CertificateIssuer:
                         all_permissions["minChainLength"]
                     )
             else:
-                certificate.certificate["toBeSigned"]["certIssuePermissions"] = []
+                certificate.certificate["toBeSigned"]["certIssuePermissions"] = [
+                ]
                 for permission in issuer.certificate["toBeSigned"][
                     "certIssuePermissions"
                 ]:
@@ -878,6 +928,8 @@ class CertificateIssuer:
         issuer : OwnCertificate
             The issuer of the certificate.
         """
+        if certificate.certificate is None:
+            raise ValueError("Certificate not initialized")
         certificate.certificate["signature"] = self.backend.sign(
             self.coder.encode_ToBeSignedCertificate(
                 certificate.certificate["toBeSigned"]
@@ -901,7 +953,8 @@ class CertificateIssuer:
         """
         if self.certificate_is_self_signed(certificate, issuer):
             self.set_issuer_as_self(certificate)
-            self.sign_certificate(certificate, certificate)
+            # Certificate and issuer should be the same object
+            self.sign_certificate(certificate, issuer)
         elif self.check_issuer_has_subject_permissions(
             certificate, issuer
         ) and self.check_enough_min_chain_length_for_issuer(issuer):
