@@ -1,7 +1,8 @@
 from __future__ import annotations
 from collections.abc import Callable
 from enum import Enum
-from threading import Lock
+from time import sleep
+from threading import Thread, Lock
 import math
 from ..linklayer.exceptions import (
     SendingException,
@@ -91,6 +92,55 @@ class Router:
         self.indication_callback = None
         self.sequence_number_lock = Lock()
         self.sequence_number = 0
+        if self.mib.itsGnBeaconServiceRetransmitTimer > 0:
+            self.configure_beacon_service()
+        
+    def configure_beacon_service(self) -> None:
+        """
+        Configures, set-ups threading, for the beacon service based on MIB settings.
+        
+        Parameters
+        ----------
+        None
+        """
+
+        thread = Thread(target=self.beacon_service_thread, daemon=True)
+        thread.start()
+
+    def beacon_service_thread(self) -> None:
+        """
+        Thread function to handle beacon service retransmissions.
+        """
+
+        while True:
+            self.gn_data_request_beacon()
+            sleep(self.mib.itsGnBeaconServiceRetransmitTimer / 1000)
+
+    def gn_data_request_beacon(self) -> None:
+        """
+        Handle a Beacon GNDataRequest.
+
+        Parameters
+        ----------
+        None
+        """
+        basic_header = BasicHeader.initialize_with_mib_and_rhl(self.mib, 1)
+        common_header = CommonHeader.initialize_beacon()
+        long_position_vector = self.ego_position_vector
+        packet = (
+            basic_header.encode_to_bytes()
+            + common_header.encode_to_bytes()
+            + long_position_vector.encode()
+        )
+
+        try:
+            if self.link_layer:
+                self.link_layer.send(packet)
+        except PacketTooLongException:
+            pass
+        except SendingException:
+            pass
+
 
     def get_sequence_number(self) -> int:
         """
@@ -571,6 +621,37 @@ class Router:
             print(str(e))
         return GNDataIndication()
 
+    def gn_data_indicate_beacon(self, packet: bytes) -> None:
+        """
+        Method to indicate a Beacon GeoNetworking packet.
+
+        Lower level layers should call this method to indicate a Beacon GeoNetworking packet.
+
+        Parameters
+        ----------
+        packet : bytes
+            GeoNetworking packet to indicate.
+        common_header : CommonHeader
+            CommonHeader of the packet.
+        """
+        # ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.6
+        try:
+            long_position_vector = LongPositionVector()
+            long_position_vector.decode(packet[0:24])
+            packet = packet[24:]
+            # Receiver operations of Beacon packets are identical to the 
+            # handling procedures of the SHB packet (clause 10.3.10.3)
+            self.location_table.new_shb_packet(long_position_vector, packet)
+        except DADException:
+            print("Duplicate Address Detected!")
+        except IncongruentTimestampException:
+            print("Incongruent Timestamp Detected!")
+        except DuplicatedPacketException:
+            print("Packet is duplicated")
+        except DecodeError as e:
+            print(str(e))
+
+
     def gn_data_indicate(self, packet: bytes) -> None:
         # pylint: disable=no-else-raise, too-many-branches
         """
@@ -606,7 +687,8 @@ class Router:
                 raise NotImplementedError(
                     "Any packet (Common Header) not implemented")
             elif common_header.ht == HeaderType.BEACON:
-                raise NotImplementedError("Beacon not implemented")
+                self.gn_data_indicate_beacon(packet)
+                return
             elif common_header.ht == HeaderType.GEOUNICAST:
                 raise NotImplementedError("Geounicast not implemented")
             elif common_header.ht == HeaderType.GEOANYCAST:

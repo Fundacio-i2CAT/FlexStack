@@ -149,3 +149,19 @@ class CommonHeader:
         if len(header) < 8:
             raise DecodeError("Common Header must be 8 bytes long")
         return cls.decode_from_int(int.from_bytes(header[0:8], "big"))
+    
+    @classmethod
+    def initialize_beacon(cls) -> CommonHeader:
+        """
+        Initializes a Common Header for a beacon message.
+
+        Returns
+        -------
+        CommonHeader :
+            Initialized Common Header for a beacon message.
+        """
+        nh = CommonNH.ANY
+        ht = HeaderType.BEACON
+        hst = HeaderSubType.UNSPECIFIED
+        tc = TrafficClass()
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=0, pl=0, mhl=1)

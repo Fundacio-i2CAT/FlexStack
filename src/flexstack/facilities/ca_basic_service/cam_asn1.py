@@ -1,5 +1,5 @@
 # pylint: skip-file
-from flexstack.utils.asn1.etsi_its_cdd import ETSI_ITS_CDD_ASN1_DESCRIPTIONS
+from ...utils.asn1.etsi_its_cdd import ETSI_ITS_CDD_ASN1_DESCRIPTIONS
 
 CAM_ASN1_DESCRIPTIONS = (
     ETSI_ITS_CDD_ASN1_DESCRIPTIONS
