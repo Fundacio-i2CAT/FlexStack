@@ -94,11 +94,11 @@ class Router:
         self.sequence_number = 0
         if self.mib.itsGnBeaconServiceRetransmitTimer > 0:
             self.configure_beacon_service()
-        
+
     def configure_beacon_service(self) -> None:
         """
         Configures, set-ups threading, for the beacon service based on MIB settings.
-        
+
         Parameters
         ----------
         None
@@ -140,7 +140,6 @@ class Router:
             pass
         except SendingException:
             pass
-
 
     def get_sequence_number(self) -> int:
         """
@@ -639,7 +638,7 @@ class Router:
             long_position_vector = LongPositionVector()
             long_position_vector.decode(packet[0:24])
             packet = packet[24:]
-            # Receiver operations of Beacon packets are identical to the 
+            # Receiver operations of Beacon packets are identical to the
             # handling procedures of the SHB packet (clause 10.3.10.3)
             self.location_table.new_shb_packet(long_position_vector, packet)
         except DADException:
@@ -650,7 +649,6 @@ class Router:
             print("Packet is duplicated")
         except DecodeError as e:
             print(str(e))
-
 
     def gn_data_indicate(self, packet: bytes) -> None:
         # pylint: disable=no-else-raise, too-many-branches

@@ -149,7 +149,7 @@ class CommonHeader:
         if len(header) < 8:
             raise DecodeError("Common Header must be 8 bytes long")
         return cls.decode_from_int(int.from_bytes(header[0:8], "big"))
-    
+
     @classmethod
     def initialize_beacon(cls) -> CommonHeader:
         """

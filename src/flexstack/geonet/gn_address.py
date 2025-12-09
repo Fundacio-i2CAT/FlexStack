@@ -220,7 +220,7 @@ class GNAddress:
         if len(data) < 8:
             raise DecodeError("GNAddress must be 8 bytes long")
         m = M((data[0] & 0x80) >> 7)
-        st = ST((data[0] & 0x78) >> 3)
+        st = ST((data[0] & 0x7C) >> 2)
         mid = MID(data[2:8])
         return cls(m=m, st=st, mid=mid)
 

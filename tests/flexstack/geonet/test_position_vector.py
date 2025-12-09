@@ -41,7 +41,7 @@ class TestLongPositionVector(unittest.TestCase):
         )
         lpv = lpv.set_tst_in_normal_timestamp_seconds(1674638854)
         self.assertEqual(lpv.encode(
-        ), bytes.fromhex('8800aabbcc112233198662f81f4dead007fd6f0480000000'))
+        ), bytes.fromhex('8400aabbcc112233198662f81f4dead007fd6f0480000000'))
 
     def test_decode(self):
         lpv = LongPositionVector.decode(
@@ -69,7 +69,7 @@ class TestShortPositionVector(unittest.TestCase):
         )
         spv = spv.set_tst_in_normal_timestamp_seconds(1674638854)
         self.assertEqual(spv.encode(
-        ), b'\x88\x00\xaa\xbb\xcc\x11"3\x19\x86b\xf8\x1fM\xea\xd0\x07\xfdo\x04')
+        ), b'\x84\x00\xaa\xbb\xcc\x11"3\x19\x86b\xf8\x1fM\xea\xd0\x07\xfdo\x04')
 
     def test_decode(self):
         spv = ShortPositionVector.decode(

@@ -12,7 +12,7 @@ class TestM(unittest.TestCase):
 class TestST(unittest.TestCase):
     def test_encode_to_address(self):
         self.assertEqual(ST(0).encode_to_address(), 0)
-        self.assertEqual(ST(1).encode_to_address(), 0x0800000000000000)
+        self.assertEqual(ST(1).encode_to_address(), 0x0400000000000000)
 
 
 class TestMID(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestGNAddress(unittest.TestCase):
             mid=MID(b'\xaa\xbb\xcc\x11\x22\x33')
         )
         self.assertEqual(gn_address.encode(),
-                         b'\x88\x00\xaa\xbb\xcc\x11\x22\x33')
+                         b'\x84\x00\xaa\xbb\xcc\x11\x22\x33')
 
     def test_decode(self):
         gn_address = GNAddress(
