@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 
-from flexstack.facilities.local_dynamic_map.ldm_classes import AccessPermission
+from ..local_dynamic_map.ldm_classes import AccessPermission
 from .vam_ldm_adaptation import VRUBasicServiceLDM
 from .vam_transmission_management import VAMTransmissionManagement, DeviceDataProvider
 from ...btp.router import Router as BTPRouter

@@ -90,7 +90,7 @@ class ST(Enum):
         bytes
             Encoded ST
         """
-        return (self.value << 3) << 8*7
+        return (self.value << 2) << 8*7
 
 
 class InvalidMIDLength(Exception):
