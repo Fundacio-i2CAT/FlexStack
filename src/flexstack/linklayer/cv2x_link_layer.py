@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections.abc import Callable
 import multiprocessing
+from multiprocessing.synchronize import Event as EventClass
 import threading
 
 # pylint: disable=import-error
@@ -68,7 +69,7 @@ class PythonCV2XLinkLayer(LinkLayer):
         self.link_layer.send(b"\x03" + packet)
 
     def receive_process(
-        self, callback_queue: multiprocessing.Queue, stop_event: multiprocessing.Event
+        self, callback_queue: multiprocessing.Queue, stop_event: EventClass
     ) -> None:
         """
         Process to receive data from CV2XLinkLayer and place it in the callback queue.

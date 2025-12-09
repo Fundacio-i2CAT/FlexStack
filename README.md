@@ -2,6 +2,25 @@
 
 <!--<img src="doc/img/logo.png" alt="V2X Flex Stack" width="200"/>--> <img src="https://raw.githubusercontent.com/Fundacio-i2CAT/FlexStack/refs/heads/master/doc/img/i2cat_logo.png" alt="i2CAT Logo" width="200"/>
 
+![Python versions](https://img.shields.io/badge/python-3.8%20|%203.9%20|%203.10%20|%203.11%20|%203.12%20|%203.13%20|%203.14-blue)
+
+[![3.8](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.8&style=flat-square&job=Unit%20Tests%20(Python%203.8))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.9](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.9&style=flat-square&job=Unit%20Tests%20(Python%203.9))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.10](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.10&style=flat-square&job=Unit%20Tests%20(Python%203.10))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.11](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.11&style=flat-square&job=Unit%20Tests%20(Python%203.11))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.12](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.12&style=flat-square&job=Unit%20Tests%20(Python%203.12))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.13](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.13&style=flat-square&job=Unit%20Tests%20(Python%203.13))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+[![3.14](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?label=3.14&style=flat-square&job=Unit%20Tests%20(Python%203.14))](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/general.yml)
+
+![Coverage](https://img.shields.io/codecov/c/github/YOUR_USER/YOUR_REPO)
+![Flake8](https://img.shields.io/badge/code%20style-flake8-blue)
+![Pylint](https://img.shields.io/badge/lint-pylint-yellowgreen)
+![Pyright](https://img.shields.io/badge/type--checker-pyright-blue)
+
+
+![Test Coverage](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?job=Test%20Coverage&label=Coverage) ![Run Flake8](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?job=Run%20Flake8&label=Flake8) ![Run Pylint](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?job=Run%20Pylint&label=Pylint) ![Run Pyright](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/general.yml?job=Run%20Pyright&label=Pyright)
+
+
 # Short description
 
 FlexStack(R) is a software library implementing the ETSI C-ITS protocol stack. Its aim is to facilitate and accelerate the development and integration of software applications on vehicles, vulnerable road users (VRU), and roadside infrastructure that requires the exchange of V2X messages (compliant with ETSI standards) with other actors of the V2X ecosystem.

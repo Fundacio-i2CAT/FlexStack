@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .sn_sap import SNSIGNRequest, SNSIGNConfirm
 from .certificate import OwnCertificate
 from .security_coder import SecurityCoder
@@ -20,7 +21,7 @@ class CooperativeAwarenessMessageSecurityHandler:
         self.last_signer_full_certificate_time: float = 0
         self.requested_own_certificate: bool = False
 
-    def sign(self, signed_data: dict, certificate: OwnCertificate) -> bytes:
+    def sign(self, signed_data: dict, certificate: OwnCertificate) -> None:
         """
         Sign the CAM.
         """
@@ -32,7 +33,7 @@ class CooperativeAwarenessMessageSecurityHandler:
         signed_data["content"][1]["signer"][1] = certificate.as_hashedid8()
         signed_data["content"][1]["signature"] = certificate.sign_message(tobesigned)
 
-    def set_up_signer(self, certificate: OwnCertificate) -> None:
+    def set_up_signer(self, certificate: OwnCertificate) -> tuple:
         """
         Set up the signer. According to the standard rules:
         - As default, the choice digest shall be included.
@@ -168,7 +169,9 @@ class SignService:
         tobesigned: bytes = self.coder.encode_to_be_signed_data(
             sigend_data_dict["content"][1]["tbsData"]
         )
-        at_item: OwnCertificate = self.get_present_at_for_signging(request.its_aid)
+        at_item: OwnCertificate | None = self.get_present_at_for_signging(request.its_aid)
+        if at_item is None:
+            raise RuntimeError("No present AT for signing CAM")
         sigend_data_dict["content"][1]["signer"] = ("digest", at_item.as_hashedid8())
         sigend_data_dict["content"][1]["signature"] = at_item.sign_message(tobesigned)
 
@@ -179,7 +182,7 @@ class SignService:
 
         return confirm
 
-    def get_present_at_for_signging(self, its_aid: int) -> OwnCertificate:
+    def get_present_at_for_signging(self, its_aid: int) -> OwnCertificate | None:
         """
         Get the present AT for a given ITS-AID.
         """

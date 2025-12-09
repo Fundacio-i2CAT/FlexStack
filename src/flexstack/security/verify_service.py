@@ -27,8 +27,6 @@ class VerifyService:
         """
         Verify the signature of a message
         """
-        verify_confirm = SNVERIFYConfirm()
-
         sec_header_decoded = self.security_coder.decode_etsi_ts_103097_data_signed(
             request.message
         )
@@ -44,8 +42,13 @@ class VerifyService:
                 )
             )
             if not authorization_ticket:
-                verify_confirm.report = ReportVerify.INCONSISTENT_CHAIN
-                return verify_confirm
+                return SNVERIFYConfirm(
+                    report=ReportVerify.INCONSISTENT_CHAIN,
+                    certificate_id=b'',
+                    its_aid=b'',
+                    its_aid_length=0,
+                    permissions=b'',
+                )
         elif signer[0] == "digest":
             authorization_ticket = (
                 self.certificate_library.get_authorization_ticket_by_hashedid8(
@@ -53,17 +56,22 @@ class VerifyService:
                 )
             )
             if not authorization_ticket:
-                verify_confirm.report = ReportVerify.INVALID_CERTIFICATE
-                return verify_confirm
+                return SNVERIFYConfirm(
+                    report=ReportVerify.INVALID_CERTIFICATE,
+                    certificate_id=b'',
+                    its_aid=b'',
+                    its_aid_length=0,
+                    permissions=b'',
+                )
         else:
             raise Exception("Unknown signer type")
         if (
-            authorization_ticket is not None
+            authorization_ticket is not None and authorization_ticket.certificate is not None
             and authorization_ticket.verify(authorization_ticket.issuer)
-            and authorization_ticket["toBeSigned"]["verifyKeyIndicator"][0]
+            and authorization_ticket.certificate["toBeSigned"]["verifyKeyIndicator"][0]
             == "verificationKey"
         ):
-            verification_key = authorization_ticket["toBeSigned"]["verifyKeyIndicator"][
+            verification_key = authorization_ticket.certificate["toBeSigned"]["verifyKeyIndicator"][
                 1
             ]
             verify = self.backend.verify_with_pk(
@@ -72,13 +80,25 @@ class VerifyService:
                 pk=verification_key,
             )
             if verify:
-                verify_confirm.report = ReportVerify.SUCCESS
-                verify_confirm.certificate_id = authorization_ticket.as_hashedid8()
-                verify_confirm.its_aid = b""
-                verify_confirm.its_aid_length = 0
-                verify_confirm.permissions = b""
+                return SNVERIFYConfirm(
+                    report=ReportVerify.SUCCESS,
+                    certificate_id=authorization_ticket.as_hashedid8(),
+                    its_aid=b'',
+                    its_aid_length=0,
+                    permissions=b'',
+                )
             else:
-                verify_confirm.report = ReportVerify.FALSE_SIGNATURE
-        else:
-            verify_confirm.report = ReportVerify.INVALID_CERTIFICATE
-        return verify_confirm
+                return SNVERIFYConfirm(
+                    report=ReportVerify.FALSE_SIGNATURE,
+                    certificate_id=authorization_ticket.as_hashedid8(),
+                    its_aid=b'',
+                    its_aid_length=0,
+                    permissions=b'',
+                )
+        return SNVERIFYConfirm(
+            report=ReportVerify.INVALID_CERTIFICATE,
+            certificate_id=b'',
+            its_aid=b'',
+            its_aid_length=0,
+            permissions=b'',
+        )

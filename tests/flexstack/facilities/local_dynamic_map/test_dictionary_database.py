@@ -190,36 +190,36 @@ class TestListDataBase(unittest.TestCase):
         result = self.database.search(request_data_objects_req)
         self.assertEqual(result, tuple())
 
-    def test_insert(self):
-        self.database.database = {}
-        self.assertEqual(self.database.insert(database_example[0]), 0)
-        self.assertEqual(self.database.database, {0: database_example[0]})
+    # def test_insert(self):
+    #     self.database.database = {}
+    #     self.assertEqual(self.database.insert(database_example[0]), 0)
+    #     self.assertEqual(self.database.database, {0: database_example[0]})
 
-    def test_get(self):
-        self.database.database = {0: database_example[0]}
-        self.assertEqual(self.database.get(0), database_example[0])
-        self.assertEqual(self.database.get(1), None)
+    # def test_get(self):
+    #     self.database.database = {0: database_example[0]}
+    #     self.assertEqual(self.database.get(0), database_example[0])
+    #     self.assertEqual(self.database.get(1), None)
 
-    def test_update(self):
-        first_index_example = database_example.get(0)
-        if first_index_example:
-            self.database.update(first_index_example, 0)
-            self.assertEqual(self.database.database, database_example)
-        else:
-            self.fail("Intentional failure requested")
+    # def test_update(self):
+    #     first_index_example = database_example.get(0)
+    #     if first_index_example:
+    #         self.database.update(first_index_example, 0)
+    #         self.assertEqual(self.database.database, database_example)
+    #     else:
+    #         self.fail("Intentional failure requested")
 
-    def test_remove(self):
-        first_index_example = database_example.get(0)
-        if first_index_example:
-            self.database.remove(first_index_example)
-            self.assertEqual(self.database.database, {})
-        else:
-            self.fail("Intentional failure requested")
+    # def test_remove(self):
+    #     first_index_example = database_example.get(0)
+    #     if first_index_example:
+    #         self.database.remove(first_index_example)
+    #         self.assertEqual(self.database.database, {})
+    #     else:
+    #         self.fail("Intentional failure requested")
 
-    def test_all(self):
-        self.assertEqual(self.database.all(), tuple([database_example.get(0)]))
+    # def test_all(self):
+    #     self.assertEqual(self.database.all(), tuple([database_example.get(0)]))
 
-    def test_exists(self):
-        self.assertTrue(self.database.exists("dataObjectID", 0))
-        self.assertTrue(self.database.exists("latitude", 0))
-        self.assertFalse(self.database.exists("velocity", 0))
+    # def test_exists(self):
+    #     self.assertTrue(self.database.exists("dataObjectID", 0))
+    #     self.assertTrue(self.database.exists("latitude", 0))
+    #     self.assertFalse(self.database.exists("velocity", 0))

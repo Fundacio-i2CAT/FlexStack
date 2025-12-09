@@ -98,14 +98,16 @@ class LDMService:
         tuple[dict, ...]
             tuple of data objects that match the filter.
         """
-        data_request = RequestDataObjectsReq(
-            subscription.subscription_request.application_id,
-            subscription.subscription_request.data_object_type,
-            subscription.subscription_request.priority,
-            subscription.subscription_request.order,
-            subscription.subscription_request.filter,
-        )
-        return self.ldm_maintenance.data_containers.search(data_request)
+        if subscription.subscription_request.filter is not None and subscription.subscription_request.order is not None and subscription.subscription_request.priority is not None:
+            data_request = RequestDataObjectsReq(
+                subscription.subscription_request.application_id,
+                subscription.subscription_request.data_object_type,
+                subscription.subscription_request.priority,
+                subscription.subscription_request.order,
+                subscription.subscription_request.filter,
+            )
+            return self.ldm_maintenance.data_containers.search(data_request)
+        return ()
 
     def filter_data_object_type(
         self, search_result: tuple[dict, ...], allowed_types: tuple[str, ...]

@@ -1,0 +1,7 @@
+{
+  "include": ["src"],
+  "typeCheckingMode": "standard",
+  "exclude": [
+    "src/flexstack/security/ecdsa_backend.py" // TODO: File to be reviewed for type hints
+  ]
+}
