@@ -1,0 +1,26 @@
+name: Flake8
+
+on:
+  push:
+    branches:
+      - master
+      - "**"
+
+jobs:
+  flake8:
+    name: Run Flake8
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install flake8
+      - name: Run Flake8 on code
+        run: flake8 --ignore E501,E226,W503 --exclude src/flexstack/facilities/vru_awareness_service/vam_asn1.py,src/flexstack/facilities/ca_basic_service/cam_asn1.py,src/flexstack/security/security_asn1.py,,src/flexstack/facilities/decentralized_environmental_notification_service/asn1/*,src/flexstack/utils/asn1/* src/
+      - name: Run Flake8 on tests
+        run: flake8 --ignore E501,E226 tests/

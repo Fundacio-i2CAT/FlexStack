@@ -1,0 +1,24 @@
+name: Pyright
+
+on:
+  push:
+    branches:
+      - master
+      - "**"
+
+jobs:
+  pyright:
+    name: Run Pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Install Pyright
+        run: pip install pyright
+      - name: Run Pyright
+        run: pyright

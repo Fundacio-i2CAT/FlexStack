@@ -1,0 +1,35 @@
+name: Test Coverage
+
+on:
+  push:
+    branches:
+      - master
+      - "**"
+
+jobs:
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install coverage
+      - name: Run Coverage
+        run: |
+          coverage run -m unittest discover
+          coverage xml
+          coverage html
+          coverage report -m --fail-under=93
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov
