@@ -40,73 +40,90 @@ class TestCertificateLibrary(unittest.TestCase):
     def test_init_with_root_certificate(self):
         """Test initialization with root certificates"""
         library = CertificateLibrary(self.backend, [self.root_cert], [], [])
-        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08', library.known_root_certificates)
+        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08',
+                      library.known_root_certificates)
 
     def test_init_with_aa_certificate(self):
         """Test initialization with AA certificates"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
-        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08', library.known_root_certificates)
-        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18', library.known_authorization_authorities)
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
+        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08',
+                      library.known_root_certificates)
+        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18',
+                      library.known_authorization_authorities)
 
     def test_init_with_at_certificate(self):
         """Test initialization with AT certificates"""
         library = CertificateLibrary(
             self.backend, [self.root_cert], [self.aa_cert], [self.at_cert]
         )
-        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08', library.known_root_certificates)
-        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18', library.known_authorization_authorities)
-        self.assertIn(b'\x21\x22\x23\x24\x25\x26\x27\x28', library.known_authorization_tickets)
+        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08',
+                      library.known_root_certificates)
+        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18',
+                      library.known_authorization_authorities)
+        self.assertIn(b'\x21\x22\x23\x24\x25\x26\x27\x28',
+                      library.known_authorization_tickets)
 
     def test_add_root_certificate_valid(self):
         """Test adding a valid root certificate"""
         library = CertificateLibrary(self.backend, [], [], [])
         library.add_root_certificate(self.root_cert)
-        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08', library.known_root_certificates)
+        self.assertIn(b'\x01\x02\x03\x04\x05\x06\x07\x08',
+                      library.known_root_certificates)
 
     def test_add_root_certificate_invalid(self):
         """Test adding an invalid root certificate"""
         library = CertificateLibrary(self.backend, [], [], [])
         self.root_cert.verify.return_value = False
         library.add_root_certificate(self.root_cert)
-        self.assertNotIn(b'\x01\x02\x03\x04\x05\x06\x07\x08', library.known_root_certificates)
+        self.assertNotIn(b'\x01\x02\x03\x04\x05\x06\x07\x08',
+                         library.known_root_certificates)
 
     def test_add_authorization_authority_valid(self):
         """Test adding a valid AA certificate"""
         library = CertificateLibrary(self.backend, [self.root_cert], [], [])
         library.add_authorization_authority(self.aa_cert)
-        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18', library.known_authorization_authorities)
+        self.assertIn(b'\x11\x12\x13\x14\x15\x16\x17\x18',
+                      library.known_authorization_authorities)
 
     def test_add_authorization_authority_no_issuer(self):
         """Test adding an AA certificate without a known issuer"""
         library = CertificateLibrary(self.backend, [], [], [])
         library.add_authorization_authority(self.aa_cert)
-        self.assertNotIn(b'\x11\x12\x13\x14\x15\x16\x17\x18', library.known_authorization_authorities)
+        self.assertNotIn(b'\x11\x12\x13\x14\x15\x16\x17\x18',
+                         library.known_authorization_authorities)
 
     def test_add_authorization_authority_invalid(self):
         """Test adding an invalid AA certificate"""
         library = CertificateLibrary(self.backend, [self.root_cert], [], [])
         self.aa_cert.verify.return_value = False
         library.add_authorization_authority(self.aa_cert)
-        self.assertNotIn(b'\x11\x12\x13\x14\x15\x16\x17\x18', library.known_authorization_authorities)
+        self.assertNotIn(b'\x11\x12\x13\x14\x15\x16\x17\x18',
+                         library.known_authorization_authorities)
 
     def test_add_authorization_ticket_valid(self):
         """Test adding a valid AT certificate"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
         library.add_authorization_ticket(self.at_cert)
-        self.assertIn(b'\x21\x22\x23\x24\x25\x26\x27\x28', library.known_authorization_tickets)
+        self.assertIn(b'\x21\x22\x23\x24\x25\x26\x27\x28',
+                      library.known_authorization_tickets)
 
     def test_add_authorization_ticket_no_issuer(self):
         """Test adding an AT certificate without a known issuer"""
         library = CertificateLibrary(self.backend, [], [], [])
         library.add_authorization_ticket(self.at_cert)
-        self.assertNotIn(b'\x21\x22\x23\x24\x25\x26\x27\x28', library.known_authorization_tickets)
+        self.assertNotIn(b'\x21\x22\x23\x24\x25\x26\x27\x28',
+                         library.known_authorization_tickets)
 
     def test_add_authorization_ticket_invalid(self):
         """Test adding an invalid AT certificate"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
         self.at_cert.verify.return_value = False
         library.add_authorization_ticket(self.at_cert)
-        self.assertNotIn(b'\x21\x22\x23\x24\x25\x26\x27\x28', library.known_authorization_tickets)
+        self.assertNotIn(b'\x21\x22\x23\x24\x25\x26\x27\x28',
+                         library.known_authorization_tickets)
 
     def test_add_authorization_ticket_duplicate(self):
         """Test adding a duplicate AT certificate"""
@@ -121,7 +138,8 @@ class TestCertificateLibrary(unittest.TestCase):
 
     def test_add_own_certificate_valid(self):
         """Test adding a valid own certificate"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
         own_cert = MagicMock(spec=OwnCertificate)
         own_cert.verify.return_value = True
         own_cert.as_hashedid8.return_value = b'\x31\x32\x33\x34\x35\x36\x37\x38'
@@ -129,7 +147,8 @@ class TestCertificateLibrary(unittest.TestCase):
             "issuer": ("sha256AndDigest", b'\x11\x12\x13\x14\x15\x16\x17\x18')
         }
         library.add_own_certificate(own_cert)
-        self.assertIn(b'\x31\x32\x33\x34\x35\x36\x37\x38', library.own_certificates)
+        self.assertIn(b'\x31\x32\x33\x34\x35\x36\x37\x38',
+                      library.own_certificates)
 
     def test_add_own_certificate_no_issuer(self):
         """Test adding an own certificate without a known issuer"""
@@ -141,7 +160,8 @@ class TestCertificateLibrary(unittest.TestCase):
             "issuer": ("sha256AndDigest", b'\x11\x12\x13\x14\x15\x16\x17\x18')
         }
         library.add_own_certificate(own_cert)
-        self.assertNotIn(b'\x31\x32\x33\x34\x35\x36\x37\x38', library.own_certificates)
+        self.assertNotIn(b'\x31\x32\x33\x34\x35\x36\x37\x38',
+                         library.own_certificates)
 
     def test_get_issuer_certificate_self_signed(self):
         """Test getting issuer for a self-signed certificate"""
@@ -157,7 +177,8 @@ class TestCertificateLibrary(unittest.TestCase):
 
     def test_get_issuer_certificate_from_aa(self):
         """Test getting issuer from AA certificates"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
         result = library.get_issuer_certificate(self.at_cert)
         self.assertEqual(result, self.aa_cert)
 
@@ -182,13 +203,15 @@ class TestCertificateLibrary(unittest.TestCase):
         library = CertificateLibrary(
             self.backend, [self.root_cert], [self.aa_cert], [self.at_cert]
         )
-        result = library.get_authorization_ticket_by_hashedid8(b'\x21\x22\x23\x24\x25\x26\x27\x28')
+        result = library.get_authorization_ticket_by_hashedid8(
+            b'\x21\x22\x23\x24\x25\x26\x27\x28')
         self.assertEqual(result, self.at_cert)
 
     def test_get_authorization_ticket_by_hashedid8_not_found(self):
         """Test getting AT by hashedid8 when not found"""
         library = CertificateLibrary(self.backend, [], [], [])
-        result = library.get_authorization_ticket_by_hashedid8(b'\x21\x22\x23\x24\x25\x26\x27\x28')
+        result = library.get_authorization_ticket_by_hashedid8(
+            b'\x21\x22\x23\x24\x25\x26\x27\x28')
         self.assertIsNone(result)
 
     @patch.object(Certificate, 'from_dict')
@@ -208,13 +231,15 @@ class TestCertificateLibrary(unittest.TestCase):
         mock_cert.as_hashedid8.return_value = b'\x21\x22\x23\x24\x25\x26\x27\x28'
         mock_from_dict.return_value = mock_cert
 
-        result = library.verify_sequence_of_certificates([{"cert": "data"}], self.backend)
+        result = library.verify_sequence_of_certificates(
+            [{"cert": "data"}], self.backend)
         self.assertEqual(result, self.at_cert)
 
     @patch.object(Certificate, 'from_dict')
     def test_verify_sequence_of_certificates_single_unknown_valid(self, mock_from_dict):
         """Test verifying a single unknown but valid certificate"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
 
         mock_cert = MagicMock(spec=Certificate)
         mock_cert.as_hashedid8.return_value = b'\x41\x42\x43\x44\x45\x46\x47\x48'
@@ -224,13 +249,15 @@ class TestCertificateLibrary(unittest.TestCase):
         }
         mock_from_dict.return_value = mock_cert
 
-        result = library.verify_sequence_of_certificates([{"cert": "data"}], self.backend)
+        result = library.verify_sequence_of_certificates(
+            [{"cert": "data"}], self.backend)
         self.assertEqual(result, mock_cert)
 
     @patch.object(Certificate, 'from_dict')
     def test_verify_sequence_of_certificates_single_unknown_invalid(self, mock_from_dict):
         """Test verifying a single unknown and invalid certificate"""
-        library = CertificateLibrary(self.backend, [self.root_cert], [self.aa_cert], [])
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], [])
 
         mock_cert = MagicMock(spec=Certificate)
         mock_cert.as_hashedid8.return_value = b'\x41\x42\x43\x44\x45\x46\x47\x48'
@@ -240,7 +267,8 @@ class TestCertificateLibrary(unittest.TestCase):
         }
         mock_from_dict.return_value = mock_cert
 
-        result = library.verify_sequence_of_certificates([{"cert": "data"}], self.backend)
+        result = library.verify_sequence_of_certificates(
+            [{"cert": "data"}], self.backend)
         self.assertIsNone(result)
 
     @patch.object(Certificate, 'from_dict')
@@ -280,9 +308,9 @@ class TestCertificateLibrary(unittest.TestCase):
 
         mock_from_dict.return_value = mock_root
 
-        with patch.object(library, 'verify_sequence_of_certificates', wraps=library.verify_sequence_of_certificates) as mock_verify:
+        with patch.object(library, 'verify_sequence_of_certificates', wraps=library.verify_sequence_of_certificates):
             # This will call recursively with certificates[:-1]
-            result = library.verify_sequence_of_certificates(
+            _ = library.verify_sequence_of_certificates(
                 [{"at": "data"}, {"aa": "data"}, {"root": "data"}], self.backend
             )
 
