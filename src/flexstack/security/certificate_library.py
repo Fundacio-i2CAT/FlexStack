@@ -1,7 +1,6 @@
 from __future__ import annotations
 from flexstack.security.ecdsa_backend import ECDSABackend
 
-from flexstack.security.security_coder import SecurityCoder
 from .certificate import Certificate, OwnCertificate
 
 
@@ -29,6 +28,7 @@ class CertificateLibrary:
 
     def __init__(
         self,
+        ecdsa_backend: ECDSABackend,
         root_certificates: list[Certificate],
         aa_certificates: list[Certificate],
         at_certificates: list[Certificate],
@@ -49,6 +49,7 @@ class CertificateLibrary:
         self.known_authorization_tickets = {}
         self.known_authorization_authorities = {}
         self.known_root_certificates = {}
+        self.ecdsa_backend = ecdsa_backend
         # Root certificates
         for root_certificate in root_certificates:
             self.add_root_certificate(root_certificate)
@@ -74,8 +75,6 @@ class CertificateLibrary:
             The issuer certificate. It returns None if the issuer is self.
             Or issuer not found.
         """
-        if certificate.certificate is None:
-            raise ValueError("Certificate not initialized")
         if certificate.certificate["issuer"][0] == "self":
             return None
         if certificate.certificate["issuer"][0] == "sha256AndDigest":
@@ -108,7 +107,7 @@ class CertificateLibrary:
         if certificate.as_hashedid8() not in self.known_authorization_tickets.keys():
             issuer_certificate = self.get_issuer_certificate(certificate)
             if issuer_certificate is not None:
-                if certificate.verify(issuer_certificate):
+                if certificate.verify(self.ecdsa_backend):
                     self.known_authorization_tickets[certificate.as_hashedid8()] = (
                         certificate
                     )
@@ -128,7 +127,7 @@ class CertificateLibrary:
         ):
             issuer_certificate = self.get_issuer_certificate(certificate)
             if issuer_certificate is not None:
-                if certificate.verify(issuer_certificate):
+                if certificate.verify(self.ecdsa_backend):
                     self.known_authorization_authorities[certificate.as_hashedid8()] = (
                         certificate
                     )
@@ -142,8 +141,9 @@ class CertificateLibrary:
         certificate : Certificate
             The root certificate to add.
         """
-        if certificate.verify():
-            self.known_root_certificates[certificate.as_hashedid8()] = certificate
+        if certificate.verify(self.ecdsa_backend):
+            self.known_root_certificates[certificate.as_hashedid8(
+            )] = certificate
 
     def add_own_certificate(self, certificate: OwnCertificate) -> None:
         """
@@ -155,7 +155,7 @@ class CertificateLibrary:
             The certificate to add
         """
         issuer_certificate = self.get_issuer_certificate(certificate)
-        if issuer_certificate is not None and certificate.verify(issuer_certificate):
+        if issuer_certificate is not None and certificate.verify(self.ecdsa_backend):
             self.own_certificates[certificate.as_hashedid8()] = certificate
 
     def get_authorization_ticket_by_hashedid8(self, hashedid8: bytes) -> Certificate | None:
@@ -172,7 +172,7 @@ class CertificateLibrary:
         return None
 
     def verify_sequence_of_certificates(
-        self, certificates: list[dict], coder: SecurityCoder, backend: ECDSABackend
+        self, certificates: list[dict], backend: ECDSABackend
     ) -> Certificate | None:
         """
         Verification of a sequence of certificates as specified in IEEE 1609.2. Signer Identifer.
@@ -195,24 +195,24 @@ class CertificateLibrary:
         if len(certificates) == 0:
             return None
         elif len(certificates) == 1:
-            temp_certificate = Certificate(coder=coder, backend=backend)
-            temp_certificate.from_dict(certificates[0])
+            temp_certificate = Certificate.from_dict(
+                certificate=certificates[0])
             if (
                 temp_certificate.as_hashedid8()
                 in self.known_authorization_tickets.keys()
             ):
                 return self.known_authorization_tickets[temp_certificate.as_hashedid8()]
             issuer_certificate = self.get_issuer_certificate(temp_certificate)
+            temp_certificate = Certificate.from_dict(
+                certificate=certificates[0], issuer=issuer_certificate)
             if issuer_certificate is not None and temp_certificate.verify(
-                issuer_certificate
+                backend
             ):
                 self.add_authorization_ticket(temp_certificate)
                 return temp_certificate
         elif len(certificates) == 2:
-            authorization_ticket = Certificate(coder=coder, backend=backend)
-            authorization_ticket.from_dict(certificates[0])
-            authorization_authority = Certificate(coder=coder, backend=backend)
-            authorization_authority.from_dict(certificates[1])
+            authorization_authority = Certificate.from_dict(
+                certificate=certificates[1])
             authorization_authority_issuer_hashedid8 = (
                 authorization_authority.get_issuer_hashedid8()
             )
@@ -223,16 +223,22 @@ class CertificateLibrary:
                 root_certificate = self.known_root_certificates[
                     authorization_authority_issuer_hashedid8
                 ]
-                if authorization_authority.verify(root_certificate):
+                authorization_authority = Certificate.from_dict(
+                    certificate=certificates[1], issuer=root_certificate
+                )
+                if authorization_authority.verify(backend=backend):
                     self.add_authorization_authority(authorization_authority)
-                    if authorization_ticket.verify(authorization_authority):
+                    authorization_ticket = Certificate.from_dict(
+                        certificate=certificates[0],
+                        issuer=authorization_authority,
+                    )
+                    if authorization_ticket.verify(backend=backend):
                         self.add_authorization_ticket(authorization_ticket)
                         return authorization_ticket
         elif len(certificates) == 3:
-            root_certificate = Certificate(coder=coder, backend=backend)
-            root_certificate.from_dict(certificates[-1])
+            root_certificate = Certificate.from_dict(certificates[-1])
             if root_certificate.as_hashedid8() in self.known_root_certificates.keys():
                 return self.verify_sequence_of_certificates(
-                    certificates[:-1], coder, backend
+                    certificates[:-1], backend
                 )
         return None

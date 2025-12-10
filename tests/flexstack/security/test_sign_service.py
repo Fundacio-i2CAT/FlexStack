@@ -1,8 +1,7 @@
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from flexstack.security.sn_sap import SNSIGNRequest, SNSIGNConfirm
 from flexstack.security.certificate import OwnCertificate
-from flexstack.security.security_coder import SecurityCoder
 from flexstack.security.ecdsa_backend import ECDSABackend
 from flexstack.utils.time_service import TimeService
 from flexstack.security.sign_service import (
@@ -14,29 +13,29 @@ from flexstack.security.sign_service import (
 class TestCooperativeAwarenessMessageSecurityHandler(unittest.TestCase):
 
     def setUp(self):
-        self.coder = Mock(spec=SecurityCoder)
         self.ecdsa_backend = Mock(spec=ECDSABackend)
         self.certificate = Mock(spec=OwnCertificate)
         self.handler = CooperativeAwarenessMessageSecurityHandler(
-            self.coder, self.ecdsa_backend
+            self.ecdsa_backend
         )
 
-    def test_sign(self):
+    @patch('flexstack.security.sign_service.SECURITY_CODER')
+    def test_sign(self, mock_coder):
         signed_data = {
             "content": [
                 None,
                 {"tbsData": "test_data", "signer": [None, None], "signature": None},
             ]
         }
-        self.coder.encode_to_be_signed_data.return_value = b"encoded_tbsData"
+        mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbsData"
         self.certificate.as_hashedid8.return_value = b"hashedid8"
         self.certificate.sign_message.return_value = b"signed_message"
 
         self.handler.sign(signed_data, self.certificate)
 
-        self.coder.encode_to_be_signed_data.assert_called_once_with("test_data")
+        mock_coder.encode_to_be_signed_data.assert_called_once_with("test_data")
         self.certificate.as_hashedid8.assert_called_once()
-        self.certificate.sign_message.assert_called_once_with(b"encoded_tbsData")
+        self.certificate.sign_message.assert_called_once_with(self.ecdsa_backend, b"encoded_tbsData")
         self.assertEqual(signed_data["content"][1]["signer"][1], b"hashedid8")
         self.assertEqual(signed_data["content"][1]["signature"], b"signed_message")
 
@@ -64,8 +63,7 @@ class TestSignService(unittest.TestCase):
 
     def setUp(self):
         self.backend = Mock(spec=ECDSABackend)
-        self.security_coder = Mock(spec=SecurityCoder)
-        self.sign_service = SignService(self.backend, self.security_coder)
+        self.sign_service = SignService(self.backend)
 
     def test_sign_request_not_implemented(self):
         for aid in [36, 37, 137, 138, 139, 141, 540, 801, 639, 638]:
@@ -74,18 +72,19 @@ class TestSignService(unittest.TestCase):
             with self.assertRaises(NotImplementedError):
                 self.sign_service.sign_request(request)
 
-    def test_sign_cam(self):
+    @patch('flexstack.security.sign_service.SECURITY_CODER')
+    def test_sign_cam(self, mock_coder):
         request = Mock(spec=SNSIGNRequest)
         request.its_aid = 999
         request.tbs_message = b"test_message"
-        self.sign_service.coder.encode_to_be_signed_data.return_value = b"encoded_tbsData"
+        mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbsData"
         present_at = Mock(spec=OwnCertificate)
         present_at.as_hashedid8.return_value = b"hashedid8"
         present_at.sign_message.return_value = b"signed_message"
         self.sign_service.get_present_at_for_signging = MagicMock(
             return_value=present_at
         )
-        self.sign_service.coder.encode_etsi_ts_103097_data_signed.return_value = (
+        mock_coder.encode_etsi_ts_103097_data_signed.return_value = (
             b"encoded_signed_data"
         )
 

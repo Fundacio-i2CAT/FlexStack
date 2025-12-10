@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .sn_sap import SNSIGNRequest, SNSIGNConfirm
-from .certificate import OwnCertificate
-from .security_coder import SecurityCoder
+from .certificate import OwnCertificate, SECURITY_CODER
 from .ecdsa_backend import ECDSABackend
 from ..utils.time_service import TimeService
 
@@ -15,9 +14,8 @@ class CooperativeAwarenessMessageSecurityHandler:
 
     """
 
-    def __init__(self, coder: SecurityCoder, ecdsa_backend: ECDSABackend) -> None:
-        self.coder: SecurityCoder = coder
-        # self.ecdsa_backend : ECDSABackend = ecdsa_backend
+    def __init__(self, backend: ECDSABackend) -> None:
+        self.backend: ECDSABackend = backend
         self.last_signer_full_certificate_time: float = 0
         self.requested_own_certificate: bool = False
 
@@ -25,13 +23,14 @@ class CooperativeAwarenessMessageSecurityHandler:
         """
         Sign the CAM.
         """
-        tobesigned: bytes = self.coder.encode_to_be_signed_data(
+        tobesigned: bytes = SECURITY_CODER.encode_to_be_signed_data(
             signed_data["content"][1]["tbsData"]
         )
         # at_item : OwnCertificate = self.get_present_at_for_signging(request.its_aid)
 
         signed_data["content"][1]["signer"][1] = certificate.as_hashedid8()
-        signed_data["content"][1]["signature"] = certificate.sign_message(tobesigned)
+        signed_data["content"][1]["signature"] = certificate.sign_message(
+            self.backend, tobesigned)
 
     def set_up_signer(self, certificate: OwnCertificate) -> tuple:
         """
@@ -81,12 +80,11 @@ class SignService:
         The present ats stores the ATs to use for signing. Indexed by the AT's backend id. Each AT is stored as a Certificate.
     """
 
-    def __init__(self, backend: ECDSABackend, security_coder: SecurityCoder) -> None:
+    def __init__(self, backend: ECDSABackend) -> None:
         """
         Initialize the Sign Service.
         """
         self.ecdsa_backend: ECDSABackend = backend
-        self.coder: SecurityCoder = security_coder
         self.knwon_ats = {}
         self.unknown_ats = {}
         self.requested_ats = {}
@@ -103,7 +101,8 @@ class SignService:
         elif request.its_aid == 37:
             raise NotImplementedError("DEN signing is not implemented")
         elif request.its_aid == 137:
-            raise NotImplementedError("TLM signing is not implemented (SPATEM)")
+            raise NotImplementedError(
+                "TLM signing is not implemented (SPATEM)")
         elif request.its_aid == 138:
             raise NotImplementedError("RLT signing is not implemented (MAPEM)")
         elif request.its_aid == 139:
@@ -166,16 +165,20 @@ class SignService:
                 "requestedCertificate"
             ] = self.get_known_at_for_request(self.requested_ats.pop(0))
 
-        tobesigned: bytes = self.coder.encode_to_be_signed_data(
+        tobesigned: bytes = SECURITY_CODER.encode_to_be_signed_data(
             sigend_data_dict["content"][1]["tbsData"]
         )
-        at_item: OwnCertificate | None = self.get_present_at_for_signging(request.its_aid)
+        at_item: OwnCertificate | None = self.get_present_at_for_signging(
+            request.its_aid)
         if at_item is None:
             raise RuntimeError("No present AT for signing CAM")
-        sigend_data_dict["content"][1]["signer"] = ("digest", at_item.as_hashedid8())
-        sigend_data_dict["content"][1]["signature"] = at_item.sign_message(tobesigned)
+        sigend_data_dict["content"][1]["signer"] = (
+            "digest", at_item.as_hashedid8())
+        sigend_data_dict["content"][1]["signature"] = at_item.sign_message(
+            self.ecdsa_backend, tobesigned)
 
-        sec_message = self.coder.encode_etsi_ts_103097_data_signed(sigend_data_dict)
+        sec_message = SECURITY_CODER.encode_etsi_ts_103097_data_signed(
+            sigend_data_dict)
         confirm = SNSIGNConfirm(
             sec_message=sec_message, sec_message_length=len(sec_message)
         )
