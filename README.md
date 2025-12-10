@@ -2,22 +2,24 @@
 
 <!--<img src="doc/img/logo.png" alt="V2X Flex Stack" width="200"/>--> <img src="https://raw.githubusercontent.com/Fundacio-i2CAT/FlexStack/refs/heads/master/doc/img/i2cat_logo.png" alt="i2CAT Logo" width="200"/>
 
-![Python versions](https://img.shields.io/badge/python-3.8%20|%203.9%20|%203.10%20|%203.11%20|%203.12%20|%203.13%20|%203.14%20|%20PyPy3.11-blue)
+![Python versions](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%20PyPy3.11-blue)
 
-[![3.8](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.8.yml?label=3.8&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.8.yml)
-[![3.9](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.9.yml?label=3.9&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.9.yml)
-[![3.10](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.10.yml?label=3.10&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.10.yml)
-[![3.11](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.11.yml?label=3.11&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.11.yml)
-[![3.12](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.12.yml?label=3.12&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.12.yml)
-[![3.13](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.13.yml?label=3.13&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.13.yml)
-[![3.14](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-python3.14.yml?label=3.14&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.14.yml)
-[![PyPy3.11](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/test-pypy3.11.yml?label=PyPy3.11&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-pypy3.11.yml)
+[![3.8](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.8.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.8.yml)
+[![3.9](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.9.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.9.yml)
+[![3.10](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.10.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.10.yml)
+[![3.11](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.11.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.11.yml)
+[![3.12](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.12.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.12.yml)
+[![3.13](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.13.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.13.yml)
+[![3.14](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.14.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-python3.14.yml)
+[![PyPy 3.11](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-pypy3.11.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/test-pypy3.11.yml)
 
-[![Coverage](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/coverage.yml?label=Coverage&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/coverage.yml)
-[![Flake8](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/flake8.yml?label=Flake8&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/flake8.yml)
-[![Pylint](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/pylint.yml?label=Pylint&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/pylint.yml)
-[![Pyright](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/pyright.yml?label=Pyright&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/pyright.yml)
-[![Build](https://img.shields.io/github/actions/workflow/status/Fundacio-i2CAT/FlexStack/build.yml?label=Build&style=flat-square)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/build.yml)
+![Coverage](https://img.shields.io/codecov/c/github/YOUR_USER/YOUR_REPO)
+![Flake8](https://img.shields.io/badge/code%20style-flake8-blue)
+![Pylint](https://img.shields.io/badge/lint-pylint-yellowgreen)
+![Pyright](https://img.shields.io/badge/type--checker-pyright-blue)
+
+
+[![Test Coverage](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/coverage.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/coverage.yml) [![Flake8](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/flake8.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/flake8.yml) [![Flake8](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/flake8.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/flake8.yml) [![Pyright](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/pyright.yml/badge.svg)](https://github.com/Fundacio-i2CAT/FlexStack/actions/workflows/pyright.yml)
 
 
 # Short description
