@@ -1,4 +1,4 @@
-name: Unit Tests (Python 3.10)
+name: 3.10
 
 on:
   push:
