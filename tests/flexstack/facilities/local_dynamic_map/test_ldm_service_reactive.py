@@ -14,11 +14,11 @@ class TestLDMServiceReactive(unittest.TestCase):
         self.ldm_maintenance = MagicMock()
         self.ldm_service = LDMServiceReactive(self.ldm_maintenance)
 
-    @patch("builtins.super")
+    @patch("flexstack.facilities.local_dynamic_map.ldm_service.LDMService.add_provider_data")
     @patch("time.monotonic")
-    def test_add_provider_data(self, mock_monotonic, mock_ldm_service):
+    def test_add_provider_data(self, mock_monotonic, mock_parent_add_provider_data):
         mock_monotonic.return_value = 1000.0
-        mock_ldm_service().add_provider_data = MagicMock(return_value=1)
+        mock_parent_add_provider_data.return_value = 1
         self.ldm_service.attend_subscriptions = MagicMock()
         test_dict = {"a": 1, "b": 2}
 
@@ -29,5 +29,5 @@ class TestLDMServiceReactive(unittest.TestCase):
             data_object=test_dict,
             time_validity=MagicMock(),)
         self.ldm_service.add_provider_data(provider_data_request)
-        mock_ldm_service().add_provider_data.assert_called_once_with(provider_data_request)
+        mock_parent_add_provider_data.assert_called_once_with(provider_data_request)
         self.ldm_service.attend_subscriptions.assert_called_once()
