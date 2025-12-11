@@ -37,8 +37,7 @@ class TST:
         utc_timestamp_seconds : float
             Timestamp in normal UTC timestamp format.
         """
-        msec = ((utc_timestamp_seconds - ITS_EPOCH
-                + ELAPSED_SECONDS) * 1000) % 2 ** 32
+        msec = ((utc_timestamp_seconds - ITS_EPOCH) * 1000) % 2 ** 32
         return cls(msec=int(msec))
 
     @classmethod
@@ -51,8 +50,7 @@ class TST:
         utc_timestamp_milliseconds : int
             Timestamp in normal UTC timestamp format.
         """
-        msec = (utc_timestamp_milliseconds - ITS_EPOCH_MS
-                + ELAPSED_MILLISECONDS) % 2 ** 32
+        msec = (utc_timestamp_milliseconds - ITS_EPOCH_MS) % 2 ** 32
         return cls(msec=int(msec))
 
     def encode(self) -> int:
