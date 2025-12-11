@@ -118,7 +118,7 @@ class GenerationDeltaTime:
             Timestamp in seconds.
         """
         msec = (
-            utc_timestamp_in_seconds * 1000 - ITS_EPOCH_MS + ELAPSED_MILLISECONDS
+            utc_timestamp_in_seconds * 1000 - ITS_EPOCH_MS
         ) % 65536
         return cls(msec=int(msec))
 
@@ -138,12 +138,12 @@ class GenerationDeltaTime:
             Timestamp of the generation delta time in milliseconds
         """
         number_of_cycles = trunc(
-            (utc_timestamp_in_millis - ITS_EPOCH_MS + ELAPSED_MILLISECONDS) / 65536)
+            (utc_timestamp_in_millis - ITS_EPOCH_MS) / 65536)
         transformed_timestamp = self.msec + 65536 * \
-            number_of_cycles + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+            number_of_cycles + ITS_EPOCH_MS
         if transformed_timestamp <= utc_timestamp_in_millis:
             return transformed_timestamp
-        return self.msec + 65536 * (number_of_cycles - 1) + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+        return self.msec + 65536 * (number_of_cycles - 1) + ITS_EPOCH_MS
 
     def __gt__(self, other: object) -> bool:
         """
