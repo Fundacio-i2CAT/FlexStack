@@ -73,7 +73,7 @@ class CAMReceptionManagement:
         cam["utc_timestamp"] = utc_timestamp
         if self.ca_basic_service_ldm is not None:
             self.ca_basic_service_ldm.add_provider_data_to_ldm(cam)
-        self.logging.debug(
+        self.logging.info(
             "Received CAM with timestamp: %s, station_id: %s",
             cam["cam"]["generationDeltaTime"],
             cam["header"]["stationId"],

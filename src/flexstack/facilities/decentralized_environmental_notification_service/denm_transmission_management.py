@@ -267,7 +267,7 @@ class DENMTransmissionManagement:
             length=len(data),
         )
         self.btp_router.btp_data_request(request)
-        self.logging.debug(
+        self.logging.info(
             "Sent DENM with timestamp: %s, station_id: %s",
             denm_to_send.denm["denm"]["management"]["referenceTime"],
             denm_to_send.denm["header"]["stationId"],

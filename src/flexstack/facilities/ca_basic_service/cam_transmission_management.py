@@ -637,7 +637,7 @@ class CAMTransmissionManagement:
         )
 
         self.btp_router.btp_data_request(request)
-        self.logging.debug(
+        self.logging.info(
             "Sent CAM message with timestamp: %d, station_id: %d",
             cam.cam["cam"]["generationDeltaTime"],
             cam.cam["header"]["stationId"],

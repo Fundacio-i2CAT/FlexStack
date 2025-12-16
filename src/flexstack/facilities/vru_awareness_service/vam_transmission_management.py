@@ -677,7 +677,7 @@ class VAMTransmissionManagement:
             length=len(data),
         )
         self.btp_router.btp_data_request(request)
-        self.logging.debug(
+        self.logging.info(
             "Sent VAM message with timestamp: %s, station_id: %s",
             vam.vam['vam']['generationDeltaTime'],
             vam.vam['header']['stationId']
