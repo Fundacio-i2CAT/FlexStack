@@ -17,7 +17,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
-from ...utils.time_service import ITS_EPOCH_MS, ELAPSED_MILLISECONDS
+from ...utils.time_service import TimeService, ITS_EPOCH_MS, ELAPSED_MILLISECONDS
 from .cam_ldm_adaptation import CABasicServiceLDM
 
 T_GEN_CAM_MIN = 100  # T_GenCamMin [in ms]
@@ -622,6 +622,8 @@ class CAMTransmissionManagement:
         Send the next CAM.
         """
         if self.ca_basic_service_ldm is not None:
+            cam_ldm = cam.cam.copy()
+            cam_ldm["utc_timestamp"] = TimeService.time()
             self.ca_basic_service_ldm.add_provider_data_to_ldm(
                 cam.cam
             )

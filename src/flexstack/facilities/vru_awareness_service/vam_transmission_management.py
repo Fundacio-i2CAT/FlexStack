@@ -19,6 +19,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
+from ...utils.time_service import TimeService
 from ..ca_basic_service.cam_transmission_management import CooperativeAwarenessMessage, GenerationDeltaTime
 from . import vam_constants
 
@@ -663,6 +664,8 @@ class VAMTransmissionManagement:
         BTP Port Number: 2018
         """
         if self.vru_basic_service_ldm is not None:
+            vam_ldm = vam.vam.copy()
+            vam_ldm["utc_timestamp"] = int(TimeService.time()*1000)
             self.vru_basic_service_ldm.add_provider_data_to_ldm(
                 vam.vam
             )
