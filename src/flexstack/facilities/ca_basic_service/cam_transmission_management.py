@@ -3,6 +3,7 @@ CAM Transmission Management
 
 This file implements the CAM Transmission Management required by the CAM Basic Service.
 """
+
 from __future__ import annotations
 from math import trunc
 import logging
@@ -17,7 +18,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
-from ...utils.time_service import TimeService, ITS_EPOCH_MS, ELAPSED_MILLISECONDS
+from ...utils.time_service import ITS_EPOCH_MS, ELAPSED_MILLISECONDS
 from .cam_ldm_adaptation import CABasicServiceLDM
 
 T_GEN_CAM_MIN = 100  # T_GenCamMin [in ms]
@@ -50,13 +51,16 @@ class VehicleData:
     vehicle_width : int
         Vehicle Width as specified in ETSI TS 102 894-2 V2.3.1 (2024-08).
     """
+
     station_id: int = 0
     station_type: int = 0
     drive_direction: str = "unavailable"
-    vehicle_length: dict = field(default_factory=lambda: {
-        "vehicleLengthValue": 1023,
-        "vehicleLengthConfidenceIndication": "unavailable",
-    })
+    vehicle_length: dict = field(
+        default_factory=lambda: {
+            "vehicleLengthValue": 1023,
+            "vehicleLengthConfidenceIndication": "unavailable",
+        }
+    )
     vehicle_width: int = 62
 
     def __check_valid_station_id(self) -> None:
@@ -69,11 +73,13 @@ class VehicleData:
 
     def __check_valid_drive_direction(self) -> None:
         if self.drive_direction not in ["forward", "backward", "unavailable"]:
-            raise ValueError(
-                "Drive Direction must be forward, backward or unavailable")
+            raise ValueError("Drive Direction must be forward, backward or unavailable")
 
     def __check_valid_vehicle_length(self) -> None:
-        if self.vehicle_length["vehicleLengthValue"] < 0 or self.vehicle_length["vehicleLengthValue"] > 1023:
+        if (
+            self.vehicle_length["vehicleLengthValue"] < 0
+            or self.vehicle_length["vehicleLengthValue"] > 1023
+        ):
             raise ValueError("Vehicle length must be between 0 and 1023")
 
     def __check_valid_vehicle_width(self) -> None:
@@ -105,6 +111,7 @@ class GenerationDeltaTime:
     msec : int
         Time in milliseconds.
     """
+
     msec: int = 0
 
     @classmethod
@@ -138,12 +145,19 @@ class GenerationDeltaTime:
             Timestamp of the generation delta time in milliseconds
         """
         number_of_cycles = trunc(
-            (utc_timestamp_in_millis - ITS_EPOCH_MS + ELAPSED_MILLISECONDS) / 65536)
-        transformed_timestamp = self.msec + 65536 * \
-            number_of_cycles + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+            (utc_timestamp_in_millis - ITS_EPOCH_MS + ELAPSED_MILLISECONDS) / 65536
+        )
+        transformed_timestamp = (
+            self.msec + 65536 * number_of_cycles + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+        )
         if transformed_timestamp <= utc_timestamp_in_millis:
             return transformed_timestamp
-        return self.msec + 65536 * (number_of_cycles - 1) + ITS_EPOCH_MS - ELAPSED_MILLISECONDS
+        return (
+            self.msec
+            + 65536 * (number_of_cycles - 1)
+            + ITS_EPOCH_MS
+            - ELAPSED_MILLISECONDS
+        )
 
     def __gt__(self, other: object) -> bool:
         """
@@ -208,8 +222,10 @@ class CooperativeAwarenessMessage:
         All the CAM message in dict format as decoded by the CAMCoder.
 
     """
+
     cam: dict = field(
-        default_factory=lambda: CooperativeAwarenessMessage.generate_white_cam_static())
+        default_factory=lambda: CooperativeAwarenessMessage.generate_white_cam_static()
+    )
 
     @staticmethod
     def generate_white_cam_static() -> dict:
@@ -307,7 +323,8 @@ class CooperativeAwarenessMessage:
         """
         if "time" in tpv:
             gen_delta_time = GenerationDeltaTime.from_timestamp(
-                parser.parse(tpv["time"]).timestamp())
+                parser.parse(tpv["time"]).timestamp()
+            )
             self.cam["cam"]["generationDeltaTime"] = int(gen_delta_time.msec)
 
     def fullfill_basic_container_with_tpv_data(self, tpv: dict) -> None:
@@ -362,7 +379,7 @@ class CooperativeAwarenessMessage:
         if "track" in tpv.keys():
             self.cam["cam"]["camParameters"]["highFrequencyContainer"][1]["heading"][
                 "headingValue"
-            ] = int(tpv["track"]*10)
+            ] = int(tpv["track"] * 10)
         if "epd" in tpv.keys():
             self.cam["cam"]["camParameters"]["highFrequencyContainer"][1]["heading"][
                 "headingConfidence"
@@ -622,11 +639,7 @@ class CAMTransmissionManagement:
         Send the next CAM.
         """
         if self.ca_basic_service_ldm is not None:
-            cam_ldm = cam.cam.copy()
-            cam_ldm["utc_timestamp"] = TimeService.time()
-            self.ca_basic_service_ldm.add_provider_data_to_ldm(
-                cam.cam
-            )
+            self.ca_basic_service_ldm.add_provider_data_to_ldm(cam.cam)
         data = self.cam_coder.encode(cam.cam)
         request = BTPDataRequest(
             btp_type=CommonNH.BTP_B,
@@ -639,7 +652,7 @@ class CAMTransmissionManagement:
         )
 
         self.btp_router.btp_data_request(request)
-        self.logging.debug(
+        self.logging.info(
             "Sent CAM message with timestamp: %d, station_id: %d",
             cam.cam["cam"]["generationDeltaTime"],
             cam.cam["header"]["stationId"],

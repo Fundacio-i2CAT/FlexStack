@@ -50,19 +50,23 @@ class DictionaryDataBase(DataBase):
             return OPERATOR_MAPPING[operator](query_with_attribute, ref_value)
         raise ValueError(f"Invalid operator: {operator}")
 
-    def _filter_data(self, data_filter: Filter, database: list[dict]) -> tuple[dict, ...]:
+    def _filter_data(
+        self, data_filter: Filter, database: list[dict]
+    ) -> tuple[dict, ...]:
         list_of_data = []
         if data_filter.filter_statement_2 is not None:
             if str(data_filter.logical_operator) == "and":
                 for data in database:
                     if self._create_query_search(
                         self._get_nested(
-                            data, str(data_filter.filter_statement_1.attribute)),
+                            data, str(data_filter.filter_statement_1.attribute)
+                        ),
                         str(data_filter.filter_statement_1.operator),
                         data_filter.filter_statement_1.ref_value,
                     ) & self._create_query_search(
                         self._get_nested(
-                            data, str(data_filter.filter_statement_2.attribute)),
+                            data, str(data_filter.filter_statement_2.attribute)
+                        ),
                         str(data_filter.filter_statement_2.operator),
                         data_filter.filter_statement_2.ref_value,
                     ):
@@ -71,12 +75,14 @@ class DictionaryDataBase(DataBase):
                 for data in database:
                     if self._create_query_search(
                         self._get_nested(
-                            data, str(data_filter.filter_statement_1.attribute)),
+                            data, str(data_filter.filter_statement_1.attribute)
+                        ),
                         str(data_filter.filter_statement_1.operator),
                         data_filter.filter_statement_1.ref_value,
                     ) | self._create_query_search(
                         self._get_nested(
-                            data, str(data_filter.filter_statement_2.attribute)),
+                            data, str(data_filter.filter_statement_2.attribute)
+                        ),
                         str(data_filter.filter_statement_2.operator),
                         data_filter.filter_statement_2.ref_value,
                     ):
@@ -85,7 +91,8 @@ class DictionaryDataBase(DataBase):
             for data in database:
                 if self._create_query_search(
                     self._get_nested(
-                        data, str(data_filter.filter_statement_1.attribute)),
+                        data, str(data_filter.filter_statement_1.attribute)
+                    ),
                     str(data_filter.filter_statement_1.operator),
                     data_filter.filter_statement_1.ref_value,
                 ):
@@ -108,12 +115,17 @@ class DictionaryDataBase(DataBase):
         """
         with self._lock:
             if data_request.filter is None:
-                return RequestDataObjectsReq.filter_out_by_data_object_type(self.all(), data_request.data_object_type)
+                return tuple(
+                    RequestDataObjectsReq.filter_out_by_data_object_type(
+                        tuple(self.all()), data_request.data_object_type
+                    )
+                )
             try:
                 return self._filter_data(
                     data_request.filter,
                     RequestDataObjectsReq.filter_out_by_data_object_type(
-                        tuple(self.all()), data_request.data_object_type),
+                        tuple(self.all()), data_request.data_object_type
+                    ),
                 )
             except KeyError as e:
                 print(f"[ListDatabase] KeyError searching data: {str(e)}")

@@ -100,7 +100,7 @@ class DENMReceptionManagement:
         """
         denm = self.denm_coder.decode(btp_indication.data)
         self.feed_ldm(denm)
-        self.logging.debug(
+        self.logging.info(
             "Received DENM with timestamp: %s, station_id: %s",
             denm["denm"]["management"]["referenceTime"],
             denm["header"]["stationId"],

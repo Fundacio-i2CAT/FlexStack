@@ -220,7 +220,7 @@ class MIB:
     itsGnLocationServiceMaxRetrans: int = 10
     itsGnLocationServiceRetransmitTimer: int = 1000
     itsGnLocationServicePacketBufferSize: int = 1024
-    itsGnBeaconServiceRetransmitTimer: int = 3000
+    itsGnBeaconServiceRetransmitTimer: int = 0
     itsGnBeaconServiceMaxJitter: Optional[float] = None
     itsGnDefaultHopLimit: int = 10
     itsGnDPLLength: int = 8
