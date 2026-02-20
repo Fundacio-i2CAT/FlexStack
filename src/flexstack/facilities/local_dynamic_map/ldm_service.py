@@ -13,7 +13,7 @@ from .ldm_classes import (
     SubscribeDataobjectsReq,
     TimestampIts,
     Utils,
-    SubscriptionInfo
+    SubscriptionInfo,
 )
 from .ldm_constants import (
     DATA_OBJECT_TYPE_ID,
@@ -53,8 +53,7 @@ class LDMService:
         self.data_provider_its_aid: set[int] = set()
         self.data_consumer_its_aid: set[int] = set()
         self.subscriptions: list[SubscriptionInfo] = []
-        self.last_checked_subscriptions_time: dict[SubscriptionInfo, TimestampIts] = {
-        }
+        self.last_checked_subscriptions_time: dict[SubscriptionInfo, TimestampIts] = {}
         self._lock = threading.RLock()
 
     def attend_subscriptions(self) -> None:
@@ -68,7 +67,10 @@ class LDMService:
             search_result = self.search_data(subscription)
             if not search_result:
                 continue
-            if subscription.subscription_request.multiplicity is not None and subscription.subscription_request.multiplicity > len(search_result):
+            if (
+                subscription.subscription_request.multiplicity is not None
+                and subscription.subscription_request.multiplicity > len(search_result)
+            ):
                 continue
 
             ordered_search_result = search_result
@@ -80,7 +82,10 @@ class LDMService:
                     ordered_search_result = ordered_sequences[0]
             self.process_notifications(subscription, ordered_search_result)
             data_consumer_its_aid = self.get_data_consumer_its_aid()
-            if subscription.subscription_request.application_id not in data_consumer_its_aid:
+            if (
+                subscription.subscription_request.application_id
+                not in data_consumer_its_aid
+            ):
                 subscriptions_to_remove.add(subscription)
         for subscription in subscriptions_to_remove:
             self.remove_subscription(subscription)
@@ -98,16 +103,15 @@ class LDMService:
         tuple[dict, ...]
             tuple of data objects that match the filter.
         """
-        if subscription.subscription_request.filter is not None and subscription.subscription_request.order is not None and subscription.subscription_request.priority is not None:
-            data_request = RequestDataObjectsReq(
-                subscription.subscription_request.application_id,
-                subscription.subscription_request.data_object_type,
-                subscription.subscription_request.priority,
-                subscription.subscription_request.order,
-                subscription.subscription_request.filter,
-            )
-            return self.ldm_maintenance.data_containers.search(data_request)
-        return ()
+
+        data_request = RequestDataObjectsReq(
+            subscription.subscription_request.application_id,
+            subscription.subscription_request.data_object_type,
+            subscription.subscription_request.priority,
+            subscription.subscription_request.order,
+            subscription.subscription_request.filter,
+        )
+        return self.ldm_maintenance.data_containers.search(data_request)
 
     def filter_data_object_type(
         self, search_result: tuple[dict, ...], allowed_types: tuple[str, ...]
@@ -157,8 +161,7 @@ class LDMService:
         current_time = TimestampIts.initialize_with_utc_timestamp_seconds()
         notify_time = subscription.subscription_request.notify_time
         with self._lock:
-            last_checked = self.last_checked_subscriptions_time.get(
-                subscription)
+            last_checked = self.last_checked_subscriptions_time.get(subscription)
             if last_checked is None:
                 self.last_checked_subscriptions_time[subscription] = current_time
                 last_checked = current_time
@@ -201,7 +204,9 @@ class LDMService:
             key_paths.append(self.find_key_path(target_key, result))
         return key_paths
 
-    def find_key_path(self, target_key: str, dictionary: dict, path: list | None = None) -> str:
+    def find_key_path(
+        self, target_key: str, dictionary: dict, path: list | None = None
+    ) -> str:
         """
         Static method to find the path of a key in a dictionary.
 
@@ -241,15 +246,16 @@ class LDMService:
         tuple[tuple[dict, ...], ...]
             tuple of ordered tuples of data objects.
         """
+
         def build_key(item):
             return tuple(
-                Utils.get_nested(
-                    item, Utils.find_attribute(order.attribute, item))
+                Utils.get_nested(item, Utils.find_attribute(order.attribute, item))
                 for order in orders
             )
 
-        reverse = any(order.ordering_direction == OrderingDirection.DESCENDING
-                      for order in orders)
+        reverse = any(
+            order.ordering_direction == OrderingDirection.DESCENDING for order in orders
+        )
         return (tuple(sorted(search_results, key=build_key, reverse=reverse)),)
 
     def add_provider_data(self, data: AddDataProviderReq) -> int | None:
@@ -318,7 +324,9 @@ class LDMService:
         with self._lock:
             self.data_provider_its_aid.discard(its_aid)
 
-    def query(self, data_request: RequestDataObjectsReq) -> tuple[tuple[dict, ...], ...]:
+    def query(
+        self, data_request: RequestDataObjectsReq
+    ) -> tuple[tuple[dict, ...], ...]:
         """
         Method to query the data containers using the RequestDataObjectsReq object.
 
@@ -340,12 +348,11 @@ class LDMService:
                 )
         except (KeyError, json.decoder.JSONDecodeError) as e:
             print(f"Error querying data container: {str(e)}")
-            return (())
+            return ()
 
         # If it does then see if it needs ordering and order it
         if data_request.order is not None:
-            search_result = self.order_search_results(
-                search_result, data_request.order)
+            search_result = self.order_search_results(search_result, data_request.order)
         else:
             search_result = (search_result,)
         return search_result
@@ -390,10 +397,9 @@ class LDMService:
             callback=callback,
         )
         with self._lock:
-            self.subscriptions.append(
-                new_subscription
-            )
-            self.last_checked_subscriptions_time[new_subscription] = TimestampIts.initialize_with_utc_timestamp_seconds(
+            self.subscriptions.append(new_subscription)
+            self.last_checked_subscriptions_time[new_subscription] = (
+                TimestampIts.initialize_with_utc_timestamp_seconds()
             )
         return hash(new_subscription.subscription_request)
 

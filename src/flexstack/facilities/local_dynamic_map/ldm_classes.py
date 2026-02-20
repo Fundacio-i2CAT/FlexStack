@@ -24,10 +24,7 @@ from functools import total_ordering
 from enum import IntEnum
 import math
 
-from .ldm_constants import (
-    EATH_RADIUS,
-    DATA_OBJECT_TYPE_ID
-)
+from .ldm_constants import EATH_RADIUS, DATA_OBJECT_TYPE_ID
 
 
 @total_ordering
@@ -41,10 +38,13 @@ class TimestampIts:
     timestamp : int
         The timestamp in ETSI Timestamp format (milliseconds since 1st January 2004).
     """
+
     timestamp_its: int
 
     @staticmethod
-    def initialize_with_utc_timestamp_seconds(utc_timestamp_seconds: int | None = None) -> TimestampIts:
+    def initialize_with_utc_timestamp_seconds(
+        utc_timestamp_seconds: int | None = None,
+    ) -> TimestampIts:
         """
         Initializes the TimestampIts class with a given UTC timestamp in seconds.
 
@@ -59,14 +59,22 @@ class TimestampIts:
             An instance of the TimestampIts class.
         """
         if utc_timestamp_seconds:
-            return TimestampIts(TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
-                utc_timestamp_seconds))
+            return TimestampIts(
+                TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
+                    utc_timestamp_seconds
+                )
+            )
         else:
-            return TimestampIts(TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
-                int(TimeService.time())))
+            return TimestampIts(
+                TimestampIts.transform_utc_seconds_timestamp_to_timestamp_its(
+                    int(TimeService.time())
+                )
+            )
 
     @staticmethod
-    def transform_utc_seconds_timestamp_to_timestamp_its(utc_timestamp_seconds: int) -> int:
+    def transform_utc_seconds_timestamp_to_timestamp_its(
+        utc_timestamp_seconds: int,
+    ) -> int:
         """
         Method to transform a UTC timestamp to a ETSI ITS timestamp.
 
@@ -165,6 +173,7 @@ class TimeValidity:
     time : int
         The time validity in Normal Unix Format (Seconds).
     """
+
     time: int
 
     def to_etsi_its(self) -> int:
@@ -183,6 +192,7 @@ class AccessPermission(IntEnum):
     """
     Class that represents Access Permissions.
     """
+
     DENM = 1
     CAM = 2
     POI = 3
@@ -247,6 +257,7 @@ class AuthorizeReg:
     """
     Class that represents an authorization request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permissions: tuple[AccessPermission, ...]
 
@@ -256,6 +267,7 @@ class AuthorizeResp:
     """
     Class that represents an authorization response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permissions: tuple[AccessPermission, ...]
     result: AuthorizationResult
@@ -267,10 +279,8 @@ class RevocationReason(IntEnum):
 
     def __str__(self) -> str:
         return {
-            RevocationReason.REGISTRATION_REVOKED_BY_REGISTRATION_AUTHORITY:
-                "registrationRevokedByRegistrationAuthority",
-            RevocationReason.REGISTRATION_PERIOD_EXPIRED:
-                "registrationPeriodExpired",
+            RevocationReason.REGISTRATION_REVOKED_BY_REGISTRATION_AUTHORITY: "registrationRevokedByRegistrationAuthority",
+            RevocationReason.REGISTRATION_PERIOD_EXPIRED: "registrationPeriodExpired",
         }[self]
 
 
@@ -292,6 +302,7 @@ class RevokeAuthorizationReg:
     """
     Class that represents a Revoke Authorization Registration as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     reason: RevocationReason
 
@@ -301,6 +312,7 @@ class RegisterDataProviderReq:
     """
     Class that represents a Register Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permissions: tuple[AccessPermission, ...]
     time_validity: TimeValidity
@@ -358,6 +370,7 @@ class RegisterDataProviderResult(IntEnum):
     """
     Class that represents a Register Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ACCEPTED = 0
     REJECTED = 1
 
@@ -373,6 +386,7 @@ class RegisterDataProviderResp:
     """
     Class that represent a Register Data Provder Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permisions: tuple[AccessPermission, ...]
     result: RegisterDataProviderResult
@@ -382,6 +396,7 @@ class DeregisterDataProviderAck(IntEnum):
     """
     Class that represent Deregister Data Provider Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ACCEPTED = 0
     REJECTED = 1
 
@@ -397,6 +412,7 @@ class DeregisterDataProviderReq:
     """
     Class that represents Deregister Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
 
 
@@ -405,6 +421,7 @@ class DeregisterDataProviderResp:
     """
     Class that represents Deregister Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     result: DeregisterDataProviderAck
 
@@ -414,6 +431,7 @@ class RevokeDataProviderRegistrationResp:
     """
     Class that represents Revoke Data Provider Registration Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
 
 
@@ -422,6 +440,7 @@ class PositionConfidenceEllipse:
     """
     Class that represents Position Confidence Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     semi_major_confidence: int
     semi_minor_confidence: int
     semi_major_orientation: int
@@ -432,6 +451,7 @@ class Altitude:
     """
     Class that represents Altitude as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     altitude_value: int
     altitude_confidence: int
 
@@ -493,6 +513,7 @@ class ReferencePosition:
     """
     Class that represent Reference Position as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     latitude: int
     longitude: int
     position_confidence_ellipse: PositionConfidenceEllipse
@@ -558,6 +579,7 @@ class StationType:
     """
     Class that represent Station Type as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     station_type: int
 
     def __str__(self) -> str:
@@ -585,6 +607,7 @@ class Direction:
     """
     Class that represents Direction as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     direction: int
 
     def __str__(self) -> str:
@@ -604,6 +627,7 @@ class Circle:
     """
     Class that represents Circle as speficied in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     radius: int
 
 
@@ -612,6 +636,7 @@ class Rectangle:
     """
     Class that represents Rectangle as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     a_semi_axis: int
     b_semi_axis: int
     azimuth_angle: Direction
@@ -622,6 +647,7 @@ class Ellipse:
     """
     Class that represents Ellipse as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     a_semi_axis: int
     b_semi_axis: int
     azimuth_angle: Direction
@@ -647,6 +673,7 @@ class RelevanceDistance:
     """
     Class that represents Relevance Distance as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     relevance_distance: int
 
     def __str__(self) -> str:
@@ -698,6 +725,7 @@ class RelevanceArea:
     """
     Class that represents Relevance Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     relevance_distance: RelevanceDistance
     relevance_traffic_direction: RelevanceTrafficDirection
 
@@ -707,6 +735,7 @@ class GeometricArea:
     """
     Class that represents Geometric Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     circle: Circle | None
     rectangle: Rectangle | None
     ellipse: Ellipse | None
@@ -717,6 +746,7 @@ class ReferenceArea:
     """
     Class that represents Reference Area as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     geometric_area: GeometricArea
     relevance_area: RelevanceArea
 
@@ -756,15 +786,18 @@ class Location:
                 semi_major_orientation=semi_major_orientation,
                 semi_minor_confidence=semi_minor_confidence,
             ),
-            altitude=Altitude(altitude_value=altitude_value,
-                              altitude_confidence=altitude_confidence),
+            altitude=Altitude(
+                altitude_value=altitude_value, altitude_confidence=altitude_confidence
+            ),
         )
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(circle=Circle(
-                radius=radius), rectangle=rectangle, ellipse=ellipse),
+            geometric_area=GeometricArea(
+                circle=Circle(radius=radius), rectangle=rectangle, ellipse=ellipse
+            ),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(
-                    relevance_distance=relevance_distance),
+                    relevance_distance=relevance_distance
+                ),
                 relevance_traffic_direction=RelevanceTrafficDirection(
                     relevance_traffic_direction
                 ),
@@ -786,7 +819,9 @@ class Location:
         self.reference_position.update_with_gpsd_tpv(tpv)
 
     @staticmethod
-    def location_builder_circle(latitude: int, longitude: int, altitude: int, radius: int) -> "Location":
+    def location_builder_circle(
+        latitude: int, longitude: int, altitude: int, radius: int
+    ) -> "Location":
         """
         Static method to create a location, ETSI class, with a circle as the geometric area as defined
         in ETSI TS 102 894-2 V2.2.1 (2023-10).
@@ -819,14 +854,17 @@ class Location:
         )
 
         reference_area = ReferenceArea(
-            geometric_area=GeometricArea(circle=Circle(
-                radius=radius), rectangle=None, ellipse=None),
+            geometric_area=GeometricArea(
+                circle=Circle(radius=radius), rectangle=None, ellipse=None
+            ),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(relevance_distance=1),
                 relevance_traffic_direction=RelevanceTrafficDirection(0),
             ),
         )
-        return Location(reference_area=reference_area, reference_position=reference_position)
+        return Location(
+            reference_area=reference_area, reference_position=reference_position
+        )
 
 
 @dataclass(frozen=True)
@@ -834,6 +872,7 @@ class AddDataProviderReq:
     """
     Class that represents Add Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     timestamp: TimestampIts
     location: Location
@@ -861,8 +900,11 @@ class AddDataProviderReq:
             "referenceArea": {
                 "geometricArea": {
                     "circle": (
-                        {"radius": self.location.reference_area.geometric_area.circle.radius}
-                        if self.location.reference_area.geometric_area.circle is not None
+                        {
+                            "radius": self.location.reference_area.geometric_area.circle.radius
+                        }
+                        if self.location.reference_area.geometric_area.circle
+                        is not None
                         else None
                     ),
                     "rectangle": (
@@ -871,7 +913,8 @@ class AddDataProviderReq:
                             "bSemiAxis": self.location.reference_area.geometric_area.rectangle.b_semi_axis,
                             "azimuthAngle": self.location.reference_area.geometric_area.rectangle.azimuth_angle,
                         }
-                        if self.location.reference_area.geometric_area.rectangle is not None
+                        if self.location.reference_area.geometric_area.rectangle
+                        is not None
                         else None
                     ),
                     "ellipse": (
@@ -880,7 +923,8 @@ class AddDataProviderReq:
                             "bSemiAxis": self.location.reference_area.geometric_area.ellipse.b_semi_axis,
                             "azimuthAngle": self.location.reference_area.geometric_area.ellipse.azimuth_angle,
                         }
-                        if self.location.reference_area.geometric_area.ellipse is not None
+                        if self.location.reference_area.geometric_area.ellipse
+                        is not None
                         else None
                     ),
                 },
@@ -928,8 +972,11 @@ class AddDataProviderReq:
                 "referenceArea": {
                     "geometricArea": {
                         "circle": (
-                            {"radius": self.location.reference_area.geometric_area.circle.radius}
-                            if self.location.reference_area.geometric_area.circle is not None
+                            {
+                                "radius": self.location.reference_area.geometric_area.circle.radius
+                            }
+                            if self.location.reference_area.geometric_area.circle
+                            is not None
                             else None
                         ),
                         "rectangle": (
@@ -938,7 +985,8 @@ class AddDataProviderReq:
                                 "bSemiAxis": self.location.reference_area.geometric_area.rectangle.b_semi_axis,
                                 "azimuthAngle": self.location.reference_area.geometric_area.rectangle.azimuth_angle,
                             }
-                            if self.location.reference_area.geometric_area.rectangle is not None
+                            if self.location.reference_area.geometric_area.rectangle
+                            is not None
                             else None
                         ),
                         "ellipse": (
@@ -947,7 +995,8 @@ class AddDataProviderReq:
                                 "bSemiAxis": self.location.reference_area.geometric_area.ellipse.b_semi_axis,
                                 "azimuthAngle": self.location.reference_area.geometric_area.ellipse.azimuth_angle,
                             }
-                            if self.location.reference_area.geometric_area.ellipse is not None
+                            if self.location.reference_area.geometric_area.ellipse
+                            is not None
                             else None
                         ),
                     },
@@ -992,15 +1041,20 @@ class AddDataProviderReq:
             longitude=reference_position_data.get("longitude"),
             position_confidence_ellipse=PositionConfidenceEllipse(
                 semi_major_confidence=reference_position_data[
-                    "positionConfidenceEllipse"]["semiMajorConfidence"],
+                    "positionConfidenceEllipse"
+                ]["semiMajorConfidence"],
                 semi_minor_confidence=reference_position_data[
-                    "positionConfidenceEllipse"]["semiMinorConfidence"],
+                    "positionConfidenceEllipse"
+                ]["semiMinorConfidence"],
                 semi_major_orientation=reference_position_data[
-                    "positionConfidenceEllipse"]["semiMajorOrientation"],
+                    "positionConfidenceEllipse"
+                ]["semiMajorOrientation"],
             ),
             altitude=Altitude(
                 altitude_value=reference_position_data["altitude"]["altitudeValue"],
-                altitude_confidence=reference_position_data["altitude"]["altitudeConfidence"],
+                altitude_confidence=reference_position_data["altitude"][
+                    "altitudeConfidence"
+                ],
             ),
         )
         reference_area_data = location_data.get("referenceArea")
@@ -1008,40 +1062,60 @@ class AddDataProviderReq:
             geometric_area=GeometricArea(
                 circle=(
                     Circle(
-                        radius=reference_area_data["geometricArea"]["circle"]["radius"])
+                        radius=reference_area_data["geometricArea"]["circle"]["radius"]
+                    )
                     if reference_area_data["geometricArea"]["circle"]
                     else Circle(radius=0)
                 ),
                 rectangle=(
                     Rectangle(
-                        a_semi_axis=reference_area_data["geometricArea"]["rectangle"]["aSemiAxis"],
-                        b_semi_axis=reference_area_data["geometricArea"]["rectangle"]["bSemiAxis"],
-                        azimuth_angle=reference_area_data["geometricArea"]["rectangle"]["azimuthAngle"],
+                        a_semi_axis=reference_area_data["geometricArea"]["rectangle"][
+                            "aSemiAxis"
+                        ],
+                        b_semi_axis=reference_area_data["geometricArea"]["rectangle"][
+                            "bSemiAxis"
+                        ],
+                        azimuth_angle=reference_area_data["geometricArea"]["rectangle"][
+                            "azimuthAngle"
+                        ],
                     )
                     if reference_area_data["geometricArea"]["rectangle"]
-                    else Rectangle(a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0))
+                    else Rectangle(
+                        a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0)
+                    )
                 ),
                 ellipse=(
                     Ellipse(
-                        a_semi_axis=reference_area_data["geometricArea"]["ellipse"]["aSemiAxis"],
-                        b_semi_axis=reference_area_data["geometricArea"]["ellipse"]["bSemiAxis"],
-                        azimuth_angle=reference_area_data["geometricArea"]["ellipse"]["azimuthAngle"],
+                        a_semi_axis=reference_area_data["geometricArea"]["ellipse"][
+                            "aSemiAxis"
+                        ],
+                        b_semi_axis=reference_area_data["geometricArea"]["ellipse"][
+                            "bSemiAxis"
+                        ],
+                        azimuth_angle=reference_area_data["geometricArea"]["ellipse"][
+                            "azimuthAngle"
+                        ],
                     )
                     if reference_area_data["geometricArea"]["ellipse"]
-                    else Ellipse(a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0))
+                    else Ellipse(
+                        a_semi_axis=0, b_semi_axis=0, azimuth_angle=Direction(0)
+                    )
                 ),
             ),
             relevance_area=RelevanceArea(
                 relevance_distance=RelevanceDistance(
-                    relevance_distance=reference_area_data["relevanceArea"]["relevanceDistance"]
+                    relevance_distance=reference_area_data["relevanceArea"][
+                        "relevanceDistance"
+                    ]
                 ),
-                relevance_traffic_direction=RelevanceTrafficDirection(reference_area_data[
-                    "relevanceArea"]["relevanceTrafficDirection"]
+                relevance_traffic_direction=RelevanceTrafficDirection(
+                    reference_area_data["relevanceArea"]["relevanceTrafficDirection"]
                 ),
             ),
         )
         location = Location(
-            reference_position=reference_position, reference_area=reference_area)
+            reference_position=reference_position, reference_area=reference_area
+        )
 
         return AddDataProviderReq(
             application_id=application_id,
@@ -1057,6 +1131,7 @@ class AddDataProviderResp:
     """
     Class that represents Add Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_id: int
 
@@ -1096,7 +1171,9 @@ class AddDataProviderResp:
         application_id = data.get("application_id", 0)
         data_object_id = data.get("data_object_id", 0)
 
-        return AddDataProviderResp(application_id=application_id, data_object_id=data_object_id)
+        return AddDataProviderResp(
+            application_id=application_id, data_object_id=data_object_id
+        )
 
 
 @dataclass(frozen=True)
@@ -1104,6 +1181,7 @@ class UpdateDataProviderReq:
     """
     Class that represents Update Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_id: int
     time_stamp: TimestampIts
@@ -1116,6 +1194,7 @@ class UpdateDataProviderResult(IntEnum):
     """
     Class that represents Update Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     SUCCEED = 0
     UNKNOWN_DATA_OBJECT_ID = 1
     INCONSISTENT_DATA_OBJECT_TYPE = 2
@@ -1124,7 +1203,7 @@ class UpdateDataProviderResult(IntEnum):
         return {
             UpdateDataProviderResult.SUCCEED: "succeed",
             UpdateDataProviderResult.UNKNOWN_DATA_OBJECT_ID: "unknownDataObjectID",
-            UpdateDataProviderResult.INCONSISTENT_DATA_OBJECT_TYPE: "inconsistentDataObjectType"
+            UpdateDataProviderResult.INCONSISTENT_DATA_OBJECT_TYPE: "inconsistentDataObjectType",
         }[self]
 
 
@@ -1133,6 +1212,7 @@ class UpdateDataProviderResp:
     """
     Class that represents Update Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_id: int
     result: UpdateDataProviderResult
@@ -1143,6 +1223,7 @@ class DeleteDataProviderReq:
     """
     Class that represents Delete Data Provider Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_id: int
     time_stamp: TimestampIts
@@ -1152,6 +1233,7 @@ class DeleteDataProviderResult(IntEnum):
     """
     Class that represents Delete Data Provider Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     SUCCEED = 0
     FAILED = 1
 
@@ -1167,6 +1249,7 @@ class DeleteDataProviderResp:
     """
     Class that represents Delete Data Provider Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_id: int
     result: DeleteDataProviderResult
@@ -1177,6 +1260,7 @@ class RegisterDataConsumerReq:
     """
     Class that represents Register Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permisions: tuple[AccessPermission, ...]
     area_of_interest: GeometricArea
@@ -1186,6 +1270,7 @@ class RegisterDataConsumerResult(IntEnum):
     """
     Class that represents Register Data Consumer Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ACCEPTED = 0
     WARNING = 1
     REJECTED = 2
@@ -1203,6 +1288,7 @@ class RegisterDataConsumerResp:
     """
     Class that represents Register Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     access_permisions: tuple[AccessPermission, ...]
     result: RegisterDataConsumerResult
@@ -1213,6 +1299,7 @@ class DeregisterDataConsumerReq:
     """
     Class that represents Deregister Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
 
 
@@ -1220,6 +1307,7 @@ class DeregisterDataConsumerAck(IntEnum):
     """
     Class that represents Deegister Data Consumer Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     SUCCEED = 0
     FAILED = 1
 
@@ -1235,6 +1323,7 @@ class DeregisterDataConsumerResp:
     """
     Class that represents Deregister Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     ack: DeregisterDataConsumerAck
 
@@ -1244,6 +1333,7 @@ class UnsubscribeDataConsumerReq:
     """
     Class that represents Unsubscribe Data Consumer Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     subscription_id: int
 
@@ -1252,6 +1342,7 @@ class UnsubscribeDataConsumerAck(IntEnum):
     """
     Class that represents Unsubscribe Data Consumer Ack as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ACCEPTED = 0
     FAILED = 1
 
@@ -1267,6 +1358,7 @@ class UnsubscribeDataConsumerResp:
     """
     Class that represents Unsubscribe Data Consumer Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     subscription_id: int
     result: UnsubscribeDataConsumerAck
@@ -1277,6 +1369,7 @@ class RevokeDataConsumerRegistrationResp:
     """
     Class that represents Revoke Data Consumer Registration Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
 
 
@@ -1284,6 +1377,7 @@ class OrderingDirection(IntEnum):
     """
     Class that represents Ordering Direction as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ASCENDING = 0
     DESCENDING = 1
 
@@ -1309,6 +1403,7 @@ class OrderTupleValue:
     ordering_direction: OrderingDirection
         OrderingDirection class that represents what direction to be ordered.
     """
+
     attribute: str
     ordering_direction: OrderingDirection
 
@@ -1317,6 +1412,7 @@ class LogicalOperators(IntEnum):
     """
     Class that represents Logical Operators as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     AND = 0
     OR = 1
 
@@ -1331,6 +1427,7 @@ class ComparisonOperators(IntEnum):
     """
     Class that represents Comparison Operators as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     EQUAL = 0  # ==
     NOT_EQUAL = 1  # !=
     GREATER_THAN = 2  # >
@@ -1358,6 +1455,7 @@ class FilterStatement:
     """
     Class that represents Filter Statement as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     attribute: str
     operator: ComparisonOperators
     ref_value: int
@@ -1368,6 +1466,7 @@ class Filter:
     """
     Class that represents Filter as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     filter_statement_1: FilterStatement
     logical_operator: LogicalOperators | None = None
     filter_statement_2: FilterStatement | None = None
@@ -1378,14 +1477,17 @@ class RequestDataObjectsReq:
     """
     Class that represents Request Data Objects Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_object_type: tuple[int, ...]
-    priority: int
-    order: tuple[OrderTupleValue, ...]
-    filter: Filter
+    priority: int | None
+    order: tuple[OrderTupleValue, ...] | None
+    filter: Filter | None
 
     @staticmethod
-    def filter_out_by_data_object_type(search_result: tuple[dict, ...], data_object_types: tuple[int, ...]) -> list[dict]:
+    def filter_out_by_data_object_type(
+        search_result: tuple[dict, ...], data_object_types: tuple[int, ...]
+    ) -> list[dict]:
         """
         Function that filters out all packets that are not part of the specified data object type list given
         in the RequestDataObjectReq
@@ -1404,7 +1506,12 @@ class RequestDataObjectsReq:
         """
         filtered_search_result = []
         for result in search_result:
-            if RequestDataObjectsReq.get_object_type_from_data_object(result["dataObject"]) in data_object_types:
+            if (
+                RequestDataObjectsReq.get_object_type_from_data_object(
+                    result["dataObject"]
+                )
+                in data_object_types
+            ):
                 filtered_search_result.append(result)
         return filtered_search_result
 
@@ -1432,6 +1539,7 @@ class RequestedDataObjectsResult(IntEnum):
     """
     Class that represents Requested Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     SUCCEED = 0
     INVALID_ITSA_ID = 1
     INVALID_DATA_OBJECT_TYPE = 2
@@ -1456,6 +1564,7 @@ class RequestDataObjectsResp:
     """
     Class that represents Request Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     data_objects: tuple[dict, ...]
     result: RequestedDataObjectsResult
@@ -1520,8 +1629,7 @@ class RequestDataObjectsResp:
             if key == attribute:
                 return [key]
             if isinstance(value, dict):
-                path = RequestDataObjectsResp.find_attribute_static(
-                    attribute, value)
+                path = RequestDataObjectsResp.find_attribute_static(attribute, value)
                 if path:
                     return [key] + path
         return []
@@ -1532,6 +1640,7 @@ class SubscribeDataobjectsReq:
     """
     As specified in facilities.local_dynamic_map.if_ldm_4.py this class has been modified to fit implementation.
     """
+
     application_id: int
     data_object_type: tuple[int, ...]
     priority: int | None = None
@@ -1546,6 +1655,7 @@ class SubscriptionInfo:
     """
     Non-standard class that represents Subscription Info for internal use.
     """
+
     subscription_request: SubscribeDataobjectsReq
     callback: Callable[[RequestDataObjectsResp], None]
 
@@ -1554,6 +1664,7 @@ class SubscribeDataobjectsResult(IntEnum):
     """
     Class that represents Subscribe Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     SUCCESSFUL = 0
     INVALID_ITSA_ID = 1
     INVALID_DATA_OBJECT_TYPE = 2
@@ -1581,6 +1692,7 @@ class SubscribeDataObjectsResp:
     """
     Class that represents Subscribe Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     subscription_id: int
     result: SubscribeDataobjectsResult
@@ -1592,6 +1704,7 @@ class PublishDataobjects:
     """
     Class that represents Publish Data Objects as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     subscription_id: int
     requested_data: tuple[str, ...]
 
@@ -1601,6 +1714,7 @@ class UnsubscribeDataobjectsReq:
     """
     Class that represents Unsubscribe Data Objects Request as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     subscription_id: int
 
@@ -1609,6 +1723,7 @@ class UnsubscribeDataobjectsResult(IntEnum):
     """
     Class that represents Unsubscribe Data Objects Result as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     ACCEPTED = 0
     REJECTED = 1
 
@@ -1624,6 +1739,7 @@ class UnsubscribeDataobjectsResp:
     """
     Class that represents Unsubscribe Data Objects Response as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     application_id: int
     subscription_id: int
     result: UnsubscribeDataobjectsResult
@@ -1633,6 +1749,7 @@ class ReferenceValue(IntEnum):
     """
     Class that represents Reference Value as specified in ETSI EN 302 895 V1.1.1 (2014-09).
     """
+
     BOOL_VALUE = 0
     SBYTE_VALUE = 1
     BYTE_VALUE = 2
@@ -1688,7 +1805,10 @@ class Utils:
         float
             Haversine value.
         """
-        return math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        return (
+            math.sin(dlat / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        )
 
     @staticmethod
     def haversine_c(a: float) -> float:
@@ -1714,7 +1834,9 @@ class Utils:
         return 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     @staticmethod
-    def haversine_distance(coord1: tuple[float, float], coord2: tuple[float, float]) -> float:
+    def haversine_distance(
+        coord1: tuple[float, float], coord2: tuple[float, float]
+    ) -> float:
         """
         Function that returns the distance between two coordinates in meters.
 
@@ -1817,10 +1939,12 @@ class Utils:
             The station id.
         """
         station_id = Utils.get_nested(
-            data_object, Utils.find_attribute("stationID", data_object))
+            data_object, Utils.find_attribute("stationID", data_object)
+        )
         if station_id is None:
             station_id = Utils.get_nested(
-                data_object, Utils.find_attribute("stationId", data_object))
+                data_object, Utils.find_attribute("stationId", data_object)
+            )
         if station_id is None:
             return None
         station_id = int(station_id[0]) if station_id[0] is not None else None
@@ -1873,7 +1997,9 @@ class Utils:
         return tuple(coord / 10**7 for coord in point)
 
     @staticmethod
-    def euclidian_distance(point1: tuple[float, float], point2: tuple[float, float]) -> float:
+    def euclidian_distance(
+        point1: tuple[float, float], point2: tuple[float, float]
+    ) -> float:
         """
         Generated the euclidian distance between two points.
 

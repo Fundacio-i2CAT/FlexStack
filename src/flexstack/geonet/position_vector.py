@@ -1,6 +1,11 @@
 from dateutil import parser
 from dataclasses import dataclass
-from ..utils.time_service import ITS_EPOCH, ITS_EPOCH_MS, ELAPSED_SECONDS, ELAPSED_MILLISECONDS
+from ..utils.time_service import (
+    ITS_EPOCH,
+    ITS_EPOCH_MS,
+    ELAPSED_SECONDS,
+    ELAPSED_MILLISECONDS,
+)
 from .exceptions import DecodeError
 from .gn_address import GNAddress
 
@@ -37,12 +42,13 @@ class TST:
         utc_timestamp_seconds : float
             Timestamp in normal UTC timestamp format.
         """
-        msec = ((utc_timestamp_seconds - ITS_EPOCH
-                + ELAPSED_SECONDS) * 1000) % 2 ** 32
+        msec = ((utc_timestamp_seconds - ITS_EPOCH + ELAPSED_SECONDS) * 1000) % 2**32
         return cls(msec=int(msec))
 
     @classmethod
-    def set_in_normal_timestamp_milliseconds(cls, utc_timestamp_milliseconds: int) -> "TST":
+    def set_in_normal_timestamp_milliseconds(
+        cls, utc_timestamp_milliseconds: int
+    ) -> "TST":
         """
         Set the timestamp in normal timestamp format.
 
@@ -51,8 +57,9 @@ class TST:
         utc_timestamp_milliseconds : int
             Timestamp in normal UTC timestamp format.
         """
-        msec = (utc_timestamp_milliseconds - ITS_EPOCH_MS
-                + ELAPSED_MILLISECONDS) % 2 ** 32
+        msec = (
+            utc_timestamp_milliseconds - ITS_EPOCH_MS + ELAPSED_MILLISECONDS
+        ) % 2**32
         return cls(msec=int(msec))
 
     def encode(self) -> int:
@@ -76,7 +83,7 @@ class TST:
         data : int
             Encoded timestamp.
         """
-        return cls(msec=int(data % 2 ** 32))
+        return cls(msec=int(data % 2**32))
 
     def __eq__(self, __o: object) -> bool:
         """
@@ -128,8 +135,11 @@ class TST:
             True if greater than, False otherwise.
         """
         if isinstance(__o, TST):
-            return (self.msec > __o.msec) and ((self.msec - __o.msec) <= (2**32)/2) or (
-                (__o.msec > self.msec) and ((__o.msec - self.msec) > (2**32)/2))
+            return (
+                (self.msec > __o.msec)
+                and ((self.msec - __o.msec) <= (2**32) / 2)
+                or ((__o.msec > self.msec) and ((__o.msec - self.msec) > (2**32) / 2))
+            )
         return False
 
     def __ge__(self, __o: object) -> bool:
@@ -237,7 +247,7 @@ class TST:
         str
             String representation.
         """
-        return str(self.msec)+" msec"
+        return str(self.msec) + " msec"
 
 
 @dataclass(frozen=True)
@@ -282,9 +292,19 @@ class LongPositionVector:
         gn_addr : GNAddress
             GN address.
         """
-        return LongPositionVector(gn_addr=gn_addr, tst=self.tst, latitude=self.latitude, longitude=self.longitude, pai=self.pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=self.pai,
+            s=self.s,
+            h=self.h,
+        )
 
-    def set_tst_in_normal_timestamp_seconds(self, timestamp: float) -> "LongPositionVector":
+    def set_tst_in_normal_timestamp_seconds(
+        self, timestamp: float
+    ) -> "LongPositionVector":
         """
         Set the timestamp in normal timestamp format.
 
@@ -294,9 +314,19 @@ class LongPositionVector:
             Timestamp in normal timestamp format.
         """
         tst = self.tst.set_in_normal_timestamp_seconds(timestamp)
-        return LongPositionVector(gn_addr=self.gn_addr, tst=tst, latitude=self.latitude, longitude=self.longitude, pai=self.pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=self.pai,
+            s=self.s,
+            h=self.h,
+        )
 
-    def set_tst_in_normal_timestamp_milliseconds(self, timestamp: int) -> "LongPositionVector":
+    def set_tst_in_normal_timestamp_milliseconds(
+        self, timestamp: int
+    ) -> "LongPositionVector":
         """
         Set the timestamp in normal timestamp format.
 
@@ -306,7 +336,15 @@ class LongPositionVector:
             Timestamp in normal timestamp format.
         """
         tst = self.tst.set_in_normal_timestamp_milliseconds(timestamp)
-        return LongPositionVector(gn_addr=self.gn_addr, tst=tst, latitude=self.latitude, longitude=self.longitude, pai=self.pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=self.pai,
+            s=self.s,
+            h=self.h,
+        )
 
     def set_latitude(self, latitude: float) -> "LongPositionVector":
         """
@@ -317,7 +355,15 @@ class LongPositionVector:
         latitude : float
             Latitude in WGS 84 1/10 micro degree.
         """
-        return LongPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=int(latitude * 10000000), longitude=self.longitude, pai=self.pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=int(latitude * 10000000),
+            longitude=self.longitude,
+            pai=self.pai,
+            s=self.s,
+            h=self.h,
+        )
 
     def set_longitude(self, longitude: float) -> "LongPositionVector":
         """
@@ -328,7 +374,15 @@ class LongPositionVector:
         longitude : float
             Longitude in WGS 84 1/10 micro degree.
         """
-        return LongPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=self.latitude, longitude=int(longitude * 10000000), pai=self.pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=int(longitude * 10000000),
+            pai=self.pai,
+            s=self.s,
+            h=self.h,
+        )
 
     def set_pai(self, pai: bool) -> "LongPositionVector":
         """
@@ -339,7 +393,15 @@ class LongPositionVector:
         pai : bool
             PAI.
         """
-        return LongPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=self.latitude, longitude=self.longitude, pai=pai, s=self.s, h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=pai,
+            s=self.s,
+            h=self.h,
+        )
 
     def set_speed(self, speed: float) -> "LongPositionVector":
         """
@@ -350,7 +412,15 @@ class LongPositionVector:
         speed : float
             Speed in m/s.
         """
-        return LongPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=self.latitude, longitude=self.longitude, pai=self.pai, s=int(speed * 100), h=self.h)
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=self.pai,
+            s=int(speed * 100),
+            h=self.h,
+        )
 
     def set_heading(self, heading: float) -> "LongPositionVector":
         """
@@ -361,7 +431,15 @@ class LongPositionVector:
         heading : float
             Heading in degree from north.
         """
-        return LongPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=self.latitude, longitude=self.longitude, pai=self.pai, s=self.s, h=int(heading * 10))
+        return LongPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            pai=self.pai,
+            s=self.s,
+            h=int(heading * 10),
+        )
 
     def refresh_with_tpv_data(self, tpv_data: dict) -> "LongPositionVector":
         """
@@ -379,10 +457,11 @@ class LongPositionVector:
             latitude=int(tpv_data["lat"] * 10**7),
             longitude=int(tpv_data["lon"] * 10**7),
             s=int(tpv_data["speed"] * 100),
-            h=int(tpv_data["track"] * 10)
+            h=int(tpv_data["track"] * 10),
         )
         lpv = lpv.set_tst_in_normal_timestamp_seconds(
-            int(parser.parse(tpv_data["time"]).timestamp()))
+            int(parser.parse(tpv_data["time"]).timestamp())
+        )
         return lpv
 
     def encode(self) -> bytes:
@@ -394,9 +473,15 @@ class LongPositionVector:
         bytes
             Encoded LongPositionVector.
         """
-        return ((self.gn_addr.encode_to_int() << 32*4) | (self.tst.encode() << 32*3) | (
-            self.latitude << 32*2) | (self.longitude << 32) | (
-                self.pai << 31) | (self.s << 16) | self.h).to_bytes(24, byteorder='big')
+        return (
+            (self.gn_addr.encode_to_int() << 32 * 4)
+            | (self.tst.encode() << 32 * 3)
+            | (self.latitude << 32 * 2)
+            | (self.longitude << 32)
+            | (self.pai << 31)
+            | (self.s << 16)
+            | self.h
+        ).to_bytes(24, byteorder="big")
 
     def encode_to_int(self) -> int:
         """
@@ -407,8 +492,15 @@ class LongPositionVector:
         int
             Encoded LongPositionVector.
         """
-        return (self.gn_addr.encode_to_int() << 32*4) | (self.tst.encode() << 32*3) | (
-            self.latitude << 32*2) | (self.longitude << 32) | (int(self.pai) << 31) | (self.s << 16) | self.h
+        return (
+            (self.gn_addr.encode_to_int() << 32 * 4)
+            | (self.tst.encode() << 32 * 3)
+            | (self.latitude << 32 * 2)
+            | (self.longitude << 32)
+            | (int(self.pai) << 31)
+            | (self.s << 16)
+            | self.h
+        )
 
     @classmethod
     def decode(cls, data: bytes) -> "LongPositionVector":
@@ -422,16 +514,23 @@ class LongPositionVector:
         """
         if len(data) < 24:
             raise DecodeError("LongPositionVector must be 24 bytes long")
-        data_as_int = int.from_bytes(data[0:24], byteorder='big')
-        gn_addr = GNAddress.decode(
-            (data_as_int >> 32 * 4).to_bytes(8, byteorder='big'))
+        data_as_int = int.from_bytes(data[0:24], byteorder="big")
+        gn_addr = GNAddress.decode((data_as_int >> 32 * 4).to_bytes(8, byteorder="big"))
         tst = TST.decode(data_as_int >> 32 * 3)
         latitude = (data_as_int >> 32 * 2) & 0xFFFFFFFF
         longitude = (data_as_int >> 32) & 0xFFFFFFFF
         pai = bool((data_as_int >> 31) & 0x1)
         s = (data_as_int >> 16) & 0x7FFF
         h = data_as_int & 0xFFFF
-        return cls(gn_addr=gn_addr, tst=tst, latitude=latitude, longitude=longitude, pai=pai, s=s, h=h)
+        return cls(
+            gn_addr=gn_addr,
+            tst=tst,
+            latitude=latitude,
+            longitude=longitude,
+            pai=pai,
+            s=s,
+            h=h,
+        )
 
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, LongPositionVector):
@@ -447,14 +546,30 @@ class LongPositionVector:
         return False
 
     def __str__(self):
-        return "LongPositionVector: \n" + \
-            "    GN Address: " + str(self.gn_addr) + "\n" + \
-            "    Timestamp: " + str(self.tst) + "\n" + \
-            "    Latitude: " + str(self.latitude) + "\n" + \
-            "    Longitude: " + str(self.longitude) + "\n" + \
-            "    PAI: " + str(self.pai) + "\n" + \
-            "    Speed: " + str(self.s) + "\n" + \
-            "    Heading: " + str(self.h) + "\n"
+        return (
+            "LongPositionVector: \n"
+            + "    GN Address: "
+            + str(self.gn_addr)
+            + "\n"
+            + "    Timestamp: "
+            + str(self.tst)
+            + "\n"
+            + "    Latitude: "
+            + str(self.latitude)
+            + "\n"
+            + "    Longitude: "
+            + str(self.longitude)
+            + "\n"
+            + "    PAI: "
+            + str(self.pai)
+            + "\n"
+            + "    Speed: "
+            + str(self.s)
+            + "\n"
+            + "    Heading: "
+            + str(self.h)
+            + "\n"
+        )
 
 
 @dataclass(frozen=True)
@@ -488,9 +603,16 @@ class ShortPositionVector:
         gn_addr : GNAddress
             GN address.
         """
-        return ShortPositionVector(gn_addr=gn_addr, tst=self.tst, latitude=self.latitude, longitude=self.longitude)
+        return ShortPositionVector(
+            gn_addr=gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+        )
 
-    def set_tst_in_normal_timestamp_seconds(self, timestamp: int) -> "ShortPositionVector":
+    def set_tst_in_normal_timestamp_seconds(
+        self, timestamp: int
+    ) -> "ShortPositionVector":
         """
         Set the timestamp in normal timestamp format.
 
@@ -500,9 +622,16 @@ class ShortPositionVector:
             Timestamp in normal timestamp format.
         """
         tst = self.tst.set_in_normal_timestamp_seconds(timestamp)
-        return ShortPositionVector(gn_addr=self.gn_addr, tst=tst, latitude=self.latitude, longitude=self.longitude)
+        return ShortPositionVector(
+            gn_addr=self.gn_addr,
+            tst=tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+        )
 
-    def set_tst_in_normal_timestamp_milliseconds(self, timestamp: int) -> "ShortPositionVector":
+    def set_tst_in_normal_timestamp_milliseconds(
+        self, timestamp: int
+    ) -> "ShortPositionVector":
         """
         Set the timestamp in normal timestamp format.
 
@@ -512,7 +641,12 @@ class ShortPositionVector:
             Timestamp in normal timestamp format.
         """
         tst = self.tst.set_in_normal_timestamp_milliseconds(timestamp)
-        return ShortPositionVector(gn_addr=self.gn_addr, tst=tst, latitude=self.latitude, longitude=self.longitude)
+        return ShortPositionVector(
+            gn_addr=self.gn_addr,
+            tst=tst,
+            latitude=self.latitude,
+            longitude=self.longitude,
+        )
 
     def set_latitude(self, latitude: float) -> "ShortPositionVector":
         """
@@ -523,7 +657,12 @@ class ShortPositionVector:
         latitude : float
             Latitude in WGS 84 1/10 micro degree.
         """
-        return ShortPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=int(latitude * 10000000), longitude=self.longitude)
+        return ShortPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=int(latitude * 10000000),
+            longitude=self.longitude,
+        )
 
     def get_latitude(self) -> float:
         """
@@ -534,7 +673,7 @@ class ShortPositionVector:
         float
             Latitude in WGS 84 1/10 micro degree.
         """
-        return self.latitude/10000000
+        return self.latitude / 10000000
 
     def set_longitude(self, longitude: float) -> "ShortPositionVector":
         """
@@ -545,7 +684,12 @@ class ShortPositionVector:
         longitude : float
             Longitude in WGS 84 1/10 micro degree.
         """
-        return ShortPositionVector(gn_addr=self.gn_addr, tst=self.tst, latitude=self.latitude, longitude=int(longitude * 10000000))
+        return ShortPositionVector(
+            gn_addr=self.gn_addr,
+            tst=self.tst,
+            latitude=self.latitude,
+            longitude=int(longitude * 10000000),
+        )
 
     def get_longitude(self) -> float:
         """
@@ -556,7 +700,7 @@ class ShortPositionVector:
         float
             Longitude in WGS 84 1/10 micro degree.
         """
-        return self.longitude/10000000
+        return self.longitude / 10000000
 
     def encode(self) -> bytes:
         """
@@ -567,8 +711,12 @@ class ShortPositionVector:
         bytes
             Encoded ShortPositionVector.
         """
-        return ((self.gn_addr.encode_to_int() << 32*3) | (self.tst.encode() << 32*2) | (
-            self.latitude << 32*1) | self.longitude).to_bytes(20, byteorder='big')
+        return (
+            (self.gn_addr.encode_to_int() << 32 * 3)
+            | (self.tst.encode() << 32 * 2)
+            | (self.latitude << 32 * 1)
+            | self.longitude
+        ).to_bytes(20, byteorder="big")
 
     def encode_to_int(self) -> int:
         """
@@ -579,8 +727,12 @@ class ShortPositionVector:
         int
             Encoded ShortPositionVector.
         """
-        return (self.gn_addr.encode_to_int() << 32*3) | (self.tst.encode() << 32*2) | (
-            self.latitude << 32*1) | self.longitude
+        return (
+            (self.gn_addr.encode_to_int() << 32 * 3)
+            | (self.tst.encode() << 32 * 2)
+            | (self.latitude << 32 * 1)
+            | self.longitude
+        )
 
     @classmethod
     def decode(cls, data: bytes) -> "ShortPositionVector":
@@ -592,9 +744,8 @@ class ShortPositionVector:
         data : bytes
             Encoded ShortPositionVector.
         """
-        data_int = int.from_bytes(data, byteorder='big')
-        gn_addr = GNAddress.decode(
-            (data_int >> 32 * 3).to_bytes(8, byteorder='big'))
+        data_int = int.from_bytes(data, byteorder="big")
+        gn_addr = GNAddress.decode((data_int >> 32 * 3).to_bytes(8, byteorder="big"))
         tst = TST.decode(data_int >> 32 * 2)
         latitude = (data_int >> 32 * 1) & 0xFFFFFFFF
         longitude = data_int & 0xFFFFFFFF

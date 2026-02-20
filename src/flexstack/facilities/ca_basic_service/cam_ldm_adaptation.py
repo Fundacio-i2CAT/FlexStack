@@ -29,7 +29,12 @@ class CABasicServiceLDM:
         Time that the messages stored in the LDM will be mantained. (In milliseconds).
     """
 
-    def __init__(self, ldm: LDMFacility, access_permissions: tuple[AccessPermission, ...], time_validity: int):
+    def __init__(
+        self,
+        ldm: LDMFacility,
+        access_permissions: tuple[AccessPermission, ...],
+        time_validity: int,
+    ):
         self.logging = logging.getLogger("ca_basic_service")
         self.ldm_if_ldm_3 = ldm.if_ldm_3
         self.access_permissions = access_permissions
