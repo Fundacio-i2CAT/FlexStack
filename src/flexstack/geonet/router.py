@@ -678,7 +678,7 @@ class Router:
             # Decap the common header
             common_header = CommonHeader.decode_from_bytes(packet[0:8])
             packet = packet[8:]
-            if basic_header.rhl > self.mib.itsGnDefaultHopLimit:
+            if basic_header.rhl > common_header.mhl:
                 raise DecapError("Hop limit exceeded")
             # TODO: Forwarding packet buffer flush
             if common_header.ht == HeaderType.ANY:
