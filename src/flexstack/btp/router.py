@@ -81,7 +81,8 @@ class Router:
                 communication_profile=request.communication_profile,
                 traffic_class=request.traffic_class,
                 data=data,
-                length=len(data)
+                length=len(data),
+                max_hop_limit=request.max_hop_limit,
             )
             self.logging.debug(
                 "Sending BTP Data Request: %s", gn_data_request.data)

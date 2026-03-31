@@ -406,6 +406,8 @@ class GNDataRequest:
         Payload.
     area : Area
         Area of the GBC algorithm. Only used when the packet transport type is GBC.
+    max_hop_limit : int
+        Maximum hop limit for the packet. Default is 10.
 
     THIS CLASS WILL BE EXTENDED WHEN FURTHER PACKET TYPES ARE IMPLEMENTED
     """
@@ -421,6 +423,7 @@ class GNDataRequest:
     length: int = 0
     data: bytes = b""
     area: Area = field(default_factory=Area)
+    max_hop_limit: int = 10
 
     def to_dict(self) -> dict:
         """

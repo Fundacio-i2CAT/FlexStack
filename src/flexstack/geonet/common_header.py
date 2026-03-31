@@ -70,8 +70,7 @@ class CommonHeader:
         if ht == HeaderType.TSB and hst == TopoBroadcastHST.SINGLE_HOP:
             mhl = 1
         else:
-            # TODO: Set the maximum hop limit on other cases than SHB As specified in: Section 10.3.4 Table 20
-            mhl = 1
+            mhl = request.max_hop_limit
         return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=0, pl=pl, mhl=mhl)  # type: ignore
 
     def encode_to_int(self) -> int:
