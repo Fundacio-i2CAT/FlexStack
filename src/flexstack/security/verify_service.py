@@ -16,7 +16,13 @@ class VerifyService:
     ):
         """
         Constructor
-
+        
+        Parameters
+        ----------
+        backend : ECDSABackend
+            ECDSA backend to use for the verification of the signature.
+        certificate_library : CertificateLibrary
+            Certificate library to use for the verification of the signature.
         """
         self.backend: ECDSABackend = backend
         self.certificate_library: CertificateLibrary = certificate_library
@@ -24,14 +30,23 @@ class VerifyService:
     def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:
         """
         Verify the signature of a message
+        
+        Parameters
+        ----------
+        request : SNVERIFYRequest
+            Request to verify the signature of a message.
+        
+        Returns
+        -------
+        SNVERIFYConfirm
+            Confirmation of the verification of the signature of a message.
         """
         sec_header_decoded = SECURITY_CODER.decode_etsi_ts_103097_data_signed(
             request.message
         )
-        data = SECURITY_CODER.encode_to_be_signed_data(
-            sec_header_decoded["toBeSigned"]
-        )
-        signer = sec_header_decoded["content"][1]["signer"]
+        signed_data = sec_header_decoded["content"][1]
+        data = SECURITY_CODER.encode_to_be_signed_data(signed_data["tbsData"])
+        signer = signed_data["signer"]
         authorization_ticket = None
         if signer[0] == "certificate":
             authorization_ticket = (
@@ -74,16 +89,18 @@ class VerifyService:
             ]
             verify = self.backend.verify_with_pk(
                 data=data,
-                signature=sec_header_decoded["signature"],
+                signature=signed_data["signature"],
                 pk=verification_key,
             )
             if verify:
+                plain_message = signed_data["tbsData"]["payload"]["data"]["content"][1]
                 return SNVERIFYConfirm(
                     report=ReportVerify.SUCCESS,
                     certificate_id=authorization_ticket.as_hashedid8(),
                     its_aid=b'',
                     its_aid_length=0,
                     permissions=b'',
+                    plain_message=plain_message,
                 )
             else:
                 return SNVERIFYConfirm(

@@ -10,6 +10,7 @@ from ..geonet.service_access_point import (
     CommonNH,
 )
 from ..geonet.position_vector import LongPositionVector
+from ..security.security_profiles import SecurityProfile
 
 
 @dataclass(frozen=True)
@@ -32,10 +33,22 @@ class BTPDataRequest:
         Packet Transport Type.
     gn_destination_address : GNAddress
         Destination Address.
+    gn_max_hop_limit : int
+        Maximum Hop Limit.
     communication_profile : CommunicationProfile
         Communication Profile.
     traffic_class : TrafficClass
         Traffic Class.
+    security_profile : SecurityProfile
+        Security profile to apply when the GN router signs the packet.
+        Defaults to :attr:`SecurityProfile.NO_SECURITY` (no signing).
+    its_aid : int
+        ITS-AID (PSID) of the service carried in this packet, used by the
+        GN router to select the correct signing certificate.  Only relevant
+        when *security_profile* is not ``NO_SECURITY``.
+    security_permissions : bytes
+        Sender permissions forwarded to the sign service.  Only relevant
+        when *security_profile* is not ``NO_SECURITY``.
     length : int
         Length of the payload.
     data : bytes
@@ -51,8 +64,12 @@ class BTPDataRequest:
         default_factory=PacketTransportType)
     gn_destination_address: GNAddress = field(default_factory=GNAddress)
     gn_area: Area = field(default_factory=Area)
+    gn_max_hop_limit: int = 0
     communication_profile: CommunicationProfile = CommunicationProfile.UNSPECIFIED
     traffic_class: TrafficClass = field(default_factory=TrafficClass)
+    security_profile: SecurityProfile = SecurityProfile.NO_SECURITY
+    its_aid: int = 0
+    security_permissions: bytes = b"\x00"
     length: int = 0
     data: bytes = b""
 
@@ -126,6 +143,7 @@ class BTPDataRequest:
             gn_packet_transport_type=packet_transport_type,
             gn_destination_address=gn_destination_address,
             gn_area=area,
+            gn_max_hop_limit=data.get("gn_max_hop_limit", 1),
             communication_profile=communication_profile,
             traffic_class=traffic_class,
             length=length,

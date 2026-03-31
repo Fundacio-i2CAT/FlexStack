@@ -33,8 +33,9 @@ from .position_vector import LongPositionVector
 from .location_table import LocationTable
 from ..linklayer.link_layer import LinkLayer
 from ..security.sign_service import SignService
+from ..security.verify_service import VerifyService
 from ..security.security_profiles import SecurityProfile
-from ..security.sn_sap import SNSIGNConfirm, SNSIGNRequest
+from ..security.sn_sap import SNSIGNConfirm, SNSIGNRequest, SNVERIFYRequest, ReportVerify
 from .exceptions import (
     DADException,
     DecapError,
@@ -73,7 +74,7 @@ class Router:
 
     """
 
-    def __init__(self, mib: MIB, sign_service: SignService | None = None) -> None:
+    def __init__(self, mib: MIB, sign_service: SignService | None = None, verify_service: VerifyService | None = None) -> None:
         """
         Initialize the router.
 
@@ -81,6 +82,12 @@ class Router:
         ----------
         mib : MIB
             MIB to use.
+        sign_service : SignService | None
+            Sign service used to sign outgoing secured packets. Defaults to None
+            (no signing).
+        verify_service : VerifyService | None
+            Verify service used to verify incoming secured packets. Defaults to None
+            (secured packets are discarded with a warning).
         """
         self.mib = mib
         self.ego_position_vector_lock = Lock()
@@ -89,6 +96,7 @@ class Router:
         self.link_layer: LinkLayer | None = None
         self.location_table = LocationTable(mib)
         self.sign_service: SignService | None = sign_service
+        self.verify_service: VerifyService | None = verify_service
         self.indication_callback = None
         self.sequence_number_lock = Lock()
         self.sequence_number = 0
@@ -706,7 +714,33 @@ class Router:
                     "Any packet (Common Header) not implemented")
 
         elif basic_header.nh == BasicNH.SECURED_PACKET:
-            raise NotImplementedError("Secured packet not implemented")
+            # ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.3 - Secured packet processing
+            # 1) If no verify service is configured, discard the packet silently.
+            if self.verify_service is None:
+                print("Secured packet received but no VerifyService configured, discarding")
+                return
+            # 2) Verify the secured packet using the SN-VERIFY service (ETSI TS 102 723-8).
+            verify_confirm = self.verify_service.verify(
+                SNVERIFYRequest(
+                    sec_header=b"",
+                    sec_header_length=0,
+                    message=packet,
+                    message_length=len(packet),
+                )
+            )
+            if verify_confirm.report != ReportVerify.SUCCESS:
+                print(f"Secured packet verification failed: {verify_confirm.report}")
+                return
+            # 3) Reconstruct the inner GN packet and re-enter the indication pipeline.
+            #    plain_message contains the original GN payload that was signed
+            #    (common_header + position_vector + media_dependent_data + upper_layer_data).
+            #    Prepend the basic header with NH=COMMON_HEADER to form a valid GN PDU.
+            inner_packet = (
+                basic_header.set_nh(BasicNH.COMMON_HEADER).encode_to_bytes()
+                + verify_confirm.plain_message
+            )
+            self.gn_data_indicate(inner_packet)
+            return
         else:
             raise NotImplementedError("ANY next header not implemented")
         if self.indication_callback:

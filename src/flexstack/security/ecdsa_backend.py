@@ -208,3 +208,42 @@ class PythonECDSABackend(ECDSABackend):
                 return False
         else:
             raise ValueError("Public key format not supported")
+
+    def export_signing_key(self, identifier: int) -> bytes:
+        """
+        Export the PEM-encoded signing key for the given identifier.
+
+        Parameters
+        ----------
+        identifier : int
+            Identifier of the key pair to export.
+
+        Returns
+        -------
+        bytes
+            PEM-encoded private signing key.
+        """
+        return self.keys[identifier].to_pem()
+
+    def import_signing_key(self, key_pem: bytes) -> int:
+        """
+        Import a PEM-encoded signing key and return its new identifier.
+
+        The imported key is appended to the internal key store. Existing keys
+        are not modified.
+
+        Parameters
+        ----------
+        key_pem : bytes
+            PEM-encoded NIST P-256 private signing key.
+
+        Returns
+        -------
+        int
+            Identifier that can be used with :meth:`sign`, :meth:`get_public_key`,
+            and :meth:`export_signing_key`.
+        """
+        key: ecdsa.keys.SigningKey = ecdsa.SigningKey.from_pem(key_pem)
+        identifier = len(self.keys)
+        self.keys[identifier] = key
+        return identifier

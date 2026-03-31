@@ -138,6 +138,7 @@ class TestGNDataRequest(unittest.TestCase):
                 "traffic_class": "AA==",
                 "length": 0,
                 "data": "",
+                'max_hop_limit': 1,
                 "area": {"latitude": 0, "longitude": 0, "a": 0, "b": 0, "angle": 0},
             },
         )

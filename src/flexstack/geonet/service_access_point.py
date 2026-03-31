@@ -423,7 +423,7 @@ class GNDataRequest:
     length: int = 0
     data: bytes = b""
     area: Area = field(default_factory=Area)
-    max_hop_limit: int = 10
+    max_hop_limit: int = 1
 
     def to_dict(self) -> dict:
         """
@@ -444,6 +444,7 @@ class GNDataRequest:
             "length": self.length,
             "data": b64encode(self.data).decode("utf-8"),
             "area": self.area.to_dict(),
+            "max_hop_limit": self.max_hop_limit,
         }
 
     @classmethod
@@ -470,6 +471,7 @@ class GNDataRequest:
         length = gn_data_request["length"]
         data = b64decode(gn_data_request["data"])
         area = Area.from_dict(gn_data_request["area"])
+        max_hop_limit = gn_data_request.get("max_hop_limit", 0)
         return cls(
             upper_protocol_entity=upper_protocol_entity,
             packet_transport_type=packet_transport_type,
@@ -478,6 +480,7 @@ class GNDataRequest:
             length=length,
             data=data,
             area=area,
+            max_hop_limit=max_hop_limit,
         )
 
 

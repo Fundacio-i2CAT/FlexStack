@@ -1,14 +1,16 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 from flexstack.geonet.router import DADException, GNForwardingAlgorithmResponse, Router
 from flexstack.geonet.mib import MIB
 from flexstack.geonet.position_vector import LongPositionVector
 from flexstack.geonet.service_access_point import Area, CommonNH, GNDataIndication, GNDataRequest, GNDataConfirm, GeoBroadcastHST, HeaderType, ResultCode, TopoBroadcastHST, PacketTransportType
 from flexstack.geonet.gn_address import ST, GNAddress
-from flexstack.geonet.basic_header import BasicHeader
+from flexstack.geonet.basic_header import BasicHeader, BasicNH
 from flexstack.geonet.common_header import CommonHeader
 from flexstack.geonet.gbc_extended_header import GBCExtendedHeader
+from flexstack.security.verify_service import VerifyService
+from flexstack.security.sn_sap import SNVERIFYConfirm, ReportVerify
 
 
 class TestRouter(unittest.TestCase):
@@ -374,3 +376,84 @@ class TestRouter(unittest.TestCase):
         self.assertEqual(router.ego_position_vector.longitude, 75674116)
         self.assertEqual(router.ego_position_vector.s, 9)
         self.assertEqual(router.ego_position_vector.h, 103)
+
+
+class TestRouterSecuredPacket(unittest.TestCase):
+    """Tests for SECURED_PACKET reception in the GeoNetworking router."""
+
+    def _build_secured_packet(self, inner_bytes: bytes) -> bytes:
+        """Return a GN PDU with BasicNH.SECURED_PACKET + arbitrary inner payload."""
+        basic_header = BasicHeader(version=1).set_nh(BasicNH.SECURED_PACKET)
+        return basic_header.encode_to_bytes() + inner_bytes
+
+    def test_gn_data_indicate_secured_no_verify_service(self):
+        """Secured packets must be silently discarded when no VerifyService is configured."""
+        mib = MIB()
+        router = Router(mib)  # verify_service defaults to None
+        callback = MagicMock()
+        router.register_indication_callback(callback)
+
+        packet = self._build_secured_packet(b"some_signed_data")
+        router.gn_data_indicate(packet)
+
+        callback.assert_not_called()
+
+    def test_gn_data_indicate_secured_verification_failed(self):
+        """Secured packets must be discarded when verification returns a failure report."""
+        mib = MIB()
+        verify_service = MagicMock(spec=VerifyService)
+        verify_service.verify.return_value = SNVERIFYConfirm(
+            report=ReportVerify.FALSE_SIGNATURE,
+            certificate_id=b"",
+            its_aid=b"",
+            its_aid_length=0,
+            permissions=b"",
+            plain_message=b"",
+        )
+        router = Router(mib, verify_service=verify_service)
+        callback = MagicMock()
+        router.register_indication_callback(callback)
+
+        packet = self._build_secured_packet(b"bad_signed_data")
+        router.gn_data_indicate(packet)
+
+        verify_service.verify.assert_called_once()
+        callback.assert_not_called()
+
+    def test_gn_data_indicate_secured_verification_success(self):
+        """On successful verification the inner GN packet must be indicated via the callback."""
+        mib = MIB()
+        # Build a valid inner SHB GN packet (common_header + LPV + media_dep + payload)
+        common_header = CommonHeader(
+            ht=HeaderType.TSB,
+            hst=TopoBroadcastHST.SINGLE_HOP,  # type: ignore
+        )
+        long_position_vector = LongPositionVector()
+        media_dep = b"\x00\x00\x00\x00"
+        upper_payload = b"secured_cam_data"
+        plain_message = (
+            common_header.encode_to_bytes() + long_position_vector.encode() + media_dep + upper_payload
+        )
+
+        verify_service = MagicMock(spec=VerifyService)
+        verify_service.verify.return_value = SNVERIFYConfirm(
+            report=ReportVerify.SUCCESS,
+            certificate_id=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+            its_aid=b"",
+            its_aid_length=0,
+            permissions=b"",
+            plain_message=plain_message,
+        )
+
+        router = Router(mib, verify_service=verify_service)
+        router.location_table.new_shb_packet = MagicMock()
+        callback = MagicMock()
+        router.register_indication_callback(callback)
+
+        packet = self._build_secured_packet(b"valid_signed_data")
+        router.gn_data_indicate(packet)
+
+        verify_service.verify.assert_called_once()
+        callback.assert_called_once()
+        indication: GNDataIndication = callback.call_args[0][0]
+        self.assertEqual(indication.data, upper_payload)

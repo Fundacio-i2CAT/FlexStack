@@ -18,6 +18,7 @@ from ...btp.service_access_point import (
     CommunicationProfile,
     TrafficClass,
 )
+from ...security.security_profiles import SecurityProfile
 from ...utils.time_service import ITS_EPOCH_MS, ELAPSED_MILLISECONDS
 from .cam_ldm_adaptation import CABasicServiceLDM
 
@@ -647,6 +648,8 @@ class CAMTransmissionManagement:
             gn_packet_transport_type=PacketTransportType(),
             communication_profile=CommunicationProfile.UNSPECIFIED,
             traffic_class=TrafficClass(),
+            security_profile=SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE,
+            its_aid=36,
             data=data,
             length=len(data),
         )

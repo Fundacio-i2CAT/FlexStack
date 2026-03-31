@@ -3,6 +3,7 @@ from unittest import TestCase
 from flexstack.geonet.gn_address import GNAddress
 from flexstack.btp.service_access_point import BTPDataIndication, BTPDataRequest
 from flexstack.geonet.service_access_point import TrafficClass
+from flexstack.security.security_profiles import SecurityProfile
 
 
 class TestBTPDataRequest(TestCase):
@@ -22,6 +23,22 @@ class TestBTPDataRequest(TestCase):
         )
         self.assertEqual(btp_data_request.length, 0)
         self.assertEqual(btp_data_request.data, b"")
+        self.assertEqual(btp_data_request.security_profile, SecurityProfile.NO_SECURITY)
+        self.assertEqual(btp_data_request.its_aid, 0)
+        self.assertEqual(btp_data_request.security_permissions, b"\x00")
+
+    def test_security_profile_can_be_set(self):
+        btp_data_request = BTPDataRequest(
+            security_profile=SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE,
+            its_aid=36,
+            security_permissions=b"\x01",
+        )
+        self.assertEqual(
+            btp_data_request.security_profile,
+            SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE,
+        )
+        self.assertEqual(btp_data_request.its_aid, 36)
+        self.assertEqual(btp_data_request.security_permissions, b"\x01")
 
     def test_to_dict(self):
         btp_data_request = BTPDataRequest()

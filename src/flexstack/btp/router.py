@@ -80,9 +80,12 @@ class Router:
                 area=request.gn_area,
                 communication_profile=request.communication_profile,
                 traffic_class=request.traffic_class,
+                security_profile=request.security_profile,
+                its_aid=request.its_aid,
+                security_permissions=request.security_permissions,
                 data=data,
                 length=len(data),
-                max_hop_limit=request.max_hop_limit,
+                max_hop_limit=request.gn_max_hop_limit,
             )
             self.logging.debug(
                 "Sending BTP Data Request: %s", gn_data_request.data)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .sn_sap import SNSIGNRequest, SNSIGNConfirm
 from .certificate import OwnCertificate, SECURITY_CODER
+from .certificate_library import CertificateLibrary
 from .ecdsa_backend import ECDSABackend
 from ..utils.time_service import TimeService
 
@@ -66,31 +67,30 @@ class SignService:
     ----------
     ecdsa_backend : ECDSABackend
         ECDSA backend to use.
-    unknown_ats : List[bytes]
+    certificate_library : CertificateLibrary
+        Certificate library holding own certificates, known authorization tickets,
+        authorization authorities and root certificates used during signing.
+    unknown_ats : list[bytes]
         List of unknown ATs. Each AT is represented by its certificate hashedId3.
-    knwon_ats : dict[bytes, Certificate]
-        Dictionary of known ATs, indexed by the AT's certificate hashId8. Each AT is represented by a dictionary with the following keys: 'verifying_key', 'verified', 'certificate', 'backend_id'.
-    requested_ats : List[bytes]
+    requested_ats : list[bytes]
         List of requested ATs. Each AT is represented by its certificate hashedId3.
-    known_aas : Dict[bytes, Certificate]
-        Dictionary of AA. Indexed by the AA HashedId8. Each AA is represented by a Certificate object.
-    root_ca : dict[bytes, Certificate]
-        Dictionary of Root CA. Indexed by the Root CA HashedId8. Each Root CA is represented by a dictionary with the following keys: 'verifying_key', 'verified', 'certificate'.
-    present_ats : dict[int, OwnCertificate]
-        The present ats stores the ATs to use for signing. Indexed by the AT's backend id. Each AT is stored as a Certificate.
     """
 
-    def __init__(self, backend: ECDSABackend) -> None:
+    def __init__(self, backend: ECDSABackend, certificate_library: CertificateLibrary) -> None:
         """
         Initialize the Sign Service.
+
+        Parameters
+        ----------
+        backend : ECDSABackend
+            ECDSA backend to use for cryptographic operations.
+        certificate_library : CertificateLibrary
+            Certificate library holding own certificates and trusted chain certificates.
         """
         self.ecdsa_backend: ECDSABackend = backend
-        self.knwon_ats = {}
-        self.unknown_ats = {}
-        self.requested_ats = {}
-        self.knwon_aas = {}
-        self.root_ca = {}
-        self.present_ats = {}
+        self.certificate_library: CertificateLibrary = certificate_library
+        self.unknown_ats: list = []
+        self.requested_ats: list = []
 
     def sign_request(self, request: SNSIGNRequest) -> SNSIGNConfirm:
         """
@@ -188,11 +188,36 @@ class SignService:
     def get_present_at_for_signging(self, its_aid: int) -> OwnCertificate | None:
         """
         Get the present AT for a given ITS-AID.
+
+        Parameters
+        ----------
+        its_aid : int
+            ITS AID to look up.
+
+        Returns
+        -------
+        OwnCertificate | None
+            The OwnCertificate that covers the given ITS-AID, or None if not found.
         """
-        for cert in self.present_ats.items():
-            if its_aid in cert[1].get_list_of_its_aid():
-                return cert[1]
+        for cert in self.certificate_library.own_certificates.values():
+            if its_aid in cert.get_list_of_its_aid():
+                return cert
         return None
+
+    def add_own_certificate(self, cert: OwnCertificate) -> None:
+        """
+        Add an own certificate to the certificate library.
+
+        Delegates to :meth:`CertificateLibrary.add_own_certificate` so that the
+        certificate is available for signing and can be verified against the
+        trusted chain stored in the library.
+
+        Parameters
+        ----------
+        cert : OwnCertificate
+            The own certificate to add.
+        """
+        self.certificate_library.add_own_certificate(cert)
 
     def get_known_at_for_request(self, hashedid3: bytes) -> dict:
         """

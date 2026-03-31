@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, MagicMock, patch
 from flexstack.security.sn_sap import SNSIGNRequest, SNSIGNConfirm
 from flexstack.security.certificate import OwnCertificate
+from flexstack.security.certificate_library import CertificateLibrary
 from flexstack.security.ecdsa_backend import ECDSABackend
 from flexstack.utils.time_service import TimeService
 from flexstack.security.sign_service import (
@@ -63,9 +64,19 @@ class TestSignService(unittest.TestCase):
 
     def setUp(self):
         self.backend = Mock(spec=ECDSABackend)
-        self.sign_service = SignService(self.backend)
+        self.certificate_library = MagicMock(spec=CertificateLibrary)
+        self.certificate_library.own_certificates = {}
+        self.sign_service = SignService(self.backend, self.certificate_library)
+
+    def test_init(self):
+        """Test that SignService initialises correctly with backend and certificate library."""
+        self.assertIs(self.sign_service.ecdsa_backend, self.backend)
+        self.assertIs(self.sign_service.certificate_library, self.certificate_library)
+        self.assertEqual(self.sign_service.unknown_ats, [])
+        self.assertEqual(self.sign_service.requested_ats, [])
 
     def test_sign_request_not_implemented(self):
+        """Test that sign_request raises NotImplementedError for all defined ITS-AIDs."""
         for aid in [36, 37, 137, 138, 139, 141, 540, 801, 639, 638]:
             request = Mock(spec=SNSIGNRequest)
             request.its_aid = aid
@@ -74,6 +85,7 @@ class TestSignService(unittest.TestCase):
 
     @patch('flexstack.security.sign_service.SECURITY_CODER')
     def test_sign_cam(self, mock_coder):
+        """Test that sign_cam returns a correct SNSIGNConfirm."""
         request = Mock(spec=SNSIGNRequest)
         request.its_aid = 999
         request.tbs_message = b"test_message"
@@ -95,15 +107,36 @@ class TestSignService(unittest.TestCase):
         self.assertEqual(confirm.sec_message_length, len(b"encoded_signed_data"))
 
     def test_get_present_at_for_signging(self):
-        self.sign_service.present_ats = {1: Mock(spec=OwnCertificate)}
-        self.sign_service.present_ats[1].get_list_of_its_aid.return_value = [999]
+        """Test that get_present_at_for_signging returns the correct AT from the library."""
+        mock_cert = Mock(spec=OwnCertificate)
+        mock_cert.get_list_of_its_aid.return_value = [999]
+        self.certificate_library.own_certificates = {b"hashid8": mock_cert}
 
         cert = self.sign_service.get_present_at_for_signging(999)
 
         self.assertIsNotNone(cert)
-        self.assertEqual(cert, self.sign_service.present_ats[1])
+        self.assertEqual(cert, mock_cert)
+
+    def test_get_present_at_for_signging_not_found(self):
+        """Test that get_present_at_for_signging returns None when no matching AT exists."""
+        mock_cert = Mock(spec=OwnCertificate)
+        mock_cert.get_list_of_its_aid.return_value = [36]
+        self.certificate_library.own_certificates = {b"hashid8": mock_cert}
+
+        cert = self.sign_service.get_present_at_for_signging(999)
+
+        self.assertIsNone(cert)
+
+    def test_add_own_certificate(self):
+        """Test that add_own_certificate delegates to the certificate library."""
+        mock_cert = Mock(spec=OwnCertificate)
+
+        self.sign_service.add_own_certificate(mock_cert)
+
+        self.certificate_library.add_own_certificate.assert_called_once_with(mock_cert)
 
     def test_get_known_at_for_request_not_implemented(self):
+        """Test that get_known_at_for_request raises NotImplementedError."""
         with self.assertRaises(NotImplementedError):
             self.sign_service.get_known_at_for_request(b"hashedid3")
 

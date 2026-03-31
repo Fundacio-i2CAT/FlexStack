@@ -34,12 +34,23 @@ class TestVerifyService(unittest.TestCase):
             }
         }
 
+        inner_payload = b"cam_payload_bytes"
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("certificate", [{"cert": "data"}])
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {
+                    "payload": {
+                        "data": {
+                            "protocolVersion": 3,
+                            "content": ("unsecuredData", inner_payload)
+                        }
+                    },
+                    "some": "data"
+                },
+                "signer": ("certificate", [{"cert": "data"}]),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -60,6 +71,7 @@ class TestVerifyService(unittest.TestCase):
         self.assertEqual(result.report, ReportVerify.SUCCESS)
         self.assertEqual(result.certificate_id,
                          b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
+        self.assertEqual(result.plain_message, inner_payload)
         self.certificate_library.verify_sequence_of_certificates.assert_called_once()
         self.backend.verify_with_pk.assert_called_once()
 
@@ -68,11 +80,13 @@ class TestVerifyService(unittest.TestCase):
         """Test verification fails with inconsistent certificate chain"""
         # Given
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("certificate", [{"cert": "data"}])
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("certificate", [{"cert": "data"}]),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -105,13 +119,24 @@ class TestVerifyService(unittest.TestCase):
             }
         }
 
+        inner_payload = b"cam_digest_payload"
         digest = b'\xaa\xbb\xcc\xdd\xee\xff\x00\x11'
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("digest", digest)
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {
+                    "payload": {
+                        "data": {
+                            "protocolVersion": 3,
+                            "content": ("unsecuredData", inner_payload)
+                        }
+                    },
+                    "some": "data"
+                },
+                "signer": ("digest", digest),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -132,6 +157,7 @@ class TestVerifyService(unittest.TestCase):
         self.assertEqual(result.report, ReportVerify.SUCCESS)
         self.assertEqual(result.certificate_id,
                          b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
+        self.assertEqual(result.plain_message, inner_payload)
         self.certificate_library.get_authorization_ticket_by_hashedid8.assert_called_once_with(
             digest)
 
@@ -141,11 +167,13 @@ class TestVerifyService(unittest.TestCase):
         # Given
         digest = b'\xaa\xbb\xcc\xdd\xee\xff\x00\x11'
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("digest", digest)
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("digest", digest),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -170,11 +198,13 @@ class TestVerifyService(unittest.TestCase):
         """Test verification raises exception with unknown signer type"""
         # Given
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("unknown_type", b"data")
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("unknown_type", b"data"),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -204,11 +234,13 @@ class TestVerifyService(unittest.TestCase):
         }
 
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("certificate", [{"cert": "data"}])
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("certificate", [{"cert": "data"}]),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -243,11 +275,13 @@ class TestVerifyService(unittest.TestCase):
         }
 
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("certificate", [{"cert": "data"}])
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("certificate", [{"cert": "data"}]),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
@@ -280,11 +314,13 @@ class TestVerifyService(unittest.TestCase):
         }
 
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
-            "toBeSigned": {"some": "data"},
+            "protocolVersion": 3,
             "content": ("signedData", {
-                "signer": ("certificate", [{"cert": "data"}])
-            }),
-            "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+                "hashId": "sha256",
+                "tbsData": {"some": "data"},
+                "signer": ("certificate", [{"cert": "data"}]),
+                "signature": {"rSig": ("x-only", b"r"), "sSig": b"s"}
+            })
         }
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbs_data"
 
