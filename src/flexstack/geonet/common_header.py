@@ -12,6 +12,7 @@ from .service_access_point import (
     LocationServiceHST,
 )
 from .exceptions import DecodeError
+from .mib import MIB
 
 
 @dataclass(frozen=True)
@@ -32,8 +33,8 @@ class CommonHeader:
     tc : TrafficClass
         (8 bit unsigned integer) Traffic class that represents Facility-layer requirements on packet transport.
     flags : int
-        (8 bit unsigned integer) Flags. Bit 0 Indicates whether the ITS-S is mobile or stationary
-        (GN protocol constant itsGnIsMobile) Bit 1 to 7 Reserved.
+        (8 bit unsigned integer) Flags. Bit 0 (MSB) Indicates whether the ITS-S is mobile or stationary
+        (GN protocol constant itsGnIsMobile) Bits 1 to 7 Reserved.
     pl : int
         (16 bit unsigned integer) Payload Length. Indicates the length of the payload in octets.
     mhl : int
@@ -53,7 +54,7 @@ class CommonHeader:
     mhl: int = 0
 
     @classmethod
-    def initialize_with_request(cls, request: GNDataRequest, flags: int = 0) -> "CommonHeader":
+    def initialize_with_request(cls, request: GNDataRequest, mib: MIB) -> "CommonHeader":
         """
         Initializes the Common Header with a GNDataRequest.
 
@@ -61,14 +62,15 @@ class CommonHeader:
         ----------
         request : GNDataRequest
             GNDataRequest to use.
-        flags : int
-            Flags byte. Bit 0 shall be set to itsGnIsMobile. Defaults to 0.
-            As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.4.
+        mib : MIB
+            Management Information Base. The flags byte is derived from
+            mib.itsGnIsMobile (§10.3.4).
         """
         nh = request.upper_protocol_entity
         ht = request.packet_transport_type.header_type
         hst = request.packet_transport_type.header_subtype
         tc = request.traffic_class
+        flags = mib.itsGnIsMobile.value << 7
         pl = request.length
         if ht == HeaderType.TSB and hst == TopoBroadcastHST.SINGLE_HOP:
             mhl = 1
@@ -153,15 +155,15 @@ class CommonHeader:
         return cls.decode_from_int(int.from_bytes(header[0:8], "big"))
 
     @classmethod
-    def initialize_beacon(cls, flags: int = 0) -> CommonHeader:
+    def initialize_beacon(cls, mib: MIB) -> CommonHeader:
         """
         Initializes a Common Header for a beacon message.
 
         Parameters
         ----------
-        flags : int
-            Flags byte. Bit 0 shall be set to itsGnIsMobile. Defaults to 0.
-            As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.4.
+        mib : MIB
+            Management Information Base. The flags byte is derived from
+            mib.itsGnIsMobile (§10.3.4).
 
         Returns
         -------
@@ -170,6 +172,6 @@ class CommonHeader:
         """
         nh = CommonNH.ANY
         ht = HeaderType.BEACON
-        hst = HeaderSubType.UNSPECIFIED
+        hst = HeaderSubType.UNSPECIFIED 
         tc = TrafficClass()
-        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=flags, pl=0, mhl=1)
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=mib.itsGnIsMobile.value, pl=0, mhl=1)

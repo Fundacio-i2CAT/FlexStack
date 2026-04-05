@@ -84,7 +84,7 @@ class TestRouter(unittest.TestCase):
         # Assert that the result is an instance of GNDataConfirm
         self.assertIsInstance(result, GNDataConfirm)
         link_layer.send.assert_called_once_with(
-            b'\x11\x00\x1a\x01\x00P\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00request_data')
+            b'\x11\x00\x1a\x01\x00P\x00\x80\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00request_data')
         self.assertEqual(result.result_code, ResultCode.ACCEPTED)
 
     def test_calculate_distance(self):
@@ -413,7 +413,7 @@ class TestRouter(unittest.TestCase):
         # Then - packet = BasicHeader(4) + CommonHeader(8) + LPV(24) = 36 bytes
         # BasicHeader: version=1, NH=COMMON_HEADER, LT=60s(0x1a), RHL=1
         # CommonHeader: NH=ANY(0x00), HT=BEACON(0x1)(+HST=0 => 0x10), TC=0,
-        #               flags=itsGnIsMobile=MOBILE=1, PL=0, MHL=1, reserved=0
+        #               flags=itsGnIsMobile=MOBILE=0x80, PL=0, MHL=1, reserved=0
         link_layer.send.assert_called_once_with(
             b'\x11\x00\x1a\x01\x00\x10\x00\x01\x00\x00\x01\x00'
             + bytes(24)

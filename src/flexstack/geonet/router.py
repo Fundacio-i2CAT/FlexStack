@@ -168,8 +168,7 @@ class Router:
         """
         basic_header = BasicHeader.initialize_with_mib_and_rhl(self.mib, 1)
         # §10.3.4: Flags Bit 0 shall be set to itsGnIsMobile
-        common_header = CommonHeader.initialize_beacon(
-            flags=self.mib.itsGnIsMobile.value)
+        common_header = CommonHeader.initialize_beacon(self.mib)
         long_position_vector = self.ego_position_vector
         packet = (
             basic_header.encode_to_bytes()
@@ -248,7 +247,7 @@ class Router:
         basic_header = BasicHeader.initialize_with_mib_request_and_rhl(
             self.mib, request.max_packet_lifetime, 1)
         common_header = CommonHeader.initialize_with_request(
-            request, flags=self.mib.itsGnIsMobile.value)
+            request, self.mib)
         long_position_vector = self.ego_position_vector
         media_dependant_data = b"\x00\x00\x00\x00"
         packet = b""
@@ -730,7 +729,7 @@ class Router:
         #      Flags Bit 0 = itsGnIsMobile (§10.3.4)
         _req_with_hl = dataclass_replace(request, max_hop_limit=hop_limit)
         common_header = CommonHeader.initialize_with_request(
-            _req_with_hl, flags=self.mib.itsGnIsMobile.value)
+            _req_with_hl, self.mib)
         #   c) set the fields of the GBC Extended Header (table 36);
         geo_broadcast_extended_header = GBCExtendedHeader.initialize_with_request_sequence_number_ego_pv(
             request, self.get_sequence_number(), self.ego_position_vector)
@@ -920,7 +919,7 @@ class Router:
         # Step 1b: Common Header
         _req_with_hl = dataclass_replace(request, max_hop_limit=hop_limit)
         common_header = CommonHeader.initialize_with_request(
-            _req_with_hl, flags=self.mib.itsGnIsMobile.value)
+            _req_with_hl, self.mib)
         # Step 2: look up DE PV from LocT
         de_entry = self.location_table.get_entry(
             request.destination) if request.destination else None
