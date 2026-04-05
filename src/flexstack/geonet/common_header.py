@@ -53,7 +53,7 @@ class CommonHeader:
     mhl: int = 0
 
     @classmethod
-    def initialize_with_request(cls, request: GNDataRequest) -> "CommonHeader":
+    def initialize_with_request(cls, request: GNDataRequest, flags: int = 0) -> "CommonHeader":
         """
         Initializes the Common Header with a GNDataRequest.
 
@@ -61,6 +61,9 @@ class CommonHeader:
         ----------
         request : GNDataRequest
             GNDataRequest to use.
+        flags : int
+            Flags byte. Bit 0 shall be set to itsGnIsMobile. Defaults to 0.
+            As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.4.
         """
         nh = request.upper_protocol_entity
         ht = request.packet_transport_type.header_type
@@ -71,7 +74,7 @@ class CommonHeader:
             mhl = 1
         else:
             mhl = request.max_hop_limit
-        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=0, pl=pl, mhl=mhl)  # type: ignore
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=flags, pl=pl, mhl=mhl)  # type: ignore
 
     def encode_to_int(self) -> int:
         """
@@ -150,9 +153,15 @@ class CommonHeader:
         return cls.decode_from_int(int.from_bytes(header[0:8], "big"))
 
     @classmethod
-    def initialize_beacon(cls) -> CommonHeader:
+    def initialize_beacon(cls, flags: int = 0) -> CommonHeader:
         """
         Initializes a Common Header for a beacon message.
+
+        Parameters
+        ----------
+        flags : int
+            Flags byte. Bit 0 shall be set to itsGnIsMobile. Defaults to 0.
+            As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.4.
 
         Returns
         -------
@@ -163,4 +172,4 @@ class CommonHeader:
         ht = HeaderType.BEACON
         hst = HeaderSubType.UNSPECIFIED
         tc = TrafficClass()
-        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=0, pl=0, mhl=1)
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=flags, pl=0, mhl=1)

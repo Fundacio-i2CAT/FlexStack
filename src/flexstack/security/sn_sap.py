@@ -35,6 +35,10 @@ class SNSIGNRequest:
         Context information which could be used in selecting properties of the underlying security protocol for various purposes.
     key_handle : int (optional)
         An indicator for the security entity to decide which key to use
+    generation_location : dict | None (optional)
+        3D location to embed in the signed message headerInfo as generationLocation.
+        Required for DENM (§7.1.2).  Expected keys: 'latitude' (int), 'longitude' (int),
+        'elevation' (int, Uint16 in 0.2 m units; 0xF000 = unavailable).
     """
     tbs_message_length: int
     tbs_message: bytes
@@ -43,6 +47,7 @@ class SNSIGNRequest:
     permissions: bytes
     context_information: bytes | None = None
     key_handle: int | None = None
+    generation_location: dict | None = None
 
     def __repr__(self):
         return (

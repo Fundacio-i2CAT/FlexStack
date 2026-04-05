@@ -8,6 +8,7 @@ from ...geonet.service_access_point import Area, GeoBroadcastHST, HeaderType, Pa
 from .denm_coder import DENMCoder
 from ...btp.router import Router as BTPRouter
 from ...btp.service_access_point import BTPDataRequest, CommonNH, CommunicationProfile
+from ...security.security_profiles import SecurityProfile
 from ...applications.road_hazard_signalling_service.service_access_point import (
     DENRequest,
 )
@@ -263,6 +264,8 @@ class DENMTransmissionManagement:
                 ]["longitude"],
             ),
             communication_profile=CommunicationProfile.UNSPECIFIED,
+            security_profile=SecurityProfile.DECENTRALIZED_ENVIRONMENTAL_NOTIFICATION_MESSAGE,
+            its_aid=37,
             data=data,
             length=len(data),
         )

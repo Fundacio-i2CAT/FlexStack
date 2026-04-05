@@ -61,8 +61,8 @@ PSID_VAM = 638
 # a Uint16 (0–65535) representing the number of years.
 VALIDITY_DURATION = ("years", 10)
 
-# CRACA identifier – arbitrary 3-byte value as per ETSI TS 103 097
-CRACA_ID = (0xA49599).to_bytes(3, byteorder="big")
+# CRACA identifier – must be 0x000000 per §6 of ETSI TS 103 097 (not revoked via 1609.2 mechanisms)
+CRACA_ID = b"\x00\x00\x00"
 
 # Directory where certificate and key files are written
 CERTS_DIR = os.path.join(_this_dir, "certs")

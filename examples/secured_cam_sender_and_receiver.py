@@ -306,7 +306,7 @@ def build_security_stack(at_index: int) -> tuple:
     cert_library.add_own_certificate(own_at)
 
     sign_service = SignService(backend=backend, certificate_library=cert_library)
-    verify_service = VerifyService(backend=backend, certificate_library=cert_library)
+    verify_service = VerifyService(backend=backend, certificate_library=cert_library, sign_service=sign_service)
 
     return sign_service, verify_service
 

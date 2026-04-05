@@ -1,12 +1,14 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from flexstack.applications.road_hazard_signalling_service.service_access_point import DENRequest
+from flexstack.btp.service_access_point import BTPDataRequest
 from flexstack.facilities.decentralized_environmental_notification_service.denm_coder import DENMCoder
 from flexstack.facilities.decentralized_environmental_notification_service.\
     denm_transmission_management import (
         DENMTransmissionManagement, DecentralizedEnvironmentalNotificationMessage
     )
 from flexstack.facilities.ca_basic_service.cam_transmission_management import VehicleData
+from flexstack.security.security_profiles import SecurityProfile
 
 
 class TestDecentralizedEnvironmentalNotificationMessage(unittest.TestCase):
@@ -260,3 +262,29 @@ class TestDENMTransmissionManagement(unittest.TestCase):
         self.denm_transmission_management.btp_router.btp_data_request.assert_called_once()
         self.denm_transmission_management.denm_coder.encode.assert_called_once_with(
             new_denm.denm)
+
+    def test_transmit_denm_uses_denm_security_profile(self):
+        """§7.1.2: transmit_denm must request DENM security profile with ITS-AID 37."""
+        self.denm_transmission_management.btp_router = MagicMock()
+        self.denm_transmission_management.btp_router.btp_data_request = MagicMock()
+        self.denm_transmission_management.denm_coder.encode = MagicMock(return_value=b'\x00')
+
+        new_denm = MagicMock()
+        new_denm.denm = {
+            "header": {"stationId": 1},
+            "denm": {
+                "management": {
+                    "eventPosition": {"latitude": 0, "longitude": 0},
+                    "referenceTime": 0,
+                }
+            }
+        }
+        self.denm_transmission_management.transmit_denm(new_denm)
+
+        call_args = self.denm_transmission_management.btp_router.btp_data_request.call_args
+        btp_request: BTPDataRequest = call_args[0][0]
+        self.assertEqual(
+            btp_request.security_profile,
+            SecurityProfile.DECENTRALIZED_ENVIRONMENTAL_NOTIFICATION_MESSAGE,
+        )
+        self.assertEqual(btp_request.its_aid, 37)

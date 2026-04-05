@@ -1,5 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass, field
+from typing import Optional
 
 from .exceptions import DecodeError
 from .mib import MIB
@@ -197,6 +198,39 @@ class BasicHeader:
     @classmethod
     def initialize_with_mib_and_rhl(cls, mib: MIB, rhl: int) -> "BasicHeader":
         lt = LT().set_value_in_seconds(mib.itsGnDefaultPacketLifetime)
+        return cls(
+            version=1,
+            nh=BasicNH.COMMON_HEADER,
+            reserved=0,
+            lt=lt,
+            rhl=rhl,
+        )
+
+    @classmethod
+    def initialize_with_mib_request_and_rhl(
+        cls, mib: MIB, max_packet_lifetime: Optional[float], rhl: int
+    ) -> "BasicHeader":
+        """
+        Initialize the Basic Header from MIB, optional max packet lifetime, and RHL.
+
+        Uses max_packet_lifetime when provided, otherwise falls back to
+        itsGnDefaultPacketLifetime. As specified in ETSI EN 302 636-4-1
+        V1.4.1 (2020-01). Section 10.3.2 (LT field).
+
+        Parameters
+        ----------
+        mib : MIB
+            MIB.
+        max_packet_lifetime : float or None
+            Maximum packet lifetime in seconds from the GN-DATA.request, or None
+            to use the MIB default (itsGnDefaultPacketLifetime).
+        rhl : int
+            Remaining hop limit.
+        """
+        if max_packet_lifetime is not None:
+            lt = LT().set_value_in_millis(int(max_packet_lifetime * 1000))
+        else:
+            lt = LT().set_value_in_seconds(mib.itsGnDefaultPacketLifetime)
         return cls(
             version=1,
             nh=BasicNH.COMMON_HEADER,

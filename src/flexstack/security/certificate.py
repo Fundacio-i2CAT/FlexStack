@@ -95,7 +95,7 @@ class Certificate:
             ),
             "toBeSigned": {
                 "id": ("name", "i2cat.net"),
-                "cracaId": (0xA49599).to_bytes(3, byteorder="big"),
+                "cracaId": b"\x00\x00\x00",
                 "crlSeries": 0,
                 "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
                 "appPermissions": [
@@ -526,11 +526,111 @@ class Certificate:
         bool
             True if the certificate is valid, False otherwise.
         """
+        # §6: verifyKeyIndicator must match certificate type
+        cert_type = self.certificate.get("type")
+        vki = self.certificate.get("toBeSigned", {}).get("verifyKeyIndicator")
+        if cert_type == "explicit" and (vki is None or vki[0] != "verificationKey"):
+            return False
+        if cert_type == "implicit" and (vki is None or vki[0] != "reconstructionValue"):
+            return False
         if self.issuer is not None and self.certificate_is_issued():
             return self.__verify_issued_certificate(backend)
         if self.certificate_is_self_signed():
             return self.__verify_self_signed_certificate(backend)
         return False
+
+    def is_authorization_ticket(self) -> bool:
+        """
+        Check whether this certificate conforms to the §7.2.1 Authorization Ticket profile.
+
+        §7.2.1 constraints:
+        - issuer SHALL be sha256AndDigest or sha384AndDigest (never self).
+        - toBeSigned.id SHALL be choice none.
+        - toBeSigned.certIssuePermissions SHALL be absent.
+        - toBeSigned.appPermissions SHALL be present.
+        """
+        tbs = self.certificate.get("toBeSigned", {})
+        if self.certificate.get("issuer", ("",))[0] not in ("sha256AndDigest", "sha384AndDigest"):
+            return False
+        if tbs.get("id", ("",))[0] != "none":
+            return False
+        if "certIssuePermissions" in tbs:
+            return False
+        if "appPermissions" not in tbs:
+            return False
+        return True
+
+    def is_enrolment_credential(self) -> bool:
+        """
+        Check whether this certificate conforms to the §7.2.2 Enrolment Credential profile.
+
+        §7.2.2 constraints:
+        - type SHALL be explicit.
+        - issuer SHALL be sha256AndDigest or sha384AndDigest.
+        - toBeSigned.id SHALL be choice name.
+        - toBeSigned.certIssuePermissions SHALL be absent.
+        - toBeSigned.appPermissions SHALL be present.
+        """
+        tbs = self.certificate.get("toBeSigned", {})
+        if self.certificate.get("type") != "explicit":
+            return False
+        if self.certificate.get("issuer", ("",))[0] not in ("sha256AndDigest", "sha384AndDigest"):
+            return False
+        if tbs.get("id", ("",))[0] != "name":
+            return False
+        if "certIssuePermissions" in tbs:
+            return False
+        if "appPermissions" not in tbs:
+            return False
+        return True
+
+    def is_root_ca_certificate(self) -> bool:
+        """
+        Check whether this certificate conforms to the §7.2.3 Root CA profile.
+
+        §7.2.3 constraints:
+        - type SHALL be explicit.
+        - issuer SHALL be self.
+        - toBeSigned.id SHALL be choice name.
+        - toBeSigned.certIssuePermissions SHALL be present.
+        - toBeSigned.appPermissions SHALL be present.
+        """
+        tbs = self.certificate.get("toBeSigned", {})
+        if self.certificate.get("type") != "explicit":
+            return False
+        if self.certificate.get("issuer", ("",))[0] != "self":
+            return False
+        if tbs.get("id", ("",))[0] != "name":
+            return False
+        if "certIssuePermissions" not in tbs:
+            return False
+        if "appPermissions" not in tbs:
+            return False
+        return True
+
+    def is_subordinate_ca_certificate(self) -> bool:
+        """
+        Check whether this certificate conforms to the §7.2.4 Subordinate CA profile.
+
+        §7.2.4 constraints:
+        - type SHALL be explicit.
+        - issuer SHALL be sha256AndDigest or sha384AndDigest.
+        - toBeSigned.id SHALL be choice name.
+        - toBeSigned.encryptionKey SHALL be present.
+        - toBeSigned.certIssuePermissions SHALL be present.
+        """
+        tbs = self.certificate.get("toBeSigned", {})
+        if self.certificate.get("type") != "explicit":
+            return False
+        if self.certificate.get("issuer", ("",))[0] not in ("sha256AndDigest", "sha384AndDigest"):
+            return False
+        if tbs.get("id", ("",))[0] != "name":
+            return False
+        if "encryptionKey" not in tbs:
+            return False
+        if "certIssuePermissions" not in tbs:
+            return False
+        return True
 
     def set_issuer_as_self(self) -> Certificate:
         """
@@ -695,6 +795,25 @@ class OwnCertificate(Certificate):
 
     @staticmethod
     def verify_to_be_signed_certificate(to_be_signed_certificate: dict) -> bool:
+        # §6: id must be name or none
+        id_entry = to_be_signed_certificate.get("id")
+        if id_entry is None or id_entry[0] not in ("name", "none"):
+            return False
+        # §6: cracaId must be 0x000000
+        if to_be_signed_certificate.get("cracaId") != b"\x00\x00\x00":
+            return False
+        # §6: crlSeries must be 0
+        if to_be_signed_certificate.get("crlSeries") != 0:
+            return False
+        # §6: at least one of appPermissions or certIssuePermissions must be present
+        if "appPermissions" not in to_be_signed_certificate and "certIssuePermissions" not in to_be_signed_certificate:
+            return False
+        # §6: certRequestPermissions must be absent
+        if "certRequestPermissions" in to_be_signed_certificate:
+            return False
+        # §6: canRequestRollover must be absent
+        if "canRequestRollover" in to_be_signed_certificate:
+            return False
         try:
             SECURITY_CODER.encode_ToBeSignedCertificate(
                 to_be_signed_certificate)
