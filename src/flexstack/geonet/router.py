@@ -114,10 +114,12 @@ class Router:
         self._ls_lock: Lock = Lock()
         self._ls_timers: dict = {}                  # GNAddress → threading.Timer
         self._ls_retransmit_counters: dict = {}     # GNAddress → int
-        self._ls_packet_buffers: dict = {}          # GNAddress → list[GNDataRequest]
+        # GNAddress → list[GNDataRequest]
+        self._ls_packet_buffers: dict = {}
         # CBF packet buffer (§F.3): keyed by (so_gn_addr, sn)
         self._cbf_lock: Lock = Lock()
-        self._cbf_buffer: dict = {}                 # (GNAddress, int) → threading.Timer
+        # (GNAddress, int) → threading.Timer
+        self._cbf_buffer: dict = {}
         if self.mib.itsGnBeaconServiceRetransmitTimer > 0:
             self.configure_beacon_service()
 
@@ -251,27 +253,55 @@ class Router:
         long_position_vector = self.ego_position_vector
         media_dependant_data = b"\x00\x00\x00\x00"
         packet = b""
-        if request.security_profile == SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE:
+        if self.mib.itsGnSecurity == GnSecurity.ENABLED:
             if self.sign_service is None:
-                raise NotImplementedError("Security profile not implemented")
-            media_dependant_data = b"\x00\x00\x00\x00"
-            tbs_packet = (
-                common_header.encode_to_bytes()
-                + long_position_vector.encode()
-                + media_dependant_data
-                + request.data
-            )
-            sign_request = SNSIGNRequest(
-                tbs_message_length=len(tbs_packet),
-                tbs_message=tbs_packet,
-                its_aid=request.its_aid,
-                permissions=request.security_permissions,
-                permissions_length=len(request.security_permissions),
-            )
-            sign_confirm: SNSIGNConfirm = self.sign_service.sign_cam(
-                sign_request)
-            basic_header = basic_header.set_nh(BasicNH.SECURED_PACKET)
-            packet = basic_header.encode_to_bytes() + sign_confirm.sec_message
+                raise ValueError(
+                    "MIB requires security but no SignService provided to Router")
+            if request.security_profile in (
+                SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE,
+                SecurityProfile.VRU_AWARENESS_MESSAGE,
+            ):
+                # ETSI EN 302 636-4-1 V1.4.1 §9.5 / ETSI TS 103 097 §7.1.1:
+                # the signed payload is Common Header + Extended Header + GN-SDU.
+                # The Basic Header is NOT part of the signed content.
+                # Both CAM (PSID 36) and VAM (PSID 638) follow the §7.1.1
+                # profile: signer alternates certificate/digest on a 1-second
+                # timer so Wireshark and receivers always obtain the full cert.
+                tbs_packet = (
+                    common_header.encode_to_bytes()
+                    + long_position_vector.encode()
+                    + media_dependant_data
+                    + request.data
+                )
+                sign_request = SNSIGNRequest(
+                    tbs_message_length=len(tbs_packet),
+                    tbs_message=tbs_packet,
+                    its_aid=request.its_aid,
+                    permissions=request.security_permissions,
+                    permissions_length=len(request.security_permissions),
+                )
+                sign_confirm: SNSIGNConfirm = self.sign_service.sign_cam(
+                    sign_request)
+                basic_header = basic_header.set_nh(BasicNH.SECURED_PACKET)
+                packet = basic_header.encode_to_bytes() + sign_confirm.sec_message
+
+            else:
+                tbs_packet = (
+                    common_header.encode_to_bytes()
+                    + long_position_vector.encode()
+                    + media_dependant_data
+                    + request.data
+                )
+                sign_request = SNSIGNRequest(
+                    tbs_message_length=len(tbs_packet),
+                    tbs_message=tbs_packet,
+                    its_aid=request.its_aid,
+                    permissions=request.security_permissions,
+                    permissions_length=len(request.security_permissions),
+                )
+                sign_confirm = self.sign_service.sign_request(sign_request)
+                basic_header = basic_header.set_nh(BasicNH.SECURED_PACKET)
+                packet = basic_header.encode_to_bytes() + sign_confirm.sec_message
 
         else:
             packet = (
@@ -432,7 +462,8 @@ class Router:
         progress_found = False
         for entry in self.location_table.get_neighbours():
             pv = entry.position_vector
-            d = Router._distance_m(dest_lat, dest_lon, pv.latitude, pv.longitude)
+            d = Router._distance_m(
+                dest_lat, dest_lon, pv.latitude, pv.longitude)
             if d < mfr:
                 mfr = d
                 progress_found = True
@@ -509,7 +540,8 @@ class Router:
                 old_timer.cancel()
                 return False  # §F.3: return -1 (discard)
             # New packet – compute timeout
-            se_entry = self.location_table.get_entry(gbc_extended_header.so_pv.gn_addr)
+            se_entry = self.location_table.get_entry(
+                gbc_extended_header.so_pv.gn_addr)
             se_pos_valid = (
                 se_entry is not None and se_entry.position_vector.pai
                 and self.ego_position_vector.pai
@@ -760,7 +792,8 @@ class Router:
                     "elevation": 0xF000,  # Uint16 unavailable per IEEE 1609.2
                 },
             )
-            sign_confirm: SNSIGNConfirm = self.sign_service.sign_denm(sign_request)
+            sign_confirm: SNSIGNConfirm = self.sign_service.sign_denm(
+                sign_request)
             basic_header = basic_header.set_nh(BasicNH.SECURED_PACKET)
             sec_payload = sign_confirm.sec_message
         # 2) if no neighbour exists, i.e. the LocT does not contain a LocTE with the IS_NEIGHBOUR flag set to TRUE,
@@ -939,7 +972,8 @@ class Router:
             self.get_sequence_number(), self.ego_position_vector, de_pv)
         # Step 3: if no neighbours and SCF → buffer (stub)
         if len(self.location_table.get_neighbours()) == 0 and request.traffic_class.scf:
-            print("GUC: no neighbours and SCF set; UC forwarding buffer not yet implemented")
+            print(
+                "GUC: no neighbours and SCF set; UC forwarding buffer not yet implemented")
             return GNDataConfirm(result_code=ResultCode.ACCEPTED)
         # Step 4: forwarding algorithm (§10.3.8.2 step 4, Annex E.2 – Greedy Forwarding)
         if not self.gn_greedy_forwarding(de_pv.latitude, de_pv.longitude, request.traffic_class):
@@ -1007,12 +1041,14 @@ class Router:
                 )
             # §10.3.8.3 forwarder operations
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-            so_entry = self.location_table.get_entry(guc_extended_header.so_pv.gn_addr)
+            so_entry = self.location_table.get_entry(
+                guc_extended_header.so_pv.gn_addr)
             if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                 return None
             # Step 7: update DE LocTE from packet if not a neighbour, or
             # Step 8: update DE PV in packet from LocT if DE is a neighbour
-            de_entry = self.location_table.get_entry(guc_extended_header.de_pv.gn_addr)
+            de_entry = self.location_table.get_entry(
+                guc_extended_header.de_pv.gn_addr)
             if de_entry is not None and de_entry.is_neighbour:
                 # §C.3: only update DE PV in forwarded packet if LocT PV is strictly newer
                 if de_entry.position_vector.tst > guc_extended_header.de_pv.tst:
@@ -1024,7 +1060,8 @@ class Router:
                         latitude=de_lpv.latitude,
                         longitude=de_lpv.longitude,
                     )
-                    guc_extended_header = guc_extended_header.with_de_pv(updated_de_pv)
+                    guc_extended_header = guc_extended_header.with_de_pv(
+                        updated_de_pv)
             # Step 9: decrement RHL; if RHL == 0 discard
             new_rhl = basic_header.rhl - 1
             if new_rhl > 0:
@@ -1130,10 +1167,12 @@ class Router:
                 )
             # Step 10: outside area (F < 0) → forward only, no delivery to upper layer
             # §B.3: Geographical area size control – do not forward if area exceeds itsGnMaxGeoAreaSize
-            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:  # type: ignore
+            # type: ignore
+            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
                 return None
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-            so_entry = self.location_table.get_entry(gbc_extended_header.so_pv.gn_addr)
+            so_entry = self.location_table.get_entry(
+                gbc_extended_header.so_pv.gn_addr)
             if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                 return None
             # §D (Annex D): discard if sender is inside/at border of area (SE_POS_VALID AND F_SE ≥ 0)
@@ -1248,7 +1287,8 @@ class Router:
             if entry is not None and entry.ls_pending:
                 # LS already in-progress → just queue the request
                 if buffered_request is not None:
-                    self._ls_packet_buffers.setdefault(sought_gn_addr, []).append(buffered_request)
+                    self._ls_packet_buffers.setdefault(
+                        sought_gn_addr, []).append(buffered_request)
                 return
             # Create or fetch LocTE and set ls_pending
             entry = self.location_table.ensure_entry(sought_gn_addr)
@@ -1334,11 +1374,13 @@ class Router:
             # Step 3-4: DPD + DAD
             self.duplicate_address_detection(ls_request_header.so_pv.gn_addr)
             # Step 5-6: update SO LocTE
-            self.location_table.new_ls_request_packet(ls_request_header, payload)
+            self.location_table.new_ls_request_packet(
+                ls_request_header, payload)
             # Step 7: check if we are the destination
             if ls_request_header.request_gn_addr == self.mib.itsGnLocalGnAddr:
                 # §10.3.7.3: we are the destination – send LS Reply
-                so_entry = self.location_table.get_entry(ls_request_header.so_pv.gn_addr)
+                so_entry = self.location_table.get_entry(
+                    ls_request_header.so_pv.gn_addr)
                 if so_entry is None:
                     return
                 so_lpv = so_entry.position_vector
@@ -1376,7 +1418,8 @@ class Router:
             else:
                 # §10.3.7.2 forwarder: re-broadcast like TSB but no upper-layer delivery
                 # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-                so_entry = self.location_table.get_entry(ls_request_header.so_pv.gn_addr)
+                so_entry = self.location_table.get_entry(
+                    ls_request_header.so_pv.gn_addr)
                 if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                     return
                 new_rhl = basic_header.rhl - 1
@@ -1453,10 +1496,12 @@ class Router:
             else:
                 # §10.3.7.2 forwarder: forward like GUC forwarder
                 # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-                so_entry = self.location_table.get_entry(ls_reply_header.so_pv.gn_addr)
+                so_entry = self.location_table.get_entry(
+                    ls_reply_header.so_pv.gn_addr)
                 if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                     return
-                de_entry = self.location_table.get_entry(ls_reply_header.de_pv.gn_addr)
+                de_entry = self.location_table.get_entry(
+                    ls_reply_header.de_pv.gn_addr)
                 if de_entry is not None and de_entry.is_neighbour:
                     # §C.3: only update DE PV in forwarded packet if LocT PV is strictly newer
                     if de_entry.position_vector.tst > ls_reply_header.de_pv.tst:
@@ -1515,7 +1560,8 @@ class Router:
             Basic header of the received packet.
         """
         if common_header.hst == LocationServiceHST.LS_REQUEST:
-            self.gn_data_indicate_ls_request(packet, common_header, basic_header)
+            self.gn_data_indicate_ls_request(
+                packet, common_header, basic_header)
         elif common_header.hst == LocationServiceHST.LS_REPLY:
             self.gn_data_indicate_ls_reply(packet, common_header, basic_header)
         else:
@@ -1593,10 +1639,12 @@ class Router:
                 )
             # TODO: Step 8: flush LS packet buffer and UC forwarding packet buffer for SO
             # §B.3: Geographical area size control – do not forward if area exceeds itsGnMaxGeoAreaSize
-            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:  # type: ignore
+            # type: ignore
+            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
                 return indication
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-            so_entry = self.location_table.get_entry(gbc_extended_header.so_pv.gn_addr)
+            so_entry = self.location_table.get_entry(
+                gbc_extended_header.so_pv.gn_addr)
             if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                 return indication
             # Step 9: decrement RHL; if RHL == 0 discard
@@ -1658,7 +1706,8 @@ class Router:
             )
             # TODO Step 8: flush SO LS packet buffer and UC forwarding packet buffer
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
-            so_entry = self.location_table.get_entry(tsb_extended_header.so_pv.gn_addr)
+            so_entry = self.location_table.get_entry(
+                tsb_extended_header.so_pv.gn_addr)
             if so_entry is not None and so_entry.pdr > self.mib.itsGnMaxPacketDataRate * 1000:
                 return indication
             # Step 9: decrement RHL; if RHL == 0 discard
@@ -1809,7 +1858,8 @@ class Router:
         #    reconstruction or recursive calls.
         #    plain_message layout: Common Header (8 bytes) | Extended Header + payload
         processed_packet = verify_confirm.plain_message
-        self.process_common_header(processed_packet, basic_header.set_nh(BasicNH.COMMON_HEADER))
+        self.process_common_header(
+            processed_packet, basic_header.set_nh(BasicNH.COMMON_HEADER))
 
     def gn_data_indicate(self, packet: bytes) -> None:
         # pylint: disable=no-else-raise, too-many-branches

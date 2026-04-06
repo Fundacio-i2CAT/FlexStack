@@ -37,6 +37,7 @@ References
 
 import os
 import sys
+import time
 
 # Ensure ../src (relative to this file) is on PYTHONPATH so local modules can be imported
 _this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +62,10 @@ PSID_VAM = 638
 # a Uint16 (0–65535) representing the number of years.
 VALIDITY_DURATION = ("years", 10)
 
+# ITS epoch: 2004-01-01 00:00:00 UTC in Unix seconds.
+# ValidityPeriod.start is a Time32 counting seconds *since* this epoch.
+ITS_EPOCH = 1072915200
+
 # CRACA identifier – must be 0x000000 per §6 of ETSI TS 103 097 (not revoked via 1609.2 mechanisms)
 CRACA_ID = b"\x00\x00\x00"
 
@@ -71,6 +76,13 @@ CERTS_DIR = os.path.join(_this_dir, "certs")
 # ---------------------------------------------------------------------------
 # Helper – TBS certificate dictionaries
 # ---------------------------------------------------------------------------
+
+def _current_its_time() -> int:
+    """
+    Return the current UTC time as a Time32 value (seconds since the ITS epoch).
+    """
+    return int(time.time()) - ITS_EPOCH
+
 
 def _make_root_ca_tbs() -> dict:
     """
@@ -84,7 +96,7 @@ def _make_root_ca_tbs() -> dict:
         "id": ("name", "root-ca.example"),
         "cracaId": CRACA_ID,
         "crlSeries": 0,
-        "validityPeriod": {"start": 0, "duration": VALIDITY_DURATION},
+        "validityPeriod": {"start": _current_its_time(), "duration": VALIDITY_DURATION},
         "certIssuePermissions": [
             {
                 "subjectPermissions": ("all", None),
@@ -113,7 +125,7 @@ def _make_aa_tbs() -> dict:
         "id": ("name", "aa.example"),
         "cracaId": CRACA_ID,
         "crlSeries": 0,
-        "validityPeriod": {"start": 0, "duration": VALIDITY_DURATION},
+        "validityPeriod": {"start": _current_its_time(), "duration": VALIDITY_DURATION},
         "certIssuePermissions": [
             {
                 "subjectPermissions": (
@@ -151,10 +163,10 @@ def _make_at_tbs(index: int) -> dict:
         the two authorization tickets issued from the same AA.
     """
     return {
-        "id": ("name", f"at{index}.example"),
+        "id": ("none", None),
         "cracaId": CRACA_ID,
         "crlSeries": 0,
-        "validityPeriod": {"start": 0, "duration": VALIDITY_DURATION},
+        "validityPeriod": {"start": _current_its_time(), "duration": VALIDITY_DURATION},
         "appPermissions": [
             {"psid": PSID_CAM},
             {"psid": PSID_DENM},

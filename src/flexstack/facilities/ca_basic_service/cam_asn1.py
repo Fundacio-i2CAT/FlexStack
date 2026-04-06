@@ -1,10 +1,32 @@
 # pylint: skip-file
+# -------------------------------------------------------------------
+# asn1tools adaptation notes (ETSI TS 103 900 V2.2.1, CAM-PDU-Descriptions)
+# -------------------------------------------------------------------
+# 1. "WITH SUCCESSORS" removed from IMPORTS.
+#    The raw ETSI file imports the CDD module with
+#    "... major-version-4 (4) minor-version-2 (2)} WITH SUCCESSORS"
+#    asn1tools raises a ParseError on that keyword.  Removing it has no
+#    functional impact because the CDD module is compiled in the same
+#    compilation unit (ETSI_ITS_CDD_ASN1_DESCRIPTIONS is prepended).
+#
+# 2. CLASS / information-object-class constructs are *kept unchanged*.
+#    asn1tools supports the CLASS keyword and WITH SYNTAX notation.
+#    The open-type field  EXTENSION-CONTAINER-ID-AND-TYPE.&Type(...)
+#    is treated by asn1tools as raw bytes (opaque UPER octets).
+#    This matches the UPER spec for open types (X.691 §12):
+#        open_type_encoding = length_determinant || inner_uper_bytes
+#    To encode an extension container, encode the inner type (e.g.
+#    TwoWheelerContainer) to bytes first, then pass those bytes as
+#    containerData.  To decode, take the containerData bytes and decode
+#    them against the appropriate type.  This encoding is fully
+#    wire-interoperable with implementations using unaltered ASN.1.
+# -------------------------------------------------------------------
 from ...utils.asn1.etsi_its_cdd import ETSI_ITS_CDD_ASN1_DESCRIPTIONS
 
 CAM_ASN1_DESCRIPTIONS = (
     ETSI_ITS_CDD_ASN1_DESCRIPTIONS
     + """
-CAM-PDU-Descriptions  {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) camPduRelease2 (103900) major-version-2 (2) minor-version-1 (1)} 
+CAM-PDU-Descriptions  {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) camPduRelease2 (103900) major-version-2 (2) minor-version-2 (2)} 
 
 DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -14,8 +36,11 @@ IMPORTS
 ItsPduHeader, CauseCodeV2, ReferencePosition, AccelerationControl, Curvature, CurvatureCalculationMode, Heading, LanePosition, EmergencyPriority, EmbarkationStatus, Speed, 
 DriveDirection, AccelerationComponent, StationType, ExteriorLights, DangerousGoodsBasic, SpecialTransportType, LightBarSirenInUse, 
 VehicleRole, VehicleLength, VehicleWidth, Path, RoadworksSubCauseCode, ClosedLanes, TrafficRule, SpeedLimit, SteeringWheelAngle, PerformanceClass, YawRate, 
-PtActivation, ProtectedCommunicationZonesRSU, CenDsrcTollingZone, GenerationDeltaTime, BasicContainer
+PtActivation, ProtectedCommunicationZonesRSU, CenDsrcTollingZone, GenerationDeltaTime, BasicContainer, BrakeControl, VehicleHeight2, WiperStatus,
+GeneralizedLanePositions, PathPredictedList, CartesianAngle, Wgs84Angle, StabilityChangeIndication, VruSubProfileBicyclist, VruMovementControl,
+BasicLaneConfiguration, PolygonalLine, MetaInformation, ConfidenceLevels, VehicleMovementControl
 
+-- Adaptation: asn1tools-incompatible clause removed from import below; see Python header.
 FROM ETSI-ITS-CDD {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) 102894 cdd (2) major-version-4 (4) minor-version-2 (2)}
 ;
 
@@ -61,13 +86,16 @@ CamPayload ::= SEQUENCE {
 *
 * @field specialVehicleContainer: The special container of the CAM shall be present as defined in clause 6.1.2. 
 * The content of the container shall be set according to the value of the vehicleRole component as specified in Table 5. 
+*
+* @field extensionContainers: the list of CAM extension containers, including its container type identifier and the container itself.
 */
 CamParameters ::= SEQUENCE {
 	basicContainer           BasicContainer,
 	highFrequencyContainer   HighFrequencyContainer,
 	lowFrequencyContainer    LowFrequencyContainer OPTIONAL,
 	specialVehicleContainer  SpecialVehicleContainer OPTIONAL,
-	...
+	...,
+	extensionContainers		 WrappedExtensionContainers OPTIONAL
 }
 
 /**
@@ -268,7 +296,7 @@ SpecialTransportContainer ::= SEQUENCE {
 * @field lightBarSirenInUse: it indicates whether light-bar or a siren is in use by the vehicle originating the CAM.
 *
 * @field closedLanes: an optional component which provides information about the opening/closure status of the lanes ahead. Lanes are counted from
-* the outside boarder of the road. If a lane is closed to traffic, the corresponding bit shall be set to 1.
+* the inside boarder of the road. If a lane is closed to traffic, the corresponding bit shall be set to 1.
 */
  RoadWorksContainerBasic ::= SEQUENCE {
   roadworksSubCauseCode RoadworksSubCauseCode OPTIONAL,
@@ -332,10 +360,206 @@ SafetyCarContainer ::= SEQUENCE {
 * @field protectedCommunicationZonesRSU: an optional Information about position of a CEN DSRC Tolling Station operating in the 5,8 GHz frequency 
 * band. If this information is provided by RSUs a receiving vehicle ITS-S is prepared to adopt mitigation techniques when being in the vicinity of
 * CEN DSRC tolling stations. 
-
 */
 RSUContainerHighFrequency ::= SEQUENCE {
 	protectedCommunicationZonesRSU ProtectedCommunicationZonesRSU OPTIONAL,
+	...	
+}
+
+/**
+* This information object class is an abstract template to instantiate containers.
+*
+* It shall include the following components:
+*
+* @field &id: the identifier of the container type.
+*
+* @field &Type: the container content.
+*
+*/
+EXTENSION-CONTAINER-ID-AND-TYPE ::= CLASS {
+    &id     ExtensionContainerId UNIQUE,
+    &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+/**
+* This DE represents the identifier of the container type.
+*/
+ExtensionContainerId ::= INTEGER (1..16,...)
+
+/**
+* These value assignments represent specific values of the container type identifier. 
+*/
+twoWheelerContainer ExtensionContainerId ::= 1
+eHorizonLocationSharingContainer ExtensionContainerId ::= 2
+veryLowFrequencyContainer ExtensionContainerId ::= 3
+pathPredictionContainer ExtensionContainerId ::= 4
+generalizedLanePositionsContainer ExtensionContainerId ::= 5
+vehicleMovementControlContainer ExtensionContainerId ::= 6
+
+/**
+* This information object set represents the association between the container type and the container content.
+*/
+ExtensionContainers EXTENSION-CONTAINER-ID-AND-TYPE ::= {
+    {TwoWheelerContainer IDENTIFIED BY twoWheelerContainer} |
+    {EHorizonLocationSharingContainer IDENTIFIED BY eHorizonLocationSharingContainer} |
+    {VeryLowFrequencyContainer IDENTIFIED BY veryLowFrequencyContainer} |
+    {PathPredictionContainer IDENTIFIED BY pathPredictionContainer} |
+    {GeneralizedLanePositionsContainer IDENTIFIED BY generalizedLanePositionsContainer} |
+    {VehicleMovementControlContainer IDENTIFIED BY vehicleMovementControlContainer},
+	...
+}
+
+/**
+* This DF represents a CAM container preceded by its type identifier and a length indicator.
+*
+* It shall include the following components:
+*
+* @field containerId: the identifier of the container type.
+*
+* @field containerData: the container content consistent with the container type.
+*
+*/
+WrappedExtensionContainer ::= SEQUENCE {
+   containerId     EXTENSION-CONTAINER-ID-AND-TYPE.&id( {ExtensionContainers} ),
+   containerData   EXTENSION-CONTAINER-ID-AND-TYPE.&Type( {ExtensionContainers}{@containerId} )
+}
+
+/**
+* This DF represents a list of CAM containers, each with their type identifier.
+*/
+WrappedExtensionContainers ::= SEQUENCE SIZE(1..8,...) OF WrappedExtensionContainer
+
+/**
+* This type contains detailed information about two wheelers. It is meant to use for StationType
+* cyclist, moped and motorcycle.
+*
+* It shall include the following components:
+*
+* @field typeSpecificInformation: this data field contains type specific information about two wheelers.
+*
+* @field rollAngle: this data field describes the roll angle of the two wheeler.
+*
+* @field orientation: this data field describes the orientation of the two wheeler.
+*
+* @field stabilityChangeIndication: this data field describes if the two wheeler is about to lose control.
+*
+*/
+TwoWheelerContainer ::= SEQUENCE {
+    typeSpecificInformation     TwoWheelerTypeSpecificInformation OPTIONAL,
+    rollAngle                   CartesianAngle OPTIONAL,
+    orientation                 Wgs84Angle OPTIONAL,
+    stabilityChangeIndication   StabilityChangeIndication OPTIONAL,
+    ...
+}
+
+/**
+* This type contains type specific information about a two wheeler.
+*
+* It includes one of the following components:
+*
+* @field cyclist: it contains cyclist-specific information.
+*
+*/
+TwoWheelerTypeSpecificInformation ::= CHOICE {
+    cyclist CyclistTypeSpecificInformation,
+    ...
+}
+
+/**
+* This type contains type-specific information about cyclists.
+*
+* It shall include the following components:
+*
+* @field vruSubProfileBicyclist: it indicates the detailed type of the cyclist.
+*
+* @field vruMovementControl: it includes information about the movement control of the bicycle.
+*
+*/
+CyclistTypeSpecificInformation ::= SEQUENCE {
+    vruSubProfileBicyclist  VruSubProfileBicyclist (unavailable | bicyclist | e-scooter | pedelec | speed-pedelec | roadbike | childrensbike) OPTIONAL,
+    vruMovementControl      VruMovementControl OPTIONAL,
+    ...
+}
+
+/**
+* This type contains contextual, map-based location information.
+* eHorizon is defined as a tool to convey the part of the road network and its characteristics derived from map data located in front of and behind the vehicle along the road.
+*
+* It shall include the following components:
+*
+* @field segmentAhead: the road segment that the vehicle is predicted to reach, starting from the reference position.
+* At least one node must be filled in so that the current map position can be calculated on the receiver side.
+*
+* @field nodeProbabilities: confidence values for each node in segmentAhead, indicating how confident we are that the ITS station will reach that point.
+*
+* @field segmentBehind: the road segment that the vehicle has passed, based on the collected data, starting from the reference position.
+* At least one node must be filled in so that the current map position can be calculated on the receiver side.
+*
+* @field laneLevelDetails: provides information about the configuration of the road at the position indicated by the component referencePosition of the Basic Container and for a given reference direction.
+*
+* @field segmentSource: it represents the origin of the map-specific data.
+*
+*/
+EHorizonLocationSharingContainer ::= SEQUENCE {
+    segmentAhead        PolygonalLine,
+    nodeProbabilities   ConfidenceLevels OPTIONAL,
+    segmentBehind       PolygonalLine,
+    laneLevelDetails    BasicLaneConfiguration OPTIONAL,
+    segmentSource       MetaInformation (WITH COMPONENTS {..., confidenceValue ABSENT}) OPTIONAL,
+    ...
+}
+
+/**
+* This type represents the very low frequency container.
+*
+* It shall include the following components:
+*
+* @field vehicleHeight: this component represents the height of the vehicle that originates the CAM.
+*
+* @field wiperStatus: this component represents the status of the wipers of the vehicle that originates the CAM, at the time indicated by generationDeltaTime.
+*
+* @field brakeControl: this component represents the status of the brake control system of the vehicle that originates the CAM, 
+* at the time indicated by generationDeltaTime and during the period 10 seconds before that time.
+*/
+VeryLowFrequencyContainer ::= SEQUENCE {
+    vehicleHeight  VehicleHeight2 OPTIONAL,
+    wiperStatus    WiperStatus OPTIONAL,
+    brakeControl   BrakeControl OPTIONAL,
+    ...
+}
+
+/**
+* This type represents the path prediction container.
+*
+* Contains information about the possible future paths of ITS station.
+*/
+PathPredictionContainer ::= SEQUENCE {   
+	pathPredictedList	PathPredictedList,
+	...
+}
+
+/**
+* This type represents the generalized lane positions container.
+*
+* Contains detailed information about the transversal position of the ITS station with respect to the road and potentially about the lane type.
+*/
+GeneralizedLanePositionsContainer ::= SEQUENCE {   
+	generalizedLanePositions	GeneralizedLanePositions,
+	...
+}
+
+/**
+* This type represents the vehicle movement control container.
+*
+* Contains information about the current vehicle movement control status 
+* of ITS station.
+*  This contains: 
+*	- brake and acceleration pedal position status information
+* 	- mechanism for lateral, longitudinal movements dimensions 
+*	  of the vehicle 
+*/
+VehicleMovementControlContainer ::= SEQUENCE {   
+	vehicleMovementControl	VehicleMovementControl,
 	...
 }
 

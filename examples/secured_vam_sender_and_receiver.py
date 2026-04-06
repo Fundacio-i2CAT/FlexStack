@@ -1,10 +1,11 @@
 """
-Send and receive CAM (Cooperative Awareness Messages) with C-ITS security.
+Send and receive VAM (VRU Awareness Messages) with C-ITS security.
 
 This example is an extension of :mod:`cam_sender_and_receiver` that enables the
-GeoNetworking security layer so that every outgoing CAM is ETSI TS 103 097-signed
+GeoNetworking security layer so that every outgoing VAM is ETSI TS 103 097-signed
 and every incoming secured packet is verified before being delivered to the upper
-layers.
+layers.  It simulates two pedestrian VRU ITS-Ss exchanging VAMs over a loopback
+interface with VBS clustering support enabled.
 
 Prerequisites
 -------------
@@ -24,19 +25,25 @@ If any file is missing the script prints an informative message and exits.
 
 Two-station setup
 -----------------
-Run two terminals simultaneously to see cross-station CAM verification::
+Run two terminals simultaneously to see cross-station VAM verification::
 
     # Terminal 1
-    python examples/secured_cam_sender_and_receiver.py --at 1
+    python examples/secured_vam_sender_and_receiver.py --at 1
 
     # Terminal 2
-    python examples/secured_cam_sender_and_receiver.py --at 2
+    python examples/secured_vam_sender_and_receiver.py --at 2
 
-Each instance signs outgoing CAMs with its own AT while keeping both AT1 and AT2
+Each instance signs outgoing VAMs with its own AT while keeping both AT1 and AT2
 in its :class:`~flexstack.security.certificate_library.CertificateLibrary` as
 *known* authorization tickets.  This allows every station to verify messages from
 either peer, regardless of whether the message carries a full certificate or only
 a digest signer.
+
+VBS Clustering
+--------------
+Both stations start with ``cluster_support=True`` and ``own_vru_profile="pedestrian"``.
+The VBS clustering state machine (ETSI TS 103 300-3 V2.3.1, clause 5.4) will
+automatically negotiate cluster leader/follower roles based on received VAMs.
 
 Architecture
 ------------
@@ -50,9 +57,10 @@ The security objects are wired into the GeoNetworking router as follows::
 
 References
 ----------
-- ETSI TS 103 097 V2.1.1 – Security header and certificate formats for ITS
+- ETSI TS 103 300-3 V2.3.1 – VRU Awareness Basic Service (VAM specification)
+- ETSI TS 103 097 V2.1.1   – Security header and certificate formats for ITS
 - ETSI EN 302 636-4-1 V1.4.1 – GeoNetworking (SECURED_PACKET handling)
-- ETSI TS 102 723-8 V1.1.1 – ITS-S security services (SN-SAP)
+- ETSI TS 102 723-8 V1.1.1   – ITS-S security services (SN-SAP)
 """
 
 import os
@@ -72,9 +80,9 @@ import time
 import logging
 
 from flexstack.facilities.local_dynamic_map.ldm_classes import ComparisonOperators
-from flexstack.facilities.ca_basic_service.cam_transmission_management import VehicleData
-from flexstack.facilities.ca_basic_service.ca_basic_service import CooperativeAwarenessBasicService
-from flexstack.facilities.local_dynamic_map.ldm_constants import CAM
+from flexstack.facilities.vru_awareness_service.vam_transmission_management import DeviceDataProvider
+from flexstack.facilities.vru_awareness_service.vru_awareness_service import VRUAwarenessService
+from flexstack.facilities.local_dynamic_map.ldm_constants import VAM
 from flexstack.facilities.local_dynamic_map.ldm_classes import (
     AccessPermission,
     Circle,
@@ -120,28 +128,21 @@ def generate_random_mac_address(locally_administered: bool = True, multicast: bo
 
     Parameters
     ----------
-    locally_administered : bool
-        If *True* (default) the locally-administered bit is set.
-    multicast : bool
-        If *True* the multicast bit is set; otherwise the address is unicast.
-
-    Returns
-    -------
-    bytes
-        Six-byte MAC address.
+    locally_administered:
+        Set the locally-administered bit (bit 1 of byte 0).  Default: True.
+    multicast:
+        Set the multicast/group bit (bit 0 of byte 0).  Default: False.
     """
-    octets = [random.randint(0x00, 0xFF) for _ in range(6)]
-    first = octets[0]
-    if multicast:
-        first |= 0b00000001
-    else:
-        first &= 0b11111110
+    addr = [random.randint(0x00, 0xFF) for _ in range(6)]
     if locally_administered:
-        first |= 0b00000010
+        addr[0] |= 0x02
     else:
-        first &= 0b11111101
-    octets[0] = first
-    return bytes(octets)
+        addr[0] &= ~0x02
+    if multicast:
+        addr[0] |= 0x01
+    else:
+        addr[0] &= ~0x01
+    return bytes(addr)
 
 
 MAC_ADDRESS = generate_random_mac_address()
@@ -149,65 +150,38 @@ STATION_ID = random.randint(1, 2147483647)
 
 
 # ---------------------------------------------------------------------------
-# Certificate loading
+# Certificate helpers
 # ---------------------------------------------------------------------------
 
 def _cert_path(name: str) -> str:
-    """Return the absolute path to a certificate file inside :data:`CERTS_DIR`."""
+    """Return the absolute path to a certificate file inside CERTS_DIR."""
     return os.path.join(CERTS_DIR, name)
 
 
 def _check_cert_files() -> None:
-    """
-    Check that all required certificate files are present.
-
-    Raises
-    ------
-    SystemExit
-        If any required file is missing, a descriptive message is printed and
-        the process exits with code 1.
-    """
+    """Exit with a helpful message if any required certificate file is missing."""
     required = [
         "root_ca.cert", "root_ca.pem",
-        "aa.cert", "aa.pem",
-        "at1.cert", "at1.pem",
-        "at2.cert", "at2.pem",
+        "aa.cert",      "aa.pem",
+        "at1.cert",     "at1.pem",
+        "at2.cert",     "at2.pem",
     ]
     missing = [f for f in required if not os.path.isfile(_cert_path(f))]
     if missing:
-        print("Error: the following certificate files are missing:")
-        for f in missing:
-            print(f"  {_cert_path(f)}")
-        print("\nRun the certificate generation script first:")
-        print("  python examples/generate_certificate_chain.py")
+        print(
+            "Missing certificate file(s):\n"
+            + "\n".join(f"  {_cert_path(f)}" for f in missing)
+            + "\n\nRun:  python examples/generate_certificate_chain.py"
+        )
         sys.exit(1)
 
 
 def _load_at_as_own(
-    backend: PythonECDSABackend, index: int, aa: Certificate
+    backend: PythonECDSABackend,
+    index: int,
+    aa: Certificate,
 ) -> OwnCertificate:
-    """
-    Load an Authorization Ticket from disk and return it as an :class:`OwnCertificate`.
-
-    The private key stored in ``at<index>.pem`` is imported into *backend* so
-    that the returned certificate can be used for signing.
-
-    Parameters
-    ----------
-    backend : PythonECDSABackend
-        The ECDSA backend that will hold the imported private key.
-    index : int
-        AT index (1 or 2) that determines which ``at<index>.cert`` /
-        ``at<index>.pem`` file pair is read.
-    aa : Certificate
-        The Authorization Authority certificate that issued this AT, used to
-        reconstruct the issuer chain.
-
-    Returns
-    -------
-    OwnCertificate
-        The AT certificate with a valid ``key_id`` pointing to the imported key.
-    """
+    """Load AT *index* together with its private key as the *own* certificate."""
     key_pem = open(_cert_path(f"at{index}.pem"), "rb").read()
     key_id = backend.import_signing_key(key_pem)
     cert_bytes = open(_cert_path(f"at{index}.cert"), "rb").read()
@@ -216,87 +190,38 @@ def _load_at_as_own(
 
 
 def _load_at_as_known(index: int, aa: Certificate) -> Certificate:
-    """
-    Load an Authorization Ticket from disk as a plain :class:`Certificate`.
-
-    Used to populate the ``known_authorization_tickets`` of the library so that
-    incoming messages signed with a *digest* signer referencing this AT can be
-    verified.
-
-    Parameters
-    ----------
-    index : int
-        AT index (1 or 2) selecting which ``at<index>.cert`` file is read.
-    aa : Certificate
-        The Authorization Authority certificate that issued this AT.
-
-    Returns
-    -------
-    Certificate
-        The AT certificate linked to its issuer chain.
-    """
+    """Load AT *index* as a known (peer) certificate."""
     cert_bytes = open(_cert_path(f"at{index}.cert"), "rb").read()
     return Certificate().decode(cert_bytes, issuer=aa)
 
 
-def build_security_stack(at_index: int) -> tuple:
+def build_security_stack(at_index: int) -> tuple[SignService, VerifyService]:
     """
-    Load the certificate chain from disk and construct the security objects.
+    Build and return a ``(SignService, VerifyService)`` pair for station *at_index*.
 
-    Reads the OER certificates (Root CA, AA, AT1, AT2) and the selected AT
-    private key from :data:`CERTS_DIR` and assembles a
-    :class:`~flexstack.security.certificate_library.CertificateLibrary`,
-    a :class:`~flexstack.security.sign_service.SignService` and a
-    :class:`~flexstack.security.verify_service.VerifyService`.
-
-    Both AT1 and AT2 are registered as *known* authorization tickets so that
-    this station can verify digest-signed messages from either peer without
-    waiting for a full-certificate transmission.
+    Both AT1 and AT2 are added to the certificate library so that each station
+    can verify VAMs from either peer.
 
     Parameters
     ----------
-    at_index : int
-        Which AT (1 or 2) this station uses for signing outgoing messages.
-
-    Returns
-    -------
-    tuple[SignService, VerifyService]
-        The configured sign and verify services ready to be passed to the
-        :class:`~flexstack.geonet.router.Router`.
-
-    Raises
-    ------
-    SystemExit
-        If any certificate file is missing (see :func:`_check_cert_files`).
+    at_index:
+        Which Authorization Ticket this station owns (1 or 2).
     """
     _check_cert_files()
 
     backend = PythonECDSABackend()
 
-    # ------------------------------------------------------------------
-    # Load Root CA (self-signed)
-    # ------------------------------------------------------------------
-    root_ca_bytes = open(_cert_path("root_ca.cert"), "rb").read()
-    root_ca = Certificate().decode(root_ca_bytes, issuer=None)
+    # Root CA (self-signed)
+    root_ca = Certificate().decode(open(_cert_path("root_ca.cert"), "rb").read(), issuer=None)
 
-    # ------------------------------------------------------------------
-    # Load Authorization Authority (issued by Root CA)
-    # ------------------------------------------------------------------
-    aa_bytes = open(_cert_path("aa.cert"), "rb").read()
-    aa = Certificate().decode(aa_bytes, issuer=root_ca)
+    # Authorization Authority (issued by root CA)
+    aa = Certificate().decode(open(_cert_path("aa.cert"), "rb").read(), issuer=root_ca)
 
-    # ------------------------------------------------------------------
-    # Load the signing AT (OwnCertificate with private key) and both ATs
-    # as known authorization tickets for peer verification.
-    # ------------------------------------------------------------------
-    own_at = _load_at_as_own(backend, at_index, aa)
+    # Own AT and peer AT
     peer_index = 2 if at_index == 1 else 1
+    own_at = _load_at_as_own(backend, at_index, aa)
     peer_at = _load_at_as_known(peer_index, aa)
 
-    # ------------------------------------------------------------------
-    # Build CertificateLibrary with the full chain of trust.
-    # - known_authorization_tickets: both AT1 and AT2 (for digest verification)
-    # - own_certificates: the station's own AT (for signing)
     # ------------------------------------------------------------------
     cert_library = CertificateLibrary(
         ecdsa_backend=backend,
@@ -313,26 +238,25 @@ def build_security_stack(at_index: int) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Randomized moving location service
+# Randomized moving location service (pedestrian)
 # ---------------------------------------------------------------------------
 
 class _RandomTrajectoryLocationService:
     """
-    Thread-based location service that simulates a moving vehicle.
+    Thread-based location service that simulates a moving pedestrian VRU.
 
-    Updates are emitted every 80 ms (below T_CheckCamGen = 100 ms) so the
-    CA Basic Service timer always has fresh data.  The heading changes by a
-    random ±5–15 ° on every step, which consistently exceeds the 4 ° Condition-1
-    threshold and sustains 10 Hz CAM generation.
+    Updates are emitted every 100 ms (at T_GenVamMin) so the VRU Awareness Basic
+    Service timer always has fresh data.  The heading changes by a random ±5–15 °
+    on every step, which consistently exceeds the 4 ° heading-change threshold
+    (ETSI TS 103 300-3 V2.3.1, clause 6.4.1 condition 1) and sustains regular
+    VAM generation.  Speed is randomised in a pedestrian range of 0.5–3.0 m/s.
     """
 
-    _PERIOD_S: float = 0.08      # 80 ms — below T_CheckCamGen
-    _BASE_SPEED_MPS: float = 10.0  # ~36 km/h
+    _PERIOD_S: float = 0.10       # 100 ms — T_GenVamMin
+    _BASE_SPEED_MPS: float = 1.4  # typical walking pace (~5 km/h)
     _EARTH_R: float = 6_371_000.0
 
     def __init__(self, start_lat: float, start_lon: float) -> None:
-        from flexstack.utils.location_service import LocationService
-        # Reuse the callbacks list from LocationService without inheriting fully
         self._callbacks: list = []
         self._lat = start_lat
         self._lon = start_lon
@@ -355,14 +279,14 @@ class _RandomTrajectoryLocationService:
         """Advance the simulated position by one time step."""
         dt = self._PERIOD_S
 
-        # Heading: random signed change guaranteed to exceed the 4 deg threshold
+        # Heading: random signed change guaranteed to exceed the 4 ° threshold
         delta = random.uniform(5.0, 15.0) * random.choice((-1, 1))
         self._heading = (self._heading + delta) % 360.0
 
-        # Speed: small random walk within [5, 20] m/s
-        self._speed = max(5.0, min(20.0, self._speed + random.uniform(-0.5, 0.5)))
+        # Speed: small random walk in pedestrian range [0.5, 3.0] m/s
+        self._speed = max(0.5, min(3.0, self._speed + random.uniform(-0.1, 0.1)))
 
-        # Position update (flat-Earth approximation; step sizes are < 2 m)
+        # Position update (flat-Earth approximation; step sizes are < 0.3 m)
         d = self._speed * dt
         heading_r = math.radians(self._heading)
         lat_r = math.radians(self._lat)
@@ -404,16 +328,16 @@ class _RandomTrajectoryLocationService:
 
 def main() -> None:
     """
-    Run the secured CAM sender/receiver loop.
+    Run the secured VAM sender/receiver loop.
 
     Parses the ``--at {1,2}`` command-line argument to select which Authorization
     Ticket this station uses for signing.  Sets up the full ITS-S stack (location
-    service, GN router with security, BTP router, LDM and CA Basic Service) and then
-    blocks, sending a CAM every second and printing any received CAMs from the peer
-    station until a ``KeyboardInterrupt`` is raised.
+    service, GN router with security, BTP router, LDM and VRU Awareness Basic
+    Service) and then blocks, sending VAMs and printing any received VAMs from the
+    peer station until a ``KeyboardInterrupt`` is raised.
     """
     parser = argparse.ArgumentParser(
-        description="Secured CAM sender/receiver (select station 1 or 2 via --at)"
+        description="Secured VAM sender/receiver (select station 1 or 2 via --at)"
     )
     parser.add_argument(
         "--at",
@@ -424,10 +348,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Starting station with AT{args.at}...")
+    print(f"Starting VRU station with AT{args.at}...")
     sign_service, verify_service = build_security_stack(args.at)
 
-    # Instantiate a moving location service that drives condition-1 at 10 Hz
+    # Instantiate a moving location service that simulates a pedestrian VRU
     location_service = _RandomTrajectoryLocationService(
         start_lat=POSITION_COORDINATES[0],
         start_lon=POSITION_COORDINATES[1],
@@ -437,7 +361,7 @@ def main() -> None:
     mib = MIB(
         itsGnLocalGnAddr=GNAddress(
             m=M.GN_MULTICAST,
-            st=ST.CYCLIST,
+            st=ST.PEDESTRIAN,
             mid=MID(MAC_ADDRESS),
         ),
         itsGnSecurity=GnSecurity.ENABLED,
@@ -473,11 +397,11 @@ def main() -> None:
     )
     location_service.add_callback(ldm_location.location_service_callback)
 
-    # Subscribe to LDM to print received CAMs
+    # Subscribe to LDM to print received VAMs
     register_resp: RegisterDataConsumerResp = ldm.if_ldm_4.register_data_consumer(
         RegisterDataConsumerReq(
-            application_id=CAM,
-            access_permisions=(AccessPermission.CAM,),
+            application_id=VAM,
+            access_permisions=(AccessPermission.VAM,),
             area_of_interest=ldm_area,
         )
     )
@@ -486,13 +410,13 @@ def main() -> None:
 
     def ldm_subscription_callback(data: RequestDataObjectsResp) -> None:
         print(
-            f'Received CAM from: {data.data_objects[0]["dataObject"]["header"]["stationId"]}'
+            f'Received VAM from: {data.data_objects[0]["dataObject"]["header"]["stationId"]}'
         )
 
     subscribe_resp: SubscribeDataObjectsResp = ldm.if_ldm_4.subscribe_data_consumer(
         SubscribeDataobjectsReq(
-            application_id=CAM,
-            data_object_type=(CAM,),
+            application_id=VAM,
+            data_object_type=(VAM,),
             priority=1,
             filter=Filter(
                 filter_statement_1=FilterStatement(
@@ -505,7 +429,7 @@ def main() -> None:
             multiplicity=1,
             order=(
                 OrderTupleValue(
-                    attribute="cam.generationDeltaTime",
+                    attribute="vam.generationDeltaTime",
                     ordering_direction=OrderingDirection.ASCENDING,
                 ),
             ),
@@ -515,24 +439,20 @@ def main() -> None:
     if subscribe_resp.result != SubscribeDataobjectsResult.SUCCESSFUL:
         sys.exit(1)
 
-    # Instantiate a CA Basic Service
-    vehicle_data = VehicleData(
+    # Instantiate the VRU Awareness Basic Service
+    device_data_provider = DeviceDataProvider(
         station_id=STATION_ID,
-        station_type=5,
-        drive_direction="forward",
-        vehicle_length={
-            "vehicleLengthValue": 1023,
-            "vehicleLengthConfidenceIndication": "unavailable",
-        },
-        vehicle_width=62,
+        station_type=1,  # pedestrian (ETSI TS 102 894-2, ITSStationType)
     )
-    ca_basic_service = CooperativeAwarenessBasicService(
+    vru_awareness_service = VRUAwarenessService(
         btp_router=btp_router,
-        vehicle_data=vehicle_data,
+        device_data_provider=device_data_provider,
         ldm=ldm,
+        cluster_support=True,
+        own_vru_profile="pedestrian",
     )
     location_service.add_callback(
-        ca_basic_service.cam_transmission_management.location_service_callback
+        vru_awareness_service.vam_transmission_management.location_service_callback
     )
 
     # Instantiate a Link Layer and start the main loop
@@ -541,7 +461,6 @@ def main() -> None:
         "lo", MAC_ADDRESS, receive_callback=gn_router.gn_data_indicate
     )
     gn_router.link_layer = link_layer
-    ca_basic_service.start()
 
     try:
         while True:
@@ -549,7 +468,6 @@ def main() -> None:
     except KeyboardInterrupt:
         print("Exiting...")
 
-    ca_basic_service.stop()
     location_service.stop_event.set()
     location_service.location_service_thread.join()
     link_layer.sock.close()

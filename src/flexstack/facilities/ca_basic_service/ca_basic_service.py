@@ -1,7 +1,8 @@
 """
-Cooperatie Awareness Basic Service
+Cooperative Awareness Basic Service
 
-This file contains the class for the Cooperative Awareness Basic Service.
+This file contains the class for the Cooperative Awareness Basic Service,
+strictly following ETSI TS 103 900 V2.2.1 (2025-02).
 """
 from __future__ import annotations
 import logging
@@ -21,7 +22,10 @@ from .cam_ldm_adaptation import CABasicServiceLDM
 
 class CooperativeAwarenessBasicService:
     """
-    Cooperative Awareness Basic Service
+    Cooperative Awareness Basic Service — ETSI TS 103 900 V2.2.1.
+
+    Call :meth:`start` to activate the service and :meth:`stop` to deactivate
+    it in accordance with §6.1.2.
 
     Attributes
     ----------
@@ -29,8 +33,6 @@ class CooperativeAwarenessBasicService:
         BTP Router.
     cam_coder : CAMCoder
         CAM Coder.
-    vehicle_data : VehicleData
-        Vehicle Data.
     cam_transmission_management : CAMTransmissionManagement
         CAM Transmission Management.
     cam_reception_management : CAMReceptionManagement
@@ -44,7 +46,7 @@ class CooperativeAwarenessBasicService:
         ldm: LDMFacility | None = None,
     ) -> None:
         """
-        Initialize the Cooperative Awareness Basic Service.
+        Initialise the Cooperative Awareness Basic Service.
 
         Parameters
         ----------
@@ -52,7 +54,7 @@ class CooperativeAwarenessBasicService:
             BTP Router.
         vehicle_data : VehicleData
             Vehicle Data.
-        ldm: LDMFacility
+        ldm : LDMFacility or None
             Local Dynamic Map (LDM) Service.
         """
         self.logging = logging.getLogger("ca_basic_service")
@@ -73,4 +75,22 @@ class CooperativeAwarenessBasicService:
             ca_basic_service_ldm=ca_basic_service_ldm,
         )
 
-        self.logging.info("CA Basic Service Started!")
+        self.logging.info("CA Basic Service initialised.")
+
+    def start(self) -> None:
+        """
+        Activate the CA service (§6.1.2).
+
+        Starts the T_CheckCamGen timer in the transmission management.
+        """
+        self.cam_transmission_management.start()
+        self.logging.info("CA Basic Service started.")
+
+    def stop(self) -> None:
+        """
+        Deactivate the CA service (§6.1.2).
+
+        Stops the T_CheckCamGen timer in the transmission management.
+        """
+        self.cam_transmission_management.stop()
+        self.logging.info("CA Basic Service stopped.")

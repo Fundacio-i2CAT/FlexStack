@@ -21,7 +21,9 @@ from ...btp.service_access_point import (
 )
 from ...utils.time_service import TimeService
 from ..ca_basic_service.cam_transmission_management import CooperativeAwarenessMessage, GenerationDeltaTime
+from ...security.security_profiles import SecurityProfile
 from . import vam_constants
+from .vru_clustering import VBSClusteringManager
 
 
 @dataclass(frozen=True)
@@ -492,11 +494,11 @@ class VAMMessage(CooperativeAwarenessMessage):
         """
         if "track" in tpv.keys():
             self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"][
-                "headingValue"
+                "value"
             ] = int(tpv["track"]*10)
         if "epd" in tpv.keys():
             self.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"][
-                "headingConfidence"
+                "confidence"
             ] = self.create_heading_confidence(tpv["epd"])
         if "speed" in tpv.keys():
             if int(tpv["speed"] * 100) > 16381:
@@ -511,27 +513,31 @@ class VAMMessage(CooperativeAwarenessMessage):
 
 class VAMTransmissionManagement:
     """
-    vam Transmission Management class.
-    This sub-function implements the protocol operation of the originating ITS-S, as specified in
-    ETSI TS 103 300-3 V2.2.1 clause 6, including in particular:
-    - Activation and termination of vam transmission operation.
-    - Determination of the vam generation frequency.
-    - Trigger the generation of vam.
+    VAM Transmission Management.
+
+    Implements the originating-ITS-S protocol operation specified in
+    ETSI TS 103 300-3 V2.3.1 (2025-12), clause 6, including:
+
+    * Activation and termination of VAM transmission.
+    * VAM generation frequency determination (Table 16).
+    * Triggering VAM generation according to conditions 1–4 of clause 6.4.1.
+    * Periodic inclusion of the VRU Low-Frequency Container (clause 6.2).
+    * Integration with the VBS clustering state machine (clause 5.4).
 
     Attributes
     ----------
-    vam_coder : vamCoder
-        vam Coder object.
-    T_Genvam_DCC : int
-        Time to wait between vams according to the DCC.
-    T_Genvam : int
-        Time to wait between vams.
-    N_Genvam : int
-        Consecutive vams to be generated.
-    last_vam_sent : dict
-        Last vam sent.
-    current_vam_to_send : dict
-        Current vam to send.
+    btp_router:
+        BTP router used to send the encoded VAM.
+    device_data_provider:
+        Static device parameters (station ID, station type, etc.).
+    vru_basic_service_ldm:
+        Optional LDM adapter for storing own VAMs.
+    vam_coder:
+        ASN.1 encode/decode wrapper.
+    clustering_manager:
+        Optional VBS clustering state machine.  When provided, VAM
+        transmission is suppressed in VRU_PASSIVE state and cluster
+        containers are appended to outgoing VAMs.
     """
 
     def __init__(
@@ -540,15 +546,31 @@ class VAMTransmissionManagement:
         vam_coder: VAMCoder,
         device_data_provider: DeviceDataProvider,
         vru_basic_service_ldm: VRUBasicServiceLDM | None = None,
+        clustering_manager: VBSClusteringManager | None = None,
     ) -> None:
         """
-        Initialize the vam Transmission Management.
+        Initialise VAM Transmission Management.
+
+        Parameters
+        ----------
+        btp_router:
+            BTP router instance.
+        vam_coder:
+            VAM ASN.1 coder.
+        device_data_provider:
+            Immutable device parameters.
+        vru_basic_service_ldm:
+            Optional LDM adapter.
+        clustering_manager:
+            Optional VBS clustering manager.  Pass ``None`` to disable
+            cluster-aware transmission.
         """
         self.logging = logging.getLogger("vru_basic_service")
         self.btp_router: BTPRouter = btp_router
         self.device_data_provider = device_data_provider
         self.vru_basic_service_ldm = vru_basic_service_ldm
         self.vam_coder = vam_coder
+        self.clustering_manager: VBSClusteringManager | None = clustering_manager
         # self.T_Genvam_DCC = T_GenvamMin We don't have a DCC yet.
         self.t_genvam = vam_constants.T_GENVAMMIN
         self.n_genvam = 1
@@ -556,6 +578,11 @@ class VAMTransmissionManagement:
         self.last_sent_position: tuple[float, float] = (0.0, 0.0)
         self.last_vam_info_lock = threading.Lock()
         self.last_vam_speed: float = 0.0
+        self.last_vam_heading: float = 0.0
+        #: Time (seconds since epoch) when the LF container was last included.
+        self.last_lf_vam_time: float | None = None
+        #: True until the first VAM has been sent; used to force LF inclusion.
+        self.is_first_vam: bool = True
 
     def location_service_callback(self, tpv: dict) -> None:
         """
@@ -624,6 +651,13 @@ class VAMTransmissionManagement:
         vam_to_send.fullfill_with_tpv_data(tpv)
         self.logging.debug("Fullfilled VAM with TPV data %s", tpv)
 
+        # Suppress individual VAMs when passive (clustering state machine).
+        if (
+            self.clustering_manager is not None
+            and not self.clustering_manager.should_transmit_vam()
+        ):
+            return
+
         if self.last_vam_generation_delta_time is None:
             self.send_next_vam(vam=vam_to_send)
             return
@@ -656,13 +690,82 @@ class VAMTransmissionManagement:
         ):
             self.send_next_vam(vam=vam_to_send)
             return
+        # Condition 4 (clause 6.4.1): heading change exceeds threshold.
+        if "track" in tpv:
+            heading_diff = abs(tpv["track"] - self.last_vam_heading) % 360.0
+            if heading_diff > 180.0:
+                heading_diff = 360.0 - heading_diff
+            if heading_diff > vam_constants.MINGROUNDVELOCITYORIENTATIONCHANGETHRESHOLD:
+                self.send_next_vam(vam=vam_to_send)
+                return
+
+    def _attach_lf_container_if_due(self, vam: VAMMessage) -> None:
+        """Attach ``vruLowFrequencyContainer`` to *vam* when required.
+
+        The Low-Frequency Container shall be included (clause 6.2):
+
+        * On the first transmitted VAM.
+        * When the time elapsed since the last LF container exceeds
+          ``T_GenVamLFMin`` (2 000 ms).
+        * Whenever a ``VruClusterOperationContainer`` is also present, so
+          that receivers can correlate cluster operations with a full VRU
+          profile update.
+
+        Parameters
+        ----------
+        vam:
+            The :class:`VAMMessage` that is about to be transmitted.
+        """
+        import time as _time_module
+        now = _time_module.time()
+        has_cluster_op = (
+            "vruClusterOperationContainer"
+            in vam.vam["vam"]["vamParameters"]
+        )
+        lf_due = (
+            self.is_first_vam
+            or self.last_lf_vam_time is None
+            or (now - self.last_lf_vam_time) * 1000
+            >= vam_constants.T_GENVAM_LFMIN
+            or has_cluster_op
+        )
+        if lf_due:
+            # The LF container carries VRU profile and device usage.
+            # Profile is derived from the station type in the basic container.
+            vam.vam["vam"]["vamParameters"]["vruLowFrequencyContainer"] = {
+                "profileAndSubprofile": ("pedestrian", "unavailable")
+            }
+            self.last_lf_vam_time = now
 
     def send_next_vam(self, vam: VAMMessage) -> None:
-        """
-        Send the next vam.
+        """Encode and send *vam* via the BTP router.
 
-        BTP Port Number: 2018
+        Before encoding, this method:
+
+        * Attaches cluster containers from the clustering state machine
+          (when a :class:`~.vru_clustering.VBSClusteringManager` is
+          configured).
+        * Attaches the ``VruLowFrequencyContainer`` when inclusion criteria
+          are met (clause 6.2).
+
+        BTP destination port: 2018 (as specified in Table B.2 of
+        ETSI TS 103 300-3 V2.3.1).
         """
+        params = vam.vam["vam"]["vamParameters"]
+
+        # Attach cluster containers when clustering is active.
+        if self.clustering_manager is not None:
+            cluster_info = self.clustering_manager.get_cluster_information_container()
+            if cluster_info is not None:
+                params["vruClusterInformationContainer"] = cluster_info
+            cluster_op = self.clustering_manager.get_cluster_operation_container()
+            if cluster_op is not None:
+                params["vruClusterOperationContainer"] = cluster_op
+
+        # Attach LF container when due (must be done *after* cluster-op is
+        # present so has_cluster_op detection inside the helper works).
+        self._attach_lf_container_if_due(vam)
+
         if self.vru_basic_service_ldm is not None:
             vam_ldm = vam.vam.copy()
             vam_ldm["utc_timestamp"] = int(TimeService.time()*1000)
@@ -676,6 +779,8 @@ class VAMTransmissionManagement:
             gn_packet_transport_type=PacketTransportType(),
             communication_profile=CommunicationProfile.UNSPECIFIED,
             traffic_class=TrafficClass(),
+            security_profile=SecurityProfile.VRU_AWARENESS_MESSAGE,
+            its_aid=638,
             data=data,
             length=len(data),
         )
@@ -699,3 +804,9 @@ class VAMTransmissionManagement:
             self.last_vam_speed = vam.vam["vam"]["vamParameters"][
                 "vruHighFrequencyContainer"
             ]["speed"]["speedValue"] / 100
+            self.last_vam_heading = (
+                vam.vam["vam"]["vamParameters"][
+                    "vruHighFrequencyContainer"
+                ]["heading"]["value"] / 10.0
+            )
+            self.is_first_vam = False
