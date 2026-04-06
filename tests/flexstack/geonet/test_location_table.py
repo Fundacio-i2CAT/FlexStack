@@ -15,7 +15,6 @@ from flexstack.geonet.gbc_extended_header import GBCExtendedHeader
 from flexstack.geonet.ls_extended_header import LSRequestExtendedHeader, LSReplyExtendedHeader
 from flexstack.geonet.position_vector import LongPositionVector, ShortPositionVector
 from flexstack.geonet.mib import MIB
-from flexstack.geonet.service_access_point import Area
 
 
 class TestLocationTableEntry(unittest.TestCase):

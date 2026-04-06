@@ -59,7 +59,7 @@ FROM Ieee1609Dot2BaseTypes {iso(1) identified-organization(3) ieee(111)
   base(1) base-types(2) major-version-2(2) minor-version-4(4)}
 
   EtsiOriginatingHeaderInfoExtension
-FROM EtsiTs103097ExtensionModule {itu-t(0) identified-organization(4) etsi(0) 
+FROM EtsiTs103097ExtensionModule {itu-t(0) identified-organization(4) etsi(0)
   itsDomain(5) wg5(5) secHeaders(103097) extension(2) major-version-1(1)
   minor-version-0(0)}
 ;
@@ -79,7 +79,7 @@ FROM EtsiTs103097ExtensionModule {itu-t(0) identified-organization(4) etsi(0)
  * @param content: contains the content in the form of an Ieee1609Dot2Content.
  *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the Ieee1609Dot2Content.
  */
 Ieee1609Dot2Data ::= SEQUENCE {
@@ -99,18 +99,18 @@ Ieee1609Dot2Data ::= SEQUENCE {
  * @param encryptedData: indicates that the content has been encrypted
  * according to this standard.
  *
- * @param signedCertificateRequest: indicates that the content is a 
+ * @param signedCertificateRequest: indicates that the content is a
  * certificate request signed by an IEEE 1609.2 certificate or self-signed.
  *
- * @param signedX509CertificateRequest: indicates that the content is a 
+ * @param signedX509CertificateRequest: indicates that the content is a
  * certificate request signed by an ITU-T X.509 certificate.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
  * for the relevant operations specified in 6.1.2 if it is of type signedData.
  * The canonicalization applies to the SignedData.
  */
-Ieee1609Dot2Content ::=  CHOICE { 
-  unsecuredData                Opaque, 
+Ieee1609Dot2Content ::=  CHOICE {
+  unsecuredData                Opaque,
   signedData                   SignedData,
   encryptedData                EncryptedData,
   signedCertificateRequest     Opaque,
@@ -146,11 +146,11 @@ Ieee1609Dot2Content ::=  CHOICE {
  * Certificate that is to be used to verify the SPDU, canonicalized according
  * to the encoding considerations given in 6.4.3.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the ToBeSignedData and the Signature.
  */
-SignedData ::= SEQUENCE { 
+SignedData ::= SEQUENCE {
   hashId    HashAlgorithm,
   tbsData   ToBeSignedData,
   signer    SignerIdentifier,
@@ -166,61 +166,61 @@ SignedData ::= SEQUENCE {
  * the SDS.
  *
  * @param headerInfo: contains additional data that is inserted by the SDS.
- * This structure is used as follows to determine the "data input" to the 
- * hash operation for signing or verification as specified in 5.3.1.2.2 or 
+ * This structure is used as follows to determine the "data input" to the
+ * hash operation for signing or verification as specified in 5.3.1.2.2 or
  * 5.3.1.3.
- *   - If payload does not contain the field omitted, the data input to the 
- * hash operation is the COER encoding of the ToBeSignedData. 
- *   - If payload field in this ToBeSignedData instance contains the field 
+ *   - If payload does not contain the field omitted, the data input to the
+ * hash operation is the COER encoding of the ToBeSignedData.
+ *   - If payload field in this ToBeSignedData instance contains the field
  * omitted, the data input to the hash operation is the COER encoding of the
  * ToBeSignedData, concatenated with the hash of the omitted payload. The hash
- * of the omitted payload is calculated with the same hash algorithm that is 
- * used to calculate the hash of the data input for signing or verification. 
- * The data input to the hash operation is simply the COER encoding of the 
+ * of the omitted payload is calculated with the same hash algorithm that is
+ * used to calculate the hash of the data input for signing or verification.
+ * The data input to the hash operation is simply the COER encoding of the
  * ToBeSignedData, concatenated with the hash of the omitted payload: there is
- * no additional wrapping or length indication. As noted in 5.2.4.3.4, the 
- * means by which the signer and verifier establish the contents of the 
+ * no additional wrapping or length indication. As noted in 5.2.4.3.4, the
+ * means by which the signer and verifier establish the contents of the
  * omitted payload are outside the scope of this standard.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
- * applies to the SignedDataPayload if it is of type data, and to the 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
+ * applies to the SignedDataPayload if it is of type data, and to the
  * HeaderInfo.
  */
-ToBeSignedData ::= SEQUENCE { 
+ToBeSignedData ::= SEQUENCE {
   payload    SignedDataPayload,
   headerInfo HeaderInfo
 }
 
 /**
- * @brief This structure contains the data payload of a ToBeSignedData. This 
- * structure contains at least one of the optional elements, and may contain 
+ * @brief This structure contains the data payload of a ToBeSignedData. This
+ * structure contains at least one of the optional elements, and may contain
  * more than one. See 5.2.4.3.4 for more details.
- * The security profile in Annex C allows an implementation of this standard 
- * to state which forms of SignedDataPayload are supported by that 
+ * The security profile in Annex C allows an implementation of this standard
+ * to state which forms of SignedDataPayload are supported by that
  * implementation, and also how the signer and verifier are intended to obtain
- * the external data for hashing. The specification of an SDEE that uses 
- * external data is expected to be explicit and unambiguous about how this 
- * data is obtained and how it is formatted prior to processing by the hash 
+ * the external data for hashing. The specification of an SDEE that uses
+ * external data is expected to be explicit and unambiguous about how this
+ * data is obtained and how it is formatted prior to processing by the hash
  * function.
  *
  * @param data: contains data that is explicitly transported within the
  * structure.
  *
- * @param extDataHash: contains the hash of data that is not explicitly 
- * transported within the structure, and which the creator of the structure 
- * wishes to cryptographically bind to the signature. 
+ * @param extDataHash: contains the hash of data that is not explicitly
+ * transported within the structure, and which the creator of the structure
+ * wishes to cryptographically bind to the signature.
  *
  * @param omitted: indicates that there is data to be included in the hash
  * calculation for the signature that is not included in the SPDU, either in
  * data or by use of the extDataHash. The mechanism for including the omitted
  * data in the hash calculation is specified in 6.3.6.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the Ieee1609Dot2Data.
  */
-SignedDataPayload ::= SEQUENCE { 
+SignedDataPayload ::= SEQUENCE {
   data        Ieee1609Dot2Data OPTIONAL,
   extDataHash HashedData OPTIONAL,
   ...,
@@ -237,16 +237,16 @@ SignedDataPayload ::= SEQUENCE {
  * @param sha256HashedData: indicates data hashed with SHA-256.
  *
  * @param sha384HashedData: indicates data hashed with SHA-384.
- * 
+ *
  * @param sm3HashedData: indicates data hashed with SM3.
  *
- * @note Critical information fields: If present, this is a critical 
- * information field as defined in 5.2.6. An implementation that does not 
- * recognize the indicated CHOICE for this type when verifying a signed SPDU 
- * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, 
+ * @note Critical information fields: If present, this is a critical
+ * information field as defined in 5.2.6. An implementation that does not
+ * recognize the indicated CHOICE for this type when verifying a signed SPDU
+ * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2,
  * that is, it is invalid in the sense that its validity cannot be established.
  */
-HashedData::= CHOICE { 
+HashedData::= CHOICE {
   sha256HashedData HashedId32,
   ...,
   sha384HashedData HashedId48,
@@ -272,14 +272,14 @@ HashedData::= CHOICE {
  * @param generationLocation: if present, contains the location at which the
  * signature was generated.
  *
- * @param p2pcdLearningRequest: if present, is used by the SDS to request 
- * certificates for which it has seen identifiers and does not know the 
- * entire certificate. A specification of this peer-to-peer certificate 
- * distribution (P2PCD) mechanism is given in Clause 8. This field is used 
- * for the separate-certificate-pdu flavor of P2PCD and shall only be present 
- * if inlineP2pcdRequest is not present. The HashedId3 is calculated with the 
- * whole-certificate hash algorithm, determined as described in 6.4.3, 
- * applied to the COER-encoded certificate, canonicalized as defined in the 
+ * @param p2pcdLearningRequest: if present, is used by the SDS to request
+ * certificates for which it has seen identifiers and does not know the
+ * entire certificate. A specification of this peer-to-peer certificate
+ * distribution (P2PCD) mechanism is given in Clause 8. This field is used
+ * for the separate-certificate-pdu flavor of P2PCD and shall only be present
+ * if inlineP2pcdRequest is not present. The HashedId3 is calculated with the
+ * whole-certificate hash algorithm, determined as described in 6.4.3,
+ * applied to the COER-encoded certificate, canonicalized as defined in the
  * definition of Certificate.
  *
  * @param missingCrlIdentifier: if present, is used by the SDS to request
@@ -287,12 +287,12 @@ HashedData::= CHOICE {
  * provided for future use and the associated mechanism is not defined in
  * this version of this standard.
  *
- * @param encryptionKey: if present, is used to provide a key that is to 
- * be used to encrypt at least one response to this SPDU. The SDEE 
- * specification is expected to specify which response SPDUs are to be 
- * encrypted with this key. One possible use of this key to encrypt a 
- * response is specified in 6.3.35, 6.3.37, and 6.3.34. An encryptionKey 
- * field of type symmetric should only be used if the SignedData containing 
+ * @param encryptionKey: if present, is used to provide a key that is to
+ * be used to encrypt at least one response to this SPDU. The SDEE
+ * specification is expected to specify which response SPDUs are to be
+ * encrypted with this key. One possible use of this key to encrypt a
+ * response is specified in 6.3.35, 6.3.37, and 6.3.34. An encryptionKey
+ * field of type symmetric should only be used if the SignedData containing
  * this field is securely encrypted by some means.
  *
  * @param inlineP2pcdRequest: if present, is used by the SDS to request
@@ -311,21 +311,21 @@ HashedData::= CHOICE {
  * to be consumed by a process other than an application process as defined
  * in ISO 21177 [B14a]. See 6.3.23b for more details.
  *
- * @param contributedExtensions: if present, is used to contain additional 
+ * @param contributedExtensions: if present, is used to contain additional
  * extensions defined using the ContributedExtensionBlocks structure.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
  * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the EncryptionKey. If encryptionKey is present, and indicates
  * the choice public, and contains a BasePublicEncryptionKey that is an
- * elliptic curve point (i.e., of type EccP256CurvePoint or 
+ * elliptic curve point (i.e., of type EccP256CurvePoint or
  * EccP384CurvePoint), then the elliptic curve point is encoded in compressed
  * form, i.e., such that the choice indicated within the Ecc*CurvePoint is
  * compressed-y-0 or compressed-y-1.
- * The canonicalization does not apply to any fields after the extension 
+ * The canonicalization does not apply to any fields after the extension
  * marker, including any fields in contributedExtensions.
  */
-HeaderInfo ::= SEQUENCE { 
+HeaderInfo ::= SEQUENCE {
   psid                  Psid,
   generationTime        Time64 OPTIONAL,
   expiryTime            Time64 OPTIONAL,
@@ -345,44 +345,44 @@ HeaderInfo ::= SEQUENCE {
  * have been issued and has not yet received. It is provided for future use
  * and its use is not defined in this version of this standard.
  *
- * @param cracaId: is the HashedId3 of the CRACA, as defined in 5.1.3. The 
- * HashedId3 is calculated with the whole-certificate hash algorithm, 
+ * @param cracaId: is the HashedId3 of the CRACA, as defined in 5.1.3. The
+ * HashedId3 is calculated with the whole-certificate hash algorithm,
  * determined as described in 6.4.3, applied to the COER-encoded certificate,
  * canonicalized as defined in the definition of Certificate.
  *
  * @param crlSeries: is the requested CRL Series value. See 5.1.3 for more
  * information.
  */
-MissingCrlIdentifier ::= SEQUENCE { 
+MissingCrlIdentifier ::= SEQUENCE {
   cracaId   HashedId3,
   crlSeries CrlSeries,
   ...
 }
 
 /**
- * @brief This data structure identifies the functional entity that is 
- * intended to consume an SPDU, for the case where that functional entity is 
+ * @brief This data structure identifies the functional entity that is
+ * intended to consume an SPDU, for the case where that functional entity is
  * not an application process, and are instead security support services for an
- * application process. Further details and the intended use of this field are 
+ * application process. Further details and the intended use of this field are
  * defined in ISO 21177 [B20].
  *
- * @param tlsHandshake: indicates that the Signed SPDU is not to be directly 
- * consumed as an application PDU and is to be used to provide information 
- * about the holder�s permissions to a Transport Layer Security (TLS) 
- * (IETF 5246 [B15], IETF 8446 [B16]) handshake process operating to secure 
- * communications to an application process. See IETF [B15] and ISO 21177 
+ * @param tlsHandshake: indicates that the Signed SPDU is not to be directly
+ * consumed as an application PDU and is to be used to provide information
+ * about the holder�s permissions to a Transport Layer Security (TLS)
+ * (IETF 5246 [B15], IETF 8446 [B16]) handshake process operating to secure
+ * communications to an application process. See IETF [B15] and ISO 21177
  * [B20] for further information.
  *
- * @param iso21177ExtendedAuth: indicates that the Signed SPDU is not to be 
- * directly consumed as an application PDU and is to be used to provide 
- * additional information about the holder�s permissions to the ISO 21177 
- * Security Subsystem for an application process. See ISO 21177 [B20] for 
+ * @param iso21177ExtendedAuth: indicates that the Signed SPDU is not to be
+ * directly consumed as an application PDU and is to be used to provide
+ * additional information about the holder�s permissions to the ISO 21177
+ * Security Subsystem for an application process. See ISO 21177 [B20] for
  * further information.
  *
- * @param iso21177SessionExtension: indicates that the Signed SPDU is not to 
- * be directly consumed as an application PDU and is to be used to extend an 
- * existing ISO 21177 secure session. This enables a secure session to 
- * persist beyond the lifetime of the certificates used to establish that 
+ * @param iso21177SessionExtension: indicates that the Signed SPDU is not to
+ * be directly consumed as an application PDU and is to be used to extend an
+ * existing ISO 21177 secure session. This enables a secure session to
+ * persist beyond the lifetime of the certificates used to establish that
  * session.
  */
 PduFunctionalType ::= INTEGER (0..255)
@@ -406,8 +406,8 @@ ContributedExtensionBlocks ::= SEQUENCE (SIZE(1..MAX)) OF
  *
  * @param contributorId: uniquely identifies the contributor.
  *
- * @param extns: contains a list of extensions from that contributor. 
- * Extensions are expected and not required to follow the format specified 
+ * @param extns: contains a list of extensions from that contributor.
+ * Extensions are expected and not required to follow the format specified
  * in 6.5.
  */
 ContributedExtensionBlock ::= SEQUENCE {
@@ -418,10 +418,10 @@ ContributedExtensionBlock ::= SEQUENCE {
 /**
  * @brief This is an integer used to identify a HeaderInfo extension
  * contributing organization. In this version of this standard two values are
- * defined: 
- *   - ieee1609OriginatingExtensionId indicating extensions originating with 
+ * defined:
+ *   - ieee1609OriginatingExtensionId indicating extensions originating with
  * IEEE Std 1609.
- *   - etsiOriginatingExtensionId indicating extensions originating with 
+ *   - etsiOriginatingExtensionId indicating extensions originating with
  * ETSI TC ITS.
  */
 HeaderInfoContributorId ::= INTEGER (0..255)
@@ -470,10 +470,10 @@ etsiHeaderInfoContributorId     HeaderInfoContributorId ::= 2
  * fields containing at least one certificate.
  *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to every Certificate in the certificate field.
  */
-SignerIdentifier ::= CHOICE { 
+SignerIdentifier ::= CHOICE {
   digest      HashedId8,
   certificate SequenceOfCertificate,
   self        NULL,
@@ -488,15 +488,15 @@ SignerIdentifier ::= CHOICE {
  * SPDU over which the countersignature is performed.
  */
 Countersignature ::= Ieee1609Dot2Data (WITH COMPONENTS {...,
-  content (WITH COMPONENTS {..., 
-    signedData  (WITH COMPONENTS {..., 
-      tbsData (WITH COMPONENTS {..., 
-        payload (WITH COMPONENTS {..., 
+  content (WITH COMPONENTS {...,
+    signedData  (WITH COMPONENTS {...,
+      tbsData (WITH COMPONENTS {...,
+        payload (WITH COMPONENTS {...,
           data ABSENT,
           extDataHash PRESENT,
           omitted ABSENT
         }),
-        headerInfo(WITH COMPONENTS {..., 
+        headerInfo(WITH COMPONENTS {...,
           generationTime PRESENT,
           expiryTime ABSENT,
           generationLocation ABSENT,
@@ -515,8 +515,8 @@ Countersignature ::= Ieee1609Dot2Data (WITH COMPONENTS {...,
 --***************************************************************************--
 
 /**
- * @brief This data structure encodes data that has been encrypted to one or 
- * more recipients using the recipients� public or symmetric keys as 
+ * @brief This data structure encodes data that has been encrypted to one or
+ * more recipients using the recipients� public or symmetric keys as
  * specified in 5.3.4.
  *
  * @param recipients: contains one or more RecipientInfos. These entries may
@@ -535,13 +535,13 @@ Countersignature ::= Ieee1609Dot2Data (WITH COMPONENTS {...,
  * compliant implementation shall support recipients fields containing at
  * least eight entries.
  *
- * @note If the plaintext is raw data, i.e., it has not been output from a 
+ * @note If the plaintext is raw data, i.e., it has not been output from a
  * previous operation of the SDS, then it is trivial to encapsulate it in an
  * Ieee1609Dot2Data of type unsecuredData as noted in 4.2.2.2.2. For example,
- * '03 80 08 01 23 45 67 89 AB CD EF' is the C-OER encoding of '01 23 45 67 
- * 89 AB CD EF' encapsulated in an Ieee1609Dot2Data of type unsecuredData. 
- * The first byte of the encoding 03 is the protocolVersion, the second byte 
- * 80 indicates the choice unsecuredData, and the third byte 08 is the length 
+ * '03 80 08 01 23 45 67 89 AB CD EF' is the C-OER encoding of '01 23 45 67
+ * 89 AB CD EF' encapsulated in an Ieee1609Dot2Data of type unsecuredData.
+ * The first byte of the encoding 03 is the protocolVersion, the second byte
+ * 80 indicates the choice unsecuredData, and the third byte 08 is the length
  * of the raw data '01 23 45 67 89 AB CD EF'.
  */
 EncryptedData ::= SEQUENCE {
@@ -557,62 +557,62 @@ EncryptedData ::= SEQUENCE {
  * EncryptedData was encrypted using the ephemeral encryption key approach
  * specified in 5.3.4. The meanings of the choices are as follows:
  *
- * @param pskRecipInfo: The data was encrypted directly using a pre-shared 
+ * @param pskRecipInfo: The data was encrypted directly using a pre-shared
  * symmetric key.
  *
  * @param symmRecipInfo: The data was encrypted with a data encryption key,
  * and the data encryption key was encrypted using a symmetric key.
  *
- * @param certRecipInfo: The data was encrypted with a data encryption key, 
+ * @param certRecipInfo: The data was encrypted with a data encryption key,
  * the data encryption key was encrypted using a public key encryption scheme,
- * where the public encryption key was obtained from a certificate. In this 
- * case, the parameter P1 to ECIES as defined in 5.3.5 is the hash of the 
- * certificate, calculated with the whole-certificate hash algorithm, 
- * determined as described in 6.4.3, applied to the COER-encoded certificate, 
+ * where the public encryption key was obtained from a certificate. In this
+ * case, the parameter P1 to ECIES as defined in 5.3.5 is the hash of the
+ * certificate, calculated with the whole-certificate hash algorithm,
+ * determined as described in 6.4.3, applied to the COER-encoded certificate,
  * canonicalized as defined in the definition of Certificate.
  *
- * @note If the encryption algorithm is SM2, there is no equivalent of the 
+ * @note If the encryption algorithm is SM2, there is no equivalent of the
  * parameter P1 and so no input to the encryption process that uses the hash
  * of the certificate.
  *
- * @param signedDataRecipInfo: The data was encrypted with a data encryption 
- * key, the data encryption key was encrypted using a public key encryption 
- * scheme, where the public encryption key was obtained as the public response 
- * encryption key from a SignedData. In this case, if ECIES is the encryption 
- * algorithm, then the parameter P1 to ECIES as defined in 5.3.5 is the 
- * SHA-256 hash of the Ieee1609Dot2Data of type signedData containing the 
- * response encryption key, canonicalized as defined in the definition of 
+ * @param signedDataRecipInfo: The data was encrypted with a data encryption
+ * key, the data encryption key was encrypted using a public key encryption
+ * scheme, where the public encryption key was obtained as the public response
+ * encryption key from a SignedData. In this case, if ECIES is the encryption
+ * algorithm, then the parameter P1 to ECIES as defined in 5.3.5 is the
+ * SHA-256 hash of the Ieee1609Dot2Data of type signedData containing the
+ * response encryption key, canonicalized as defined in the definition of
  * Ieee1609Dot2Data.
  *
- * @note If the encryption algorithm is SM2, there is no equivalent of the 
+ * @note If the encryption algorithm is SM2, there is no equivalent of the
  * parameter P1 and so no input to the encryption process that uses the hash
  * of the Ieee1609Dot2Data.
  *
- * @param rekRecipInfo: The data was encrypted with a data encryption key, 
+ * @param rekRecipInfo: The data was encrypted with a data encryption key,
  * the data encryption key was encrypted using a public key encryption scheme,
- * where the public encryption key was not obtained from a Signed-Data or a 
- * certificate. In this case, the SDEE specification is expected to specify 
- * how the public key is obtained, and if ECIES is the encryption algorithm, 
- * then the parameter P1 to ECIES as defined in 5.3.5 is the hash of the 
+ * where the public encryption key was not obtained from a Signed-Data or a
+ * certificate. In this case, the SDEE specification is expected to specify
+ * how the public key is obtained, and if ECIES is the encryption algorithm,
+ * then the parameter P1 to ECIES as defined in 5.3.5 is the hash of the
  * empty string.
  *
- * @note If the encryption algorithm is SM2, there is no equivalent of the 
- * parameter P1 and so no input to the encryption process that uses the hash 
+ * @note If the encryption algorithm is SM2, there is no equivalent of the
+ * parameter P1 and so no input to the encryption process that uses the hash
  * of the empty string.
  *
  * See C.8 for guidance on when it may be appropriate to use each of these
  * approaches.
  *
- * @note The material input to encryption is the bytes of the encryption key 
- * with no headers, encapsulation, or length indication. Contrast this to 
+ * @note The material input to encryption is the bytes of the encryption key
+ * with no headers, encapsulation, or length indication. Contrast this to
  * encryption of data, where the data is encapsulated in an Ieee1609Dot2Data.
  */
 RecipientInfo ::= CHOICE {
   pskRecipInfo        PreSharedKeyRecipientInfo,
   symmRecipInfo       SymmRecipientInfo,
-  certRecipInfo       PKRecipientInfo, 
-  signedDataRecipInfo PKRecipientInfo, 
-  rekRecipInfo        PKRecipientInfo 
+  certRecipInfo       PKRecipientInfo,
+  signedDataRecipInfo PKRecipientInfo,
+  rekRecipInfo        PKRecipientInfo
 }
 
 /**
@@ -621,12 +621,12 @@ RecipientInfo ::= CHOICE {
 SequenceOfRecipientInfo ::= SEQUENCE OF RecipientInfo
 
 /**
- * @brief This data structure is used to indicate a symmetric key that may 
- * be used directly to decrypt a SymmetricCiphertext. It consists of the 
- * low-order 8 bytes of the hash of the COER encoding of a 
- * SymmetricEncryptionKey structure containing the symmetric key in question. 
- * The HashedId8 is calculated with the hash algorithm determined as 
- * specified in 5.3.9.3. The symmetric key may be established by any 
+ * @brief This data structure is used to indicate a symmetric key that may
+ * be used directly to decrypt a SymmetricCiphertext. It consists of the
+ * low-order 8 bytes of the hash of the COER encoding of a
+ * SymmetricEncryptionKey structure containing the symmetric key in question.
+ * The HashedId8 is calculated with the hash algorithm determined as
+ * specified in 5.3.9.3. The symmetric key may be established by any
  * appropriate means agreed by the two parties to the exchange.
  */
 PreSharedKeyRecipientInfo ::= HashedId8
@@ -634,21 +634,21 @@ PreSharedKeyRecipientInfo ::= HashedId8
 /**
  * @brief This data structure contains the following fields:
  *
- * @param recipientId: contains the hash of the symmetric key encryption key 
- * that may be used to decrypt the data encryption key. It consists of the 
- * low-order 8 bytes of the hash of the COER encoding of a 
- * SymmetricEncryptionKey structure containing the symmetric key in question. 
- * The HashedId8 is calculated with the hash algorithm determined as 
- * specified in 5.3.9.4. The symmetric key may be established by any 
+ * @param recipientId: contains the hash of the symmetric key encryption key
+ * that may be used to decrypt the data encryption key. It consists of the
+ * low-order 8 bytes of the hash of the COER encoding of a
+ * SymmetricEncryptionKey structure containing the symmetric key in question.
+ * The HashedId8 is calculated with the hash algorithm determined as
+ * specified in 5.3.9.4. The symmetric key may be established by any
  * appropriate means agreed by the two parties to the exchange.
  *
- * @param encKey: contains the encrypted data encryption key within a 
- * SymmetricCiphertext, where the data encryption key is input to the data 
- * encryption key encryption process with no headers, encapsulation, or 
+ * @param encKey: contains the encrypted data encryption key within a
+ * SymmetricCiphertext, where the data encryption key is input to the data
+ * encryption key encryption process with no headers, encapsulation, or
  * length indication.
  */
-SymmRecipientInfo ::= SEQUENCE { 
-  recipientId HashedId8, 
+SymmRecipientInfo ::= SEQUENCE {
+  recipientId HashedId8,
   encKey      SymmetricCiphertext
 }
 
@@ -663,28 +663,28 @@ SymmRecipientInfo ::= SEQUENCE {
  * calculated with the whole-certificate hash algorithm, determined as
  * described in 6.4.3, applied to the COER-encoded certificate, canonicalized
  * as defined in the definition of Certificate.
- *   - If the containing RecipientInfo structure indicates 
- * signedDataRecipInfo, this field contains the HashedId8 of the 
- * Ieee1609Dot2Data of type signedData that contained the encryption key, 
- * with that Ieee��1609�Dot2��Data canonicalized per 6.3.4. The HashedId8 is 
+ *   - If the containing RecipientInfo structure indicates
+ * signedDataRecipInfo, this field contains the HashedId8 of the
+ * Ieee1609Dot2Data of type signedData that contained the encryption key,
+ * with that Ieee��1609�Dot2��Data canonicalized per 6.3.4. The HashedId8 is
  * calculated with the hash algorithm determined as specified in 5.3.9.5.
- *   - If the containing RecipientInfo structure indicates rekRecipInfo, this 
- * field contains the HashedId8 of the COER encoding of a PublicEncryptionKey 
- * structure containing the response encryption key. The HashedId8 is 
+ *   - If the containing RecipientInfo structure indicates rekRecipInfo, this
+ * field contains the HashedId8 of the COER encoding of a PublicEncryptionKey
+ * structure containing the response encryption key. The HashedId8 is
  * calculated with the hash algorithm determined as specified in 5.3.9.5.
  *
- * @param encKey: contains the encrypted data encryption key, where the data 
- * encryption key is input to the data encryption key encryption process with 
- * no headers, encapsulation, or length indication. 
+ * @param encKey: contains the encrypted data encryption key, where the data
+ * encryption key is input to the data encryption key encryption process with
+ * no headers, encapsulation, or length indication.
  */
-PKRecipientInfo ::= SEQUENCE { 
-  recipientId HashedId8, 
+PKRecipientInfo ::= SEQUENCE {
+  recipientId HashedId8,
   encKey      EncryptedDataEncryptionKey
 }
 
 /**
- * @brief This data structure contains an encrypted data encryption key, 
- * where the data encryption key is input to the data encryption key 
+ * @brief This data structure contains an encrypted data encryption key,
+ * where the data encryption key is input to the data encryption key
  * encryption process with no headers, encapsulation, or length indication.
  *
  * Critical information fields: If present and applicable to
@@ -695,7 +695,7 @@ PKRecipientInfo ::= SEQUENCE {
  * implementation does not recognize the indicated CHOICE, the implementation
  * shall indicate that the encrypted SPDU is not decryptable.
  */
-EncryptedDataEncryptionKey ::= CHOICE { 
+EncryptedDataEncryptionKey ::= CHOICE {
   eciesNistP256        EciesP256EncryptedKey,
   eciesBrainpoolP256r1 EciesP256EncryptedKey,
   ...,
@@ -709,7 +709,7 @@ EncryptedDataEncryptionKey ::= CHOICE {
  * @note Critical information fields: If present, this is a critical
  * information field as defined in 5.2.6. An implementation that does not
  * recognize the indicated CHOICE value for this type in an encrypted SPDU
- * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, 
+ * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2,
  * that is, it is invalid in the sense that its validity cannot be established.
  */
 SymmetricCiphertext ::= CHOICE {
@@ -719,12 +719,12 @@ SymmetricCiphertext ::= CHOICE {
 }
 
 /**
- * @brief This data structure encapsulates an encrypted ciphertext for any 
- * symmetric algorithm with 128-bit blocks in CCM mode. The ciphertext is 
- * 16 bytes longer than the corresponding plaintext due to the inclusion of 
- * the message authentication code (MAC). The plaintext resulting from a 
- * correct decryption of the ciphertext is either a COER-encoded 
- * Ieee1609Dot2Data structure (see 6.3.41), or a 16-byte symmetric key 
+ * @brief This data structure encapsulates an encrypted ciphertext for any
+ * symmetric algorithm with 128-bit blocks in CCM mode. The ciphertext is
+ * 16 bytes longer than the corresponding plaintext due to the inclusion of
+ * the message authentication code (MAC). The plaintext resulting from a
+ * correct decryption of the ciphertext is either a COER-encoded
+ * Ieee1609Dot2Data structure (see 6.3.41), or a 16-byte symmetric key
  * (see 6.3.44).
  *
  * The ciphertext is 16 bytes longer than the corresponding plaintext.
@@ -736,17 +736,17 @@ SymmetricCiphertext ::= CHOICE {
  *
  * @param ccmCiphertext: contains the ciphertext C as specified in 5.3.8.
  *
- * @note In the name of this structure, "One28" indicates that the 
- * symmetric cipher block size is 128 bits. It happens to also be the case 
- * that the keys used for both AES-128-CCM and SM4-CCM are also 128 bits long. 
- * This is, however, not what �One28� refers to. Since the cipher is used in 
+ * @note In the name of this structure, "One28" indicates that the
+ * symmetric cipher block size is 128 bits. It happens to also be the case
+ * that the keys used for both AES-128-CCM and SM4-CCM are also 128 bits long.
+ * This is, however, not what �One28� refers to. Since the cipher is used in
  * counter mode, i.e., as a stream cipher, the fact that that block size is 128
  * bits affects only the size of the MAC and does not affect the size of the
  * raw ciphertext.
  */
 One28BitCcmCiphertext ::= SEQUENCE {
   nonce         OCTET STRING (SIZE (12)),
-  ccmCiphertext Opaque 
+  ccmCiphertext Opaque
 }
 
 /**
@@ -763,8 +763,8 @@ Aes128CcmCiphertext ::= One28BitCcmCiphertext
  * specifies the valid combinations of fields to transmit implicit and
  * explicit certificates.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the CertificateBase.
  */
 Certificate ::=
@@ -808,16 +808,16 @@ SequenceOfCertificate ::= SEQUENCE OF Certificate
  * identifier input is the empty string. If the choice indicated by issuer is
  * not self, the verification type is certificate and the signer identifier
  * input is the canonicalized COER encoding of the certificate indicated by
- * issuer. The canonicalization is carried out as specified in the 
+ * issuer. The canonicalization is carried out as specified in the
  * Canonicalization section of this subclause.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the ToBeSignedCertificate and to the Signature.
  *
- * @note Whole-certificate hash: If the entirety of a certificate is hashed 
- * to calculate a HashedId3, HashedId8, or HashedId10, the algorithm used for 
- * this purpose is known as the whole-certificate hash. The method used to 
+ * @note Whole-certificate hash: If the entirety of a certificate is hashed
+ * to calculate a HashedId3, HashedId8, or HashedId10, the algorithm used for
+ * this purpose is known as the whole-certificate hash. The method used to
  * determine the whole-certificate hash algorithm is specified in 5.3.9.2.
  */
 CertificateBase ::= SEQUENCE {
@@ -835,8 +835,8 @@ CertificateBase ::= SEQUENCE {
  * @note Critical information fields: If present, this is a critical
  * information field as defined in 5.2.5. An implementation that does not
  * recognize the indicated CHOICE for this type when verifying a signed SPDU
- * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, 
- * that is, it is invalid in the sense that its validity cannot be 
+ * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2,
+ * that is, it is invalid in the sense that its validity cannot be
  * established.
  */
 CertificateType ::= ENUMERATED {
@@ -873,14 +873,14 @@ ExplicitCertificate ::= CertificateBase (WITH COMPONENTS {...,
  * @brief This structure allows the recipient of a certificate to determine
  * which keying material to use to authenticate the certificate.
  *
- * If the choice indicated is sha256AndDigest, sha384AndDigest, or 
+ * If the choice indicated is sha256AndDigest, sha384AndDigest, or
  * sm3AndDigest:
- *   - The structure contains the HashedId8 of the issuing certificate. The 
- * HashedId8 is calculated with the whole-certificate hash algorithm, 
- * determined as described in 6.4.3, applied to the COER-encoded certificate, 
- * canonicalized as defined in the definition of Certificate. 
- *   - The hash algorithm to be used to generate the hash of the certificate 
- * for verification is SHA-256 (in the case of sha256AndDigest), SM3 (in the 
+ *   - The structure contains the HashedId8 of the issuing certificate. The
+ * HashedId8 is calculated with the whole-certificate hash algorithm,
+ * determined as described in 6.4.3, applied to the COER-encoded certificate,
+ * canonicalized as defined in the definition of Certificate.
+ *   - The hash algorithm to be used to generate the hash of the certificate
+ * for verification is SHA-256 (in the case of sha256AndDigest), SM3 (in the
  * case of sm3AndDigest) or SHA-384 (in the case of sha384AndDigest).
  *   - The certificate is to be verified with the public key of the
  * indicated issuing certificate.
@@ -894,11 +894,11 @@ ExplicitCertificate ::= CertificateBase (WITH COMPONENTS {...,
  * @note Critical information fields: If present, this is a critical
  * information field as defined in 5.2.5. An implementation that does not
  * recognize the indicated CHOICE for this type when verifying a signed SPDU
- * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, 
- * that is, it is invalid in the sense that its validity cannot be 
+ * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2,
+ * that is, it is invalid in the sense that its validity cannot be
  * established.
  */
-IssuerIdentifier ::= CHOICE { 
+IssuerIdentifier ::= CHOICE {
   sha256AndDigest HashedId8,
   self            HashAlgorithm,
   ...,
@@ -924,7 +924,7 @@ IssuerIdentifier ::= CHOICE {
  * (CRACA) responsible for certificate revocation lists (CRLs) on which this
  * certificate might appear. Use of the cracaId is specified in 5.1.3. The
  * HashedId3 is calculated with the whole-certificate hash algorithm,
- * determined as described in 6.4.3, applied to the COER-encoded certificate, 
+ * determined as described in 6.4.3, applied to the COER-encoded certificate,
  * canonicalized as defined in the definition of Certificate.
  *
  * @param crlSeries: represents the CRL series relevant to a particular
@@ -972,11 +972,11 @@ IssuerIdentifier ::= CHOICE {
  * the other entries. See the description of PsidGroupPermissions for further
  * discussion.
  *
- * @param certRequestPermissions: indicates the permissions that the 
+ * @param certRequestPermissions: indicates the permissions that the
  * certificate holder can request in its certificate. A valid instance of this
- * array contains no more than one entry whose psidSspRange field indicates 
- * all. If the array has multiple entries and one entry has its psidSspRange 
- * field indicate all, then the entry indicating all specifies the permissions 
+ * array contains no more than one entry whose psidSspRange field indicates
+ * all. If the array has multiple entries and one entry has its psidSspRange
+ * field indicate all, then the entry indicating all specifies the permissions
  * for all PSIDs other than the ones explicitly specified in the other entries.
  * See the description of PsidGroupPermissions for further discussion.
  *
@@ -991,29 +991,29 @@ IssuerIdentifier ::= CHOICE {
  * @param verifyKeyIndicator: contains material that may be used to recover
  * the public key that may be used to verify data signed by this certificate.
  *
- * @param flags: indicates additional yes/no properties of the certificate 
- * holder. The only bit with defined semantics in this string in this version 
- * of this standard is usesCubk. If set, the usesCubk bit indicates that the 
- * certificate holder supports the compact unified butterfly key response. 
- * Further material about the compact unified butterfly key response can be 
+ * @param flags: indicates additional yes/no properties of the certificate
+ * holder. The only bit with defined semantics in this string in this version
+ * of this standard is usesCubk. If set, the usesCubk bit indicates that the
+ * certificate holder supports the compact unified butterfly key response.
+ * Further material about the compact unified butterfly key response can be
  * found in IEEE Std 1609.2.1.
  *
  * If this field is present, at least one of the bits in the field shall be
  * non-zero.
  *
- * @note usesCubk is only relevant for CA certificates, and the only 
- * functionality defined associated with this field is associated with 
- * consistency checks on received certificate responses. No functionality 
- * associated with communications between peer SDEEs is defined associated 
+ * @note usesCubk is only relevant for CA certificates, and the only
+ * functionality defined associated with this field is associated with
+ * consistency checks on received certificate responses. No functionality
+ * associated with communications between peer SDEEs is defined associated
  * with this field.
  *
  * @param appExtensions: indicates additional permissions that may be applied
- * to application activities that the certificate holder is carrying out. 
+ * to application activities that the certificate holder is carrying out.
  *
- * @param certIssueExtensions: indicates additional permissions to issue 
- * certificates containing appExtensions. 
+ * @param certIssueExtensions: indicates additional permissions to issue
+ * certificates containing appExtensions.
  *
- * @param certRequestExtensions: indicates additional permissions to request 
+ * @param certRequestExtensions: indicates additional permissions to request
  * certificates containing endEntityExtensions.
  *
  * @note In IEEE Std 1609.2-2022 these were not marked optional; they are in
@@ -1021,7 +1021,7 @@ IssuerIdentifier ::= CHOICE {
  * but in practice there are no scenarios in which a legacy system will break
  * (because it would have to be the case that Issue or Request was included and
  * App wasn't, but no issue or request extension values are currently defined).
- * 
+ *
  * @note Issue and Request extensions are specified in this version of this
  * standard for future use but do not currently have any values defined. The
  * only certificate extension defined is OperatingOrganizationId and that can
@@ -1049,69 +1049,69 @@ IssuerIdentifier ::= CHOICE {
  * the certificate indicated by issuer.
  *
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
  * applies to the PublicEncryptionKey and to the VerificationKeyIndicator.
  *
- * If the PublicEncryptionKey contains a BasePublicEncryptionKey that is an 
+ * If the PublicEncryptionKey contains a BasePublicEncryptionKey that is an
  * elliptic curve point (i.e., of type EccP256CurvePoint or EccP384CurvePoint),
- * then the elliptic curve point is encoded in compressed form, i.e., such 
- * that the choice indicated within the Ecc*CurvePoint is compressed-y-0 or 
+ * then the elliptic curve point is encoded in compressed form, i.e., such
+ * that the choice indicated within the Ecc*CurvePoint is compressed-y-0 or
  * compressed-y-1.
  *
  * @note Critical information fields:
- *   - If present, appPermissions is a critical information field as defined 
- * in 5.2.6. If an implementation of verification does not support the number 
- * of PsidSsp in the appPermissions field of a certificate that signed a 
- * signed SPDU, that implementation shall indicate that the signed SPDU is 
- * invalid in the sense of 4.2.2.3.2, that is, it is invalid in the sense 
- * that its validity cannot be established.. A conformant implementation 
- * shall support appPermissions fields containing at least eight entries. 
- * It may be the case that an implementation of verification does not support 
- * the number of entries in  the appPermissions field and the appPermissions 
- * field is not relevant to the verification: this will occur, for example, 
- * if the certificate in question is a CA certificate and so the 
- * certIssuePermissions field is relevant to the verification and the 
- * appPermissions field is not. In this case, whether the implementation 
- * indicates that the signed SPDU is valid (because it could validate all 
- * relevant fields) or invalid (because it could not parse the entire 
+ *   - If present, appPermissions is a critical information field as defined
+ * in 5.2.6. If an implementation of verification does not support the number
+ * of PsidSsp in the appPermissions field of a certificate that signed a
+ * signed SPDU, that implementation shall indicate that the signed SPDU is
+ * invalid in the sense of 4.2.2.3.2, that is, it is invalid in the sense
+ * that its validity cannot be established.. A conformant implementation
+ * shall support appPermissions fields containing at least eight entries.
+ * It may be the case that an implementation of verification does not support
+ * the number of entries in  the appPermissions field and the appPermissions
+ * field is not relevant to the verification: this will occur, for example,
+ * if the certificate in question is a CA certificate and so the
+ * certIssuePermissions field is relevant to the verification and the
+ * appPermissions field is not. In this case, whether the implementation
+ * indicates that the signed SPDU is valid (because it could validate all
+ * relevant fields) or invalid (because it could not parse the entire
  * certificate) is implementation-specific.
- *   - If present, certIssuePermissions is a critical information field as 
- * defined in 5.2.6. If an implementation of verification does not support 
- * the number of PsidGroupPermissions in the certIssuePermissions field of a 
- * CA certificate in the chain of a signed SPDU, the implementation shall 
- * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that 
- * is, it is invalid in the sense that its validity cannot be established. 
- * A conformant implementation shall support certIssuePermissions fields 
+ *   - If present, certIssuePermissions is a critical information field as
+ * defined in 5.2.6. If an implementation of verification does not support
+ * the number of PsidGroupPermissions in the certIssuePermissions field of a
+ * CA certificate in the chain of a signed SPDU, the implementation shall
+ * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that
+ * is, it is invalid in the sense that its validity cannot be established.
+ * A conformant implementation shall support certIssuePermissions fields
  * containing at least eight entries.
  * It may be the case that an implementation of verification does not support
- * the number of entries in  the certIssuePermissions field and the 
- * certIssuePermissions field is not relevant to the verification: this will 
- * occur, for example, if the certificate in question is the signing 
- * certificate for the SPDU and so the appPermissions field is relevant to 
- * the verification and the certIssuePermissions field is not. In this case, 
- * whether the implementation indicates that the signed SPDU is valid 
- * (because it could validate all relevant fields) or invalid (because it 
+ * the number of entries in  the certIssuePermissions field and the
+ * certIssuePermissions field is not relevant to the verification: this will
+ * occur, for example, if the certificate in question is the signing
+ * certificate for the SPDU and so the appPermissions field is relevant to
+ * the verification and the certIssuePermissions field is not. In this case,
+ * whether the implementation indicates that the signed SPDU is valid
+ * (because it could validate all relevant fields) or invalid (because it
  * could not parse the entire certificate) is implementation-specific.
- *   - If present, certRequestPermissions is a critical information field as 
- * defined in 5.2.6. If an implementaiton of verification of a certificate 
- * request does not support the number of PsidGroupPermissions in 
- * certRequestPermissions, the implementation shall indicate that the signed 
- * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the 
- * sense that its validity cannot be established. A conformant implementation 
- * shall support certRequestPermissions fields containing at least eight 
+ *   - If present, certRequestPermissions is a critical information field as
+ * defined in 5.2.6. If an implementaiton of verification of a certificate
+ * request does not support the number of PsidGroupPermissions in
+ * certRequestPermissions, the implementation shall indicate that the signed
+ * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the
+ * sense that its validity cannot be established. A conformant implementation
+ * shall support certRequestPermissions fields containing at least eight
  * entries.
- * It may be the case that an implementation of verification does not support 
- * the number of entries in  the certRequestPermissions field and the 
- * certRequestPermissions field is not relevant to the verification: this will 
- * occur, for example, if the certificate in question is the signing 
- * certificate for the SPDU and so the appPermissions field is relevant to 
- * the verification and the certRequestPermissions field is not. In this 
- * case, whether the implementation indicates that the signed SPDU is valid 
- * (because it could validate all relevant fields) or invalid (because it 
+ * It may be the case that an implementation of verification does not support
+ * the number of entries in  the certRequestPermissions field and the
+ * certRequestPermissions field is not relevant to the verification: this will
+ * occur, for example, if the certificate in question is the signing
+ * certificate for the SPDU and so the appPermissions field is relevant to
+ * the verification and the certRequestPermissions field is not. In this
+ * case, whether the implementation indicates that the signed SPDU is valid
+ * (because it could validate all relevant fields) or invalid (because it
  * could not parse the entire certificate) is implementation-specific.
  */
-ToBeSignedCertificate ::= SEQUENCE { 
+ToBeSignedCertificate ::= SEQUENCE {
   id                     CertificateId,
   cracaId                HashedId3,
   crlSeries              CrlSeries,
@@ -1120,7 +1120,7 @@ ToBeSignedCertificate ::= SEQUENCE {
   assuranceLevel         SubjectAssurance OPTIONAL,
   appPermissions         SequenceOfPsidSsp OPTIONAL,
   certIssuePermissions   SequenceOfPsidGroupPermissions OPTIONAL,
-  certRequestPermissions SequenceOfPsidGroupPermissions OPTIONAL, 
+  certRequestPermissions SequenceOfPsidGroupPermissions OPTIONAL,
   canRequestRollover     NULL OPTIONAL,
   encryptionKey          PublicEncryptionKey OPTIONAL,
   verifyKeyIndicator     VerificationKeyIndicator,
@@ -1171,7 +1171,7 @@ CertificateId ::= CHOICE {
  */
 LinkageData ::= SEQUENCE {
   iCert               IValue,
-  linkage-value       LinkageValue, 
+  linkage-value       LinkageValue,
   group-linkage-value GroupLinkageValue OPTIONAL
 }
 
@@ -1210,24 +1210,24 @@ EndEntityType ::=
  *
  * @param eeType: takes one or more of the values app and enroll and indicates
  * the type of certificates or requests that this instance of
- * PsidGroupPermissions in the certificate is entitled to authorize. 
+ * PsidGroupPermissions in the certificate is entitled to authorize.
  * Different instances of PsidGroupPermissions within a ToBeSignedCertificate
  * may have different values for eeType.
- *   - If this field indicates app, the chain is allowed to end in an 
- * authorization certificate, i.e., a certificate in which these permissions 
- * appear in an appPermissions field (in other words, if the field does not 
- * indicate app and the chain ends in an authorization certificate, the 
+ *   - If this field indicates app, the chain is allowed to end in an
+ * authorization certificate, i.e., a certificate in which these permissions
+ * appear in an appPermissions field (in other words, if the field does not
+ * indicate app and the chain ends in an authorization certificate, the
  * chain shall be considered invalid).
- *   - If this field indicates enroll, the chain is allowed to end in an 
- * enrollment certificate, i.e., a certificate in which these permissions 
- * appear in a certRequestPermissions permissions field (in other words, if the 
- * field does not indicate enroll and the chain ends in an enrollment 
+ *   - If this field indicates enroll, the chain is allowed to end in an
+ * enrollment certificate, i.e., a certificate in which these permissions
+ * appear in a certRequestPermissions permissions field (in other words, if the
+ * field does not indicate enroll and the chain ends in an enrollment
  * certificate, the chain shall be considered invalid).
  */
 PsidGroupPermissions ::= SEQUENCE {
   subjectPermissions SubjectPermissions,
-  minChainLength     INTEGER DEFAULT 1, 
-  chainLengthRange   INTEGER DEFAULT 0, 
+  minChainLength     INTEGER DEFAULT 1,
+  chainLengthRange   INTEGER DEFAULT 0,
   eeType             EndEntityType DEFAULT {app}
 }
 
@@ -1256,7 +1256,7 @@ SequenceOfPsidGroupPermissions ::= SEQUENCE OF PsidGroupPermissions
  *   - If present, explicit is a critical information field as defined in
  * 5.2.6. An implementation that does not support the number of PsidSspRange
  * in explicit when verifying a signed SPDU shall indicate that the signed
- * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the 
+ * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the
  * sense that its validity cannot be established. A conformant implementation
  * shall support explicit fields containing at least eight entries.
  */
@@ -1278,18 +1278,18 @@ SubjectPermissions ::= CHOICE {
  * contains the reconstruction value, which is used to recover the public key
  * as specified in SEC 4 and 5.3.2.
  *
- * @note Critical information fields: If present, this is a critical 
- * information field as defined in 5.2.5. An implementation that does not 
- * recognize the indicated CHOICE for this type when verifying a signed SPDU 
- * shall indicate that the signed SPDU is invalid indicate that the signed 
- * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the 
+ * @note Critical information fields: If present, this is a critical
+ * information field as defined in 5.2.5. An implementation that does not
+ * recognize the indicated CHOICE for this type when verifying a signed SPDU
+ * shall indicate that the signed SPDU is invalid indicate that the signed
+ * SPDU is invalid in the sense of 4.2.2.3.2, that is, it is invalid in the
  * sense that its validity cannot be established.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
- * applies to the PublicVerificationKey and to the EccP256CurvePoint. The 
- * EccP256CurvePoint is encoded in compressed form, i.e., such that the 
- * choice indicated within the EccP256CurvePoint is compressed-y-0 or 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
+ * applies to the PublicVerificationKey and to the EccP256CurvePoint. The
+ * EccP256CurvePoint is encoded in compressed form, i.e., such that the
+ * choice indicated within the EccP256CurvePoint is compressed-y-0 or
  * compressed-y-1.
  */
 VerificationKeyIndicator ::= CHOICE {
@@ -1299,16 +1299,16 @@ VerificationKeyIndicator ::= CHOICE {
 }
 
 /**
- * @brief This structure uses the parameterized type Extension to define an 
- * Ieee1609ContributedHeaderInfoExtension as an open Extension Content field 
- * identified by an extension identifier. The extension identifier value is 
- * unique to extensions defined by ETSI and need not be unique among all 
+ * @brief This structure uses the parameterized type Extension to define an
+ * Ieee1609ContributedHeaderInfoExtension as an open Extension Content field
+ * identified by an extension identifier. The extension identifier value is
+ * unique to extensions defined by ETSI and need not be unique among all
  * extension identifier values defined by all contributing organizations.
  */
 Ieee1609ContributedHeaderInfoExtension ::= Extension
 
 /**
- * @brief This is an integer used to identify an 
+ * @brief This is an integer used to identify an
  * Ieee1609ContributedHeaderInfoExtension.
  */
 Ieee1609HeaderInfoExtensionId ::= ExtId
@@ -1316,26 +1316,26 @@ Ieee1609HeaderInfoExtensionId ::= ExtId
 p2pcd8ByteLearningRequestId Ieee1609HeaderInfoExtensionId ::= 1
 
 /**
- * @brief This structure contains any AppExtensions that apply to the 
- * certificate holder. As specified in 5.2.4.2.3, each individual 
- * AppExtension type is associated with consistency conditions, specific to 
- * that extension, that govern its consistency with SPDUs signed by the 
- * certificate holder and with the CertIssueExtensions in the CA certificates 
- * in that certificate holder�s chain. Those consistency conditions are 
+ * @brief This structure contains any AppExtensions that apply to the
+ * certificate holder. As specified in 5.2.4.2.3, each individual
+ * AppExtension type is associated with consistency conditions, specific to
+ * that extension, that govern its consistency with SPDUs signed by the
+ * certificate holder and with the CertIssueExtensions in the CA certificates
+ * in that certificate holder�s chain. Those consistency conditions are
  * specified for each individual AppExtension below.
  */
 SequenceOfAppExtensions ::= SEQUENCE (SIZE(1..MAX)) OF AppExtension
 
 /**
- * @brief This structure contains an individual AppExtension. AppExtensions 
- * specified in this standard are drawn from the ASN.1 Information Object Set 
- * SetCertExtensions. This set, and its use in the AppExtension type, is 
- * structured so that each AppExtension is associated with a 
- * CertIssueExtension and a CertRequestExtension and all are identified by 
+ * @brief This structure contains an individual AppExtension. AppExtensions
+ * specified in this standard are drawn from the ASN.1 Information Object Set
+ * SetCertExtensions. This set, and its use in the AppExtension type, is
+ * structured so that each AppExtension is associated with a
+ * CertIssueExtension and a CertRequestExtension and all are identified by
  * the same id value. In this structure:
- * 
+ *
  * @param id: identifies the extension type.
- * 
+ *
  * @param content: provides the content of the extension.
  */
 AppExtension ::= SEQUENCE {
@@ -1344,32 +1344,32 @@ AppExtension ::= SEQUENCE {
 }
 
 /**
- * @brief This field contains any CertIssueExtensions that apply to the 
- * certificate holder. As specified in 5.2.4.2.3, each individual 
- * CertIssueExtension type is associated with consistency conditions, 
- * specific to that extension, that govern its consistency with 
- * AppExtensions in certificates issued by the certificate holder and with 
- * the CertIssueExtensions in the CA certificates in that certificate 
- * holder�s chain. Those consistency conditions are specified for each 
+ * @brief This field contains any CertIssueExtensions that apply to the
+ * certificate holder. As specified in 5.2.4.2.3, each individual
+ * CertIssueExtension type is associated with consistency conditions,
+ * specific to that extension, that govern its consistency with
+ * AppExtensions in certificates issued by the certificate holder and with
+ * the CertIssueExtensions in the CA certificates in that certificate
+ * holder�s chain. Those consistency conditions are specified for each
  * individual CertIssueExtension below.
  */
-SequenceOfCertIssueExtensions ::= 
+SequenceOfCertIssueExtensions ::=
   SEQUENCE (SIZE(1..MAX)) OF CertIssueExtension
 
 /**
- * @brief This field contains an individual CertIssueExtension. 
- * CertIssueExtensions specified in this standard are drawn from the ASN.1 
- * Information Object Set SetCertExtensions. This set, and its use in the 
- * CertIssueExtension type, is structured so that each CertIssueExtension 
- * is associated with a AppExtension and a CertRequestExtension and all are 
+ * @brief This field contains an individual CertIssueExtension.
+ * CertIssueExtensions specified in this standard are drawn from the ASN.1
+ * Information Object Set SetCertExtensions. This set, and its use in the
+ * CertIssueExtension type, is structured so that each CertIssueExtension
+ * is associated with a AppExtension and a CertRequestExtension and all are
  * identified by the same id value. In this structure:
- * 
+ *
  * @param id: identifies the extension type.
- * 
+ *
  * @param permissions: indicates the permissions. Within this field.
  *   - all indicates that the certificate is entitled to issue all values of
  * the extension.
- *   - specific is used to specify which values of the extension may be 
+ *   - specific is used to specify which values of the extension may be
  * issued in the case where all does not apply.
  */
 CertIssueExtension ::= SEQUENCE {
@@ -1381,32 +1381,32 @@ CertIssueExtension ::= SEQUENCE {
 }
 
 /**
- * @brief This field contains any CertRequestExtensions that apply to the 
- * certificate holder. As specified in 5.2.4.2.3, each individual 
- * CertRequestExtension type is associated with consistency conditions, 
- * specific to that extension, that govern its consistency with 
- * AppExtensions in certificates issued by the certificate holder and with 
- * the CertRequestExtensions in the CA certificates in that certificate 
- * holder�s chain. Those consistency conditions are specified for each 
+ * @brief This field contains any CertRequestExtensions that apply to the
+ * certificate holder. As specified in 5.2.4.2.3, each individual
+ * CertRequestExtension type is associated with consistency conditions,
+ * specific to that extension, that govern its consistency with
+ * AppExtensions in certificates issued by the certificate holder and with
+ * the CertRequestExtensions in the CA certificates in that certificate
+ * holder�s chain. Those consistency conditions are specified for each
  * individual CertRequestExtension below.
  */
 SequenceOfCertRequestExtensions ::= SEQUENCE (SIZE(1..MAX)) OF CertRequestExtension
 
 /**
- * @brief This field contains an individual CertRequestExtension. 
- * CertRequestExtensions specified in this standard are drawn from the 
- * ASN.1 Information Object Set SetCertExtensions. This set, and its use in 
- * the CertRequestExtension type, is structured so that each 
- * CertRequestExtension is associated with a AppExtension and a 
- * CertRequestExtension and all are identified by the same id value. In this 
+ * @brief This field contains an individual CertRequestExtension.
+ * CertRequestExtensions specified in this standard are drawn from the
+ * ASN.1 Information Object Set SetCertExtensions. This set, and its use in
+ * the CertRequestExtension type, is structured so that each
+ * CertRequestExtension is associated with a AppExtension and a
+ * CertRequestExtension and all are identified by the same id value. In this
  * structure:
- * 
+ *
  * @param id: identifies the extension type.
- * 
+ *
  * @param permissions: indicates the permissions. Within this field.
  *   - all indicates that the certificate is entitled to issue all values of
  * the extension.
- *   - specific is used to specify which values of the extension may be 
+ *   - specific is used to specify which values of the extension may be
  * issued in the case where all does not apply.
  */
 CertRequestExtension ::= SEQUENCE {
@@ -1418,7 +1418,7 @@ CertRequestExtension ::= SEQUENCE {
 }
 
 /**
- * @brief This type is the AppExtension used to identify an operating 
+ * @brief This type is the AppExtension used to identify an operating
  * organization. See 5.2.6.6.7.2 for discussion of how the
  * OperatingOrganizationId can be integrated into the SPDU payload by an
  * SDEE specifier.
@@ -1441,7 +1441,7 @@ CertRequestExtension ::= SEQUENCE {
  * OperatingOrganizationId is present, and so on.
  *
  * Consistency with SPDU payload. As discussed in 5.2.6.6.7.2, the SPDU payload
- * design might or might not include OperatingOrganizationId material. 
+ * design might or might not include OperatingOrganizationId material.
  *
  * If OperatingOrganizationId material appears in the SPDU payload, then the
  * SDEE specification is expected to state that consistency is required between

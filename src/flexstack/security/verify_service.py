@@ -17,7 +17,7 @@ class VerifyService:
     ):
         """
         Constructor
-        
+
         Parameters
         ----------
         backend : ECDSABackend
@@ -34,12 +34,12 @@ class VerifyService:
     def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:
         """
         Verify the signature of a message
-        
+
         Parameters
         ----------
         request : SNVERIFYRequest
             Request to verify the signature of a message.
-        
+
         Returns
         -------
         SNVERIFYConfirm
@@ -163,7 +163,8 @@ class VerifyService:
                             its_aid_length=0,
                             permissions=b'',
                         )
-            its_aid_bytes = psid.to_bytes((psid.bit_length() + 7) // 8 or 1, "big")
+            its_aid_bytes = psid.to_bytes(
+                (psid.bit_length() + 7) // 8 or 1, "big")
             verification_key = authorization_ticket.certificate["toBeSigned"]["verifyKeyIndicator"][
                 1
             ]

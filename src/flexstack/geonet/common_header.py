@@ -172,6 +172,6 @@ class CommonHeader:
         """
         nh = CommonNH.ANY
         ht = HeaderType.BEACON
-        hst = HeaderSubType.UNSPECIFIED 
+        hst = HeaderSubType.UNSPECIFIED
         tc = TrafficClass()
         return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=mib.itsGnIsMobile.value, pl=0, mhl=1)

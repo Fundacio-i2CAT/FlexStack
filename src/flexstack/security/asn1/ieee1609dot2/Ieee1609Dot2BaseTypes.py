@@ -79,7 +79,7 @@ Opaque ::= OCTET STRING
  * hash of the encoded data structure and taking the low-order three bytes of
  * the hash output. The low-order three bytes are the last three bytes of the
  * 32-byte hash when represented in network byte order. If the data structure
- * is subject to canonicalization it is canonicalized before hashing. See 
+ * is subject to canonicalization it is canonicalized before hashing. See
  * Example below.
  *
  * The hash algorithm to be used to calculate a HashedId3 within a
@@ -109,7 +109,7 @@ SequenceOfHashedId3 ::= SEQUENCE OF HashedId3
  * hash of the encoded data structure and taking the low-order eight bytes of
  * the hash output. The low-order eight bytes are the last eight bytes of the
  * hash when represented in network byte order. If the data structure
- * is subject to canonicalization it is canonicalized before hashing. See 
+ * is subject to canonicalization it is canonicalized before hashing. See
  * Example below.
  *
  * The hash algorithm to be used to calculate a HashedId8 within a
@@ -132,9 +132,9 @@ HashedId8 ::= OCTET STRING (SIZE(8))
  * @brief This type contains the truncated hash of another data structure.
  * The HashedId10 for a given data structure is calculated by calculating the
  * hash of the encoded data structure and taking the low-order ten bytes of
- * the hash output. The low-order ten bytes are the last ten bytes of the 
+ * the hash output. The low-order ten bytes are the last ten bytes of the
  * hash when represented in network byte order. If the data structure
- * is subject to canonicalization it is canonicalized before hashing. See 
+ * is subject to canonicalization it is canonicalized before hashing. See
  * Example below.
  *
  * The hash algorithm to be used to calculate a HashedId10 within a
@@ -155,11 +155,11 @@ HashedId10 ::= OCTET STRING (SIZE(10))
 
 /**
  * @brief This data structure contains the truncated hash of another data
- * structure. The HashedId32 for a given data structure is calculated by 
- * calculating the hash of the encoded data structure and taking the 
+ * structure. The HashedId32 for a given data structure is calculated by
+ * calculating the hash of the encoded data structure and taking the
  * low-order 32 bytes of the hash output. The low-order 32 bytes are the last
- * 32 bytes of the hash when represented in network byte order. If the data 
- * structure is subject to canonicalization it is canonicalized before 
+ * 32 bytes of the hash when represented in network byte order. If the data
+ * structure is subject to canonicalization it is canonicalized before
  * hashing. See Example below.
  *
  * The hash algorithm to be used to calculate a HashedId32 within a
@@ -180,9 +180,9 @@ HashedId10 ::= OCTET STRING (SIZE(10))
 HashedId32 ::= OCTET STRING (SIZE(32))
 
 /**
- * @brief This data structure contains the truncated hash of another data 
+ * @brief This data structure contains the truncated hash of another data
  * structure. The HashedId48 for a given data structure is calculated by
- * calculating the hash of the encoded data structure and taking the 
+ * calculating the hash of the encoded data structure and taking the
  * low-order 48 bytes of the hash output. The low-order 48 bytes are the last
  * 48 bytes of the hash when represented in network byte order. If the data
  * structure is subject to canonicalization it is canonicalized before
@@ -217,14 +217,14 @@ HashedId48 ::= OCTET STRING(SIZE(48))
 Time32 ::= Uint32
 
 /**
- * @brief This data structure is a 64-bit integer giving an estimate of the 
+ * @brief This data structure is a 64-bit integer giving an estimate of the
  * number of (TAI) microseconds since 00:00:00 UTC, 1 January 2004.
  */
 Time64 ::= Uint64
 
 /**
- * @brief This type gives the validity period of a certificate. The start of 
- * the validity period is given by start and the end is given by 
+ * @brief This type gives the validity period of a certificate. The start of
+ * the validity period is given by start and the end is given by
  * start + duration.
  */
 ValidityPeriod ::= SEQUENCE {
@@ -237,9 +237,9 @@ ValidityPeriod ::= SEQUENCE {
  * certificate. The Uint16 value is the duration, given in the units denoted
  * by the indicated choice. A year is considered to be 31556952 seconds,
  * which is the average number of seconds in a year.
- * 
- * @note Years can be mapped more closely to wall-clock days using the hours 
- * choice for up to 7 years and the sixtyHours choice for up to 448 years. 
+ *
+ * @note Years can be mapped more closely to wall-clock days using the hours
+ * choice for up to 7 years and the sixtyHours choice for up to 448 years.
  */
 Duration ::= CHOICE {
   microseconds Uint16,
@@ -249,7 +249,7 @@ Duration ::= CHOICE {
   hours        Uint16,
   sixtyHours   Uint16,
   years        Uint16
-} 
+}
 
 
 --***************************************************************************--
@@ -279,21 +279,21 @@ Duration ::= CHOICE {
  * @note Critical information fields:
  *   - If present, this is a critical information field as defined in 5.2.6.
  * An implementation that does not recognize the indicated CHOICE when
- * verifying a signed SPDU shall indicate that the signed SPDU is invalid in 
- * the sense of 4.2.2.3.2, that is, it is invalid in the sense that its 
+ * verifying a signed SPDU shall indicate that the signed SPDU is invalid in
+ * the sense of 4.2.2.3.2, that is, it is invalid in the sense that its
  * validity cannot be established.
  *   - If selected, rectangularRegion is a critical information field as
  * defined in 5.2.6. An implementation that does not support the number of
  * RectangularRegion in rectangularRegions when verifying a signed SPDU shall
- * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that 
- * is, it is invalid in the sense that its validity cannot be established. 
- * A conformant implementation shall support rectangularRegions fields 
+ * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that
+ * is, it is invalid in the sense that its validity cannot be established.
+ * A conformant implementation shall support rectangularRegions fields
  * containing at least eight entries.
  *   - If selected, identifiedRegion is a critical information field as
  * defined in 5.2.6. An implementation that does not support the number of
  * IdentifiedRegion in identifiedRegion shall reject the signed SPDU as
- * invalid in the sense of 4.2.2.3.2, that is, it is invalid in the sense 
- * that its validity cannot be established. A conformant implementation shall 
+ * invalid in the sense of 4.2.2.3.2, that is, it is invalid in the sense
+ * that its validity cannot be established. A conformant implementation shall
  * support identifiedRegion fields containing at least eight entries.
  */
 GeographicRegion ::= CHOICE {
@@ -319,12 +319,12 @@ CircularRegion ::= SEQUENCE {
 }
 
 /**
- * @brief This structure specifies a �rectangle� on the surface of the WGS84 ellipsoid where the 
- * sides are given by lines of constant latitude or longitude. 
- * A point which contains an elevation component is considered to be within the rectangular region 
- * if its horizontal projection onto the reference ellipsoid lies within the region. 
- * A RectangularRegion is invalid if the northWest value is south of the southEast value, or if the 
- * latitude values in the two points are equal, or if the longitude values in the two points are 
+ * @brief This structure specifies a �rectangle� on the surface of the WGS84 ellipsoid where the
+ * sides are given by lines of constant latitude or longitude.
+ * A point which contains an elevation component is considered to be within the rectangular region
+ * if its horizontal projection onto the reference ellipsoid lies within the region.
+ * A RectangularRegion is invalid if the northWest value is south of the southEast value, or if the
+ * latitude values in the two points are equal, or if the longitude values in the two points are
  * equal; otherwise it is valid. A certificate that contains an invalid RectangularRegion is invalid.
  *
  * @param northWest: is the north-west corner of the rectangle.
@@ -358,7 +358,7 @@ SequenceOfRectangularRegion ::= SEQUENCE OF RectangularRegion
  * PolygonalRegion, the implied lines that make up the sides of the polygon
  * do not intersect.
  *
- * @note This type does not support enclaves / exclaves. This might be 
+ * @note This type does not support enclaves / exclaves. This might be
  * addressed in a future version of this standard.
  *
  * @note Critical information fields: If present, this is a critical
@@ -387,28 +387,28 @@ TwoDLocation ::= SEQUENCE {
 }
 
 /**
- * @brief This structure indicates the region of validity of a certificate 
- * using region identifiers. 
- * A conformant implementation that supports this type shall support at least 
- * one of the possible CHOICE values. The Protocol Implementation Conformance 
- * Statement (PICS) provided in Annex A allows an implementation to state 
+ * @brief This structure indicates the region of validity of a certificate
+ * using region identifiers.
+ * A conformant implementation that supports this type shall support at least
+ * one of the possible CHOICE values. The Protocol Implementation Conformance
+ * Statement (PICS) provided in Annex A allows an implementation to state
  * which CountryOnly values it recognizes.
  *
- * @param countryOnly: indicates that only a country (or a geographic entity 
+ * @param countryOnly: indicates that only a country (or a geographic entity
  * included in a country list) is given.
  *
- * @param countryAndRegions: indicates that one or more top-level regions 
- * within a country (as defined by the region listing associated with that 
+ * @param countryAndRegions: indicates that one or more top-level regions
+ * within a country (as defined by the region listing associated with that
  * country) is given.
  *
- * @param countryAndSubregions: indicates that one or more regions smaller 
- * than the top-level regions within a country (as defined by the region 
+ * @param countryAndSubregions: indicates that one or more regions smaller
+ * than the top-level regions within a country (as defined by the region
  * listing associated with that country) is given.
  *
  * Critical information fields: If present, this is a critical
  * information field as defined in 5.2.6. An implementation that does not
  * recognize the indicated CHOICE when verifying a signed SPDU shall indicate
- * that the signed SPDU is invalid in the sense of 4.2.2.3.2, that is, it is 
+ * that the signed SPDU is invalid in the sense of 4.2.2.3.2, that is, it is
  * invalid in the sense that its validity cannot be established.
  */
 IdentifiedRegion ::= CHOICE {
@@ -425,34 +425,34 @@ IdentifiedRegion ::= CHOICE {
 SequenceOfIdentifiedRegion ::= SEQUENCE OF IdentifiedRegion
 
 /**
- * @brief This type contains the integer representation of the country or 
- * area identifier as defined by the United Nations Statistics Division in 
+ * @brief This type contains the integer representation of the country or
+ * area identifier as defined by the United Nations Statistics Division in
  * October 2013 (see normative references in Clause 0).
- * A conformant implementation that implements IdentifiedRegion shall 
- * recognize (in the sense of �be able to determine whether a two dimensional 
- * location lies inside or outside the borders identified by�) at least one 
- * value of UnCountryId. The Protocol Implementation Conformance Statement 
- * (PICS) provided in Annex A allows an implementation to state which 
+ * A conformant implementation that implements IdentifiedRegion shall
+ * recognize (in the sense of �be able to determine whether a two dimensional
+ * location lies inside or outside the borders identified by�) at least one
+ * value of UnCountryId. The Protocol Implementation Conformance Statement
+ * (PICS) provided in Annex A allows an implementation to state which
  * UnCountryId values it recognizes.
- * Since 2013 and before the publication of this version of this standard, 
- * three changes have been made to the country code list, to define the 
- * region "sub-Saharan Africa" and remove the "developed regions", and 
- * "developing regions". A conformant implementation may recognize these 
+ * Since 2013 and before the publication of this version of this standard,
+ * three changes have been made to the country code list, to define the
+ * region "sub-Saharan Africa" and remove the "developed regions", and
+ * "developing regions". A conformant implementation may recognize these
  * region identifiers in the sense defined in the previous paragraph.
- * If a verifying implementation is required to check that relevant 
- * geographic information in a signed SPDU is consistent with a certificate 
- * containing one or more instances of this type, then the SDS is permitted 
- * to indicate that the signed SPDU is valid even if some instances of this 
- * type are unrecognized in the sense defined above, so long as the 
- * recognized instances of this type completely contain the relevant 
- * geographic information. Informally, if the recognized values in the 
- * certificate allow the SDS to determine that the SPDU is valid, then it 
- * can make that determination even if there are also unrecognized values in 
- * the certificate. This field is therefore not a "critical information 
- * field" as defined in 5.2.6, because unrecognized values are permitted so 
- * long as the validity of the SPDU can be established with the recognized 
- * values. However, as discussed in 5.2.6, the presence of an unrecognized 
- * value in a certificate can make it impossible to determine whether the 
+ * If a verifying implementation is required to check that relevant
+ * geographic information in a signed SPDU is consistent with a certificate
+ * containing one or more instances of this type, then the SDS is permitted
+ * to indicate that the signed SPDU is valid even if some instances of this
+ * type are unrecognized in the sense defined above, so long as the
+ * recognized instances of this type completely contain the relevant
+ * geographic information. Informally, if the recognized values in the
+ * certificate allow the SDS to determine that the SPDU is valid, then it
+ * can make that determination even if there are also unrecognized values in
+ * the certificate. This field is therefore not a "critical information
+ * field" as defined in 5.2.6, because unrecognized values are permitted so
+ * long as the validity of the SPDU can be established with the recognized
+ * values. However, as discussed in 5.2.6, the presence of an unrecognized
+ * value in a certificate can make it impossible to determine whether the
  * certificate and the SPDU are valid.
  */
 UnCountryId ::= Uint16
@@ -463,43 +463,43 @@ UnCountryId ::= Uint16
 CountryOnly ::= UnCountryId
 
 /**
- * @brief A conformant implementation that supports CountryAndRegions shall 
+ * @brief A conformant implementation that supports CountryAndRegions shall
  * support a regions field containing at least eight entries.
- * A conformant implementation that implements this type shall recognize 
- * (in the sense of "be able to determine whether a two dimensional location 
- * lies inside or outside the borders identified by") at least one value of 
- * UnCountryId and at least one value for a region within the country 
- * indicated by that recognized UnCountryId value. In this version of this 
- * standard, the only means to satisfy this is for a conformant 
- * implementation to recognize the value of UnCountryId indicating USA and 
- * at least one of the FIPS state codes for US states. The Protocol 
- * Implementation Conformance Statement (PICS) provided in Annex A allows 
- * an implementation to state which UnCountryId values it recognizes and 
+ * A conformant implementation that implements this type shall recognize
+ * (in the sense of "be able to determine whether a two dimensional location
+ * lies inside or outside the borders identified by") at least one value of
+ * UnCountryId and at least one value for a region within the country
+ * indicated by that recognized UnCountryId value. In this version of this
+ * standard, the only means to satisfy this is for a conformant
+ * implementation to recognize the value of UnCountryId indicating USA and
+ * at least one of the FIPS state codes for US states. The Protocol
+ * Implementation Conformance Statement (PICS) provided in Annex A allows
+ * an implementation to state which UnCountryId values it recognizes and
  * which region values are recognized within that country.
- * If a verifying implementation is required to check that relevant 
- * geographic information in a signed SPDU is consistent with a certificate 
- * containing one or more instances of this type, then the SDS is permitted 
- * to indicate that the signed SPDU is valid even if some values of country 
- * or within regions are unrecognized in the sense defined above, so long 
- * as the recognized instances of this type completely contain the relevant 
- * geographic information. Informally, if the recognized values in the 
- * certificate allow the SDS to determine that the SPDU is valid, then it 
- * can make that determination even if there are also unrecognized values 
- * in the certificate. This field is therefore not a "critical information 
- * field" as defined in 5.2.6, because unrecognized values are permitted so 
- * long as the validity of the SPDU can be established with the recognized 
- * values. However, as discussed in 5.2.6, the presence of an unrecognized 
- * value in a certificate can make it impossible to determine whether the 
+ * If a verifying implementation is required to check that relevant
+ * geographic information in a signed SPDU is consistent with a certificate
+ * containing one or more instances of this type, then the SDS is permitted
+ * to indicate that the signed SPDU is valid even if some values of country
+ * or within regions are unrecognized in the sense defined above, so long
+ * as the recognized instances of this type completely contain the relevant
+ * geographic information. Informally, if the recognized values in the
+ * certificate allow the SDS to determine that the SPDU is valid, then it
+ * can make that determination even if there are also unrecognized values
+ * in the certificate. This field is therefore not a "critical information
+ * field" as defined in 5.2.6, because unrecognized values are permitted so
+ * long as the validity of the SPDU can be established with the recognized
+ * values. However, as discussed in 5.2.6, the presence of an unrecognized
+ * value in a certificate can make it impossible to determine whether the
  * certificate is valid and so whether the SPDU is valid.
  * In this type:
  *
  * @param countryOnly: is a UnCountryId as defined above.
  *
- * @param regions: identifies one or more regions within the country. If 
- * country indicates the United States of America, the values in this field 
- * identify the state or statistically equivalent entity using the integer 
- * version of the 2010 FIPS codes as provided by the U.S. Census Bureau 
- * (see normative references in Clause 0). For other values of country, the 
+ * @param regions: identifies one or more regions within the country. If
+ * country indicates the United States of America, the values in this field
+ * identify the state or statistically equivalent entity using the integer
+ * version of the 2010 FIPS codes as provided by the U.S. Census Bureau
+ * (see normative references in Clause 0). For other values of country, the
  * meaning of region is not defined in this version of this standard.
  */
 CountryAndRegions ::= SEQUENCE {
@@ -508,40 +508,40 @@ CountryAndRegions ::= SEQUENCE {
 }
 
 /**
- * @brief A conformant implementation that supports CountryAndSubregions 
- * shall support a regionAndSubregions field containing at least eight 
+ * @brief A conformant implementation that supports CountryAndSubregions
+ * shall support a regionAndSubregions field containing at least eight
  * entries.
- * A conformant implementation that implements this type shall recognize 
- * (in the sense of �be able to determine whether a two dimensional location 
- * lies inside or outside the borders identified by�) at least one value of 
- * country and at least one value for a region within the country indicated 
- * by that recognized country value. In this version of this standard, the 
- * only means to satisfy this is for a conformant implementation to recognize 
- * the value of UnCountryId indicating USA and at least one of the FIPS state 
- * codes for US states. The Protocol Implementation Conformance Statement 
- * (PICS) provided in Annex A allows an implementation to state which 
- * UnCountryId values it recognizes and which region values are recognized 
+ * A conformant implementation that implements this type shall recognize
+ * (in the sense of �be able to determine whether a two dimensional location
+ * lies inside or outside the borders identified by�) at least one value of
+ * country and at least one value for a region within the country indicated
+ * by that recognized country value. In this version of this standard, the
+ * only means to satisfy this is for a conformant implementation to recognize
+ * the value of UnCountryId indicating USA and at least one of the FIPS state
+ * codes for US states. The Protocol Implementation Conformance Statement
+ * (PICS) provided in Annex A allows an implementation to state which
+ * UnCountryId values it recognizes and which region values are recognized
  * within that country.
- * If a verifying implementation is required to check that relevant 
- * geographic information in a signed SPDU is consistent with a certificate 
- * containing one or more instances of this type, then the SDS is permitted 
- * to indicate that the signed SPDU is valid even if some values of country 
+ * If a verifying implementation is required to check that relevant
+ * geographic information in a signed SPDU is consistent with a certificate
+ * containing one or more instances of this type, then the SDS is permitted
+ * to indicate that the signed SPDU is valid even if some values of country
  * or within regionAndSubregions are unrecognized in the sense defined above,
- * so long as the recognized instances of this type completely contain the 
- * relevant geographic information. Informally, if the recognized values in 
- * the certificate allow the SDS to determine that the SPDU is valid, then 
- * it can make that determination even if there are also unrecognized values 
- * in the certificate. This field is therefore not a "critical information 
- * field" as defined in 5.2.6, because unrecognized values are permitted so 
- * long as the validity of the SPDU can be established with the recognized 
- * values. However, as discussed in 5.2.6, the presence of an unrecognized 
- * value in a certificate can make it impossible to determine whether the 
+ * so long as the recognized instances of this type completely contain the
+ * relevant geographic information. Informally, if the recognized values in
+ * the certificate allow the SDS to determine that the SPDU is valid, then
+ * it can make that determination even if there are also unrecognized values
+ * in the certificate. This field is therefore not a "critical information
+ * field" as defined in 5.2.6, because unrecognized values are permitted so
+ * long as the validity of the SPDU can be established with the recognized
+ * values. However, as discussed in 5.2.6, the presence of an unrecognized
+ * value in a certificate can make it impossible to determine whether the
  * certificate is valid and so whether the SPDU is valid.
  * In this structure:
  *
  * @param countryOnly: is a UnCountryId as defined above.
  *
- * @param regionAndSubregions: identifies one or more subregions within 
+ * @param regionAndSubregions: identifies one or more subregions within
  * country.
  */
 CountryAndSubregions ::= SEQUENCE {
@@ -551,55 +551,55 @@ CountryAndSubregions ::= SEQUENCE {
 
 /**
  * @brief The meanings of the fields in this structure are to be interpreted
- * in the context of a country within which the region is located, referred 
- * to as the "enclosing country". If this structure is used in a 
- * CountryAndSubregions structure, the enclosing country is the one indicated 
- * by the country field in the CountryAndSubregions structure. If other uses 
+ * in the context of a country within which the region is located, referred
+ * to as the "enclosing country". If this structure is used in a
+ * CountryAndSubregions structure, the enclosing country is the one indicated
+ * by the country field in the CountryAndSubregions structure. If other uses
  * are defined for this structure in the future, it is anticipated (in the
  * sense of 4.4) that that definition will include a specification of how the
  * enclosing country can be determined.
  * If the enclosing country is the United States of America:
- * - The region field identifies the state or statistically equivalent 
+ * - The region field identifies the state or statistically equivalent
  * entity using the integer version of the 2010 FIPS codes as provided by the
- * U.S. Census Bureau (see normative references in Clause 0).   
- * - The values in the subregions field identify the county or county 
- * equivalent entity using the integer version of the 2010 FIPS codes as 
+ * U.S. Census Bureau (see normative references in Clause 0).
+ * - The values in the subregions field identify the county or county
+ * equivalent entity using the integer version of the 2010 FIPS codes as
  * provided by the U.S. Census Bureau.
- * If the enclosing country is a different country from the USA, the meaning 
+ * If the enclosing country is a different country from the USA, the meaning
  * of regionAndSubregions is not defined in this version of this standard.
- * A conformant implementation that implements this type shall recognize (in 
- * the sense of "be able to determine whether a two-dimensional location lies 
+ * A conformant implementation that implements this type shall recognize (in
+ * the sense of "be able to determine whether a two-dimensional location lies
  * inside or outside the borders identified by"), for at least one enclosing
- * country, at least one value for a region within that country and at least 
- * one subregion for the indicated region. In this version of this standard, 
- * the only means to satisfy this is for a conformant implementation to 
- * recognize, for the USA, at least one of the FIPS state codes for US 
- * states, and at least one of the county codes in at least one of the 
- * recognized states. The Protocol Implementation Conformance Statement 
- * (PICS) provided in Annex A allows an implementation to state which 
- * UnCountryId values it recognizes and which region values are recognized 
+ * country, at least one value for a region within that country and at least
+ * one subregion for the indicated region. In this version of this standard,
+ * the only means to satisfy this is for a conformant implementation to
+ * recognize, for the USA, at least one of the FIPS state codes for US
+ * states, and at least one of the county codes in at least one of the
+ * recognized states. The Protocol Implementation Conformance Statement
+ * (PICS) provided in Annex A allows an implementation to state which
+ * UnCountryId values it recognizes and which region values are recognized
  * within that country.
- * If a verifying implementation is required to check that an relevant 
- * geographic information in a signed SPDU is consistent with a certificate 
- * containing one or more instances of this type, then the SDS is permitted 
- * to indicate that the signed SPDU is valid even if some values within 
- * subregions are unrecognized in the sense defined above, so long as the 
- * recognized instances of this type completely contain the relevant 
- * geographic information. Informally, if the recognized values in the 
- * certificate allow the SDS to determine that the SPDU is valid, then it 
- * can make that determination even if there are also unrecognized values 
- * in the certificate. This field is therefore not a "critical 
- * information field" as defined in 5.2.6, because unrecognized values are 
- * permitted so long as the validity of the SPDU can be established with the 
- * recognized values. However, as discussed in 5.2.6, the presence of an 
- * unrecognized value in a certificate can make it impossible to determine 
+ * If a verifying implementation is required to check that an relevant
+ * geographic information in a signed SPDU is consistent with a certificate
+ * containing one or more instances of this type, then the SDS is permitted
+ * to indicate that the signed SPDU is valid even if some values within
+ * subregions are unrecognized in the sense defined above, so long as the
+ * recognized instances of this type completely contain the relevant
+ * geographic information. Informally, if the recognized values in the
+ * certificate allow the SDS to determine that the SPDU is valid, then it
+ * can make that determination even if there are also unrecognized values
+ * in the certificate. This field is therefore not a "critical
+ * information field" as defined in 5.2.6, because unrecognized values are
+ * permitted so long as the validity of the SPDU can be established with the
+ * recognized values. However, as discussed in 5.2.6, the presence of an
+ * unrecognized value in a certificate can make it impossible to determine
  * whether the certificate is valid and so whether the SPDU is valid.
  * In this structure:
  *
  * @param region: identifies a region within a country.
  *
- * @param subregions: identifies one or more subregions within region. A 
- * conformant implementation that supports RegionAndSubregions shall support 
+ * @param subregions: identifies one or more subregions within region. A
+ * conformant implementation that supports RegionAndSubregions shall support
  * a subregions field containing at least eight entries.
  */
 RegionAndSubregions ::= SEQUENCE {
@@ -613,9 +613,9 @@ RegionAndSubregions ::= SEQUENCE {
 SequenceOfRegionAndSubregions ::= SEQUENCE OF RegionAndSubregions
 
 /**
- * @brief This structure contains an estimate of 3D location. 
+ * @brief This structure contains an estimate of 3D location.
  *
- * @note The units used in this data structure are consistent with the 
+ * @note The units used in this data structure are consistent with the
  * location data structures used in 	SAE J2735 [B26], though the encoding is
  * incompatible.
  */
@@ -629,8 +629,8 @@ ThreeDLocation ::= SEQUENCE {
  * @brief This type contains an INTEGER encoding an estimate of the latitude
  * with precision 1/10th microdegree relative to the World Geodetic System
  * (WGS)-84 datum as defined in NIMA Technical Report TR8350.2.
- * The integer in the latitude field is no more than 900 000 000 and no less 
- * than ?900 000 000, except that the value 900 000 001 is used to indicate 
+ * The integer in the latitude field is no more than 900 000 000 and no less
+ * than ?900 000 000, except that the value 900 000 001 is used to indicate
  * the latitude was not available to the sender.
  */
 Latitude ::= NinetyDegreeInt
@@ -639,8 +639,8 @@ Latitude ::= NinetyDegreeInt
  * @brief This type contains an INTEGER encoding an estimate of the longitude
  * with precision 1/10th microdegree relative to the World Geodetic System
  * (WGS)-84 datum as defined in NIMA Technical Report TR8350.2.
- * The integer in the longitude field is no more than 1 800 000 000 and no 
- * less than ?1 799 999 999, except that the value 1 800 000 001 is used to 
+ * The integer in the longitude field is no more than 1 800 000 000 and no
+ * less than ?1 799 999 999, except that the value 1 800 000 001 is used to
  * indicate that the longitude was not available to the sender.
  */
 Longitude ::= OneEightyDegreeInt
@@ -708,11 +708,11 @@ UnknownLongitude ::= OneEightyDegreeInt (unknown)
  * @brief This structure represents a signature for a supported public key
  * algorithm. It may be contained within SignedData or Certificate.
  *
- * @note Critical information fields: If present, this is a critical 
- * information field as defined in 5.2.5. An implementation that does not 
+ * @note Critical information fields: If present, this is a critical
+ * information field as defined in 5.2.5. An implementation that does not
  * recognize the indicated CHOICE for this type when verifying a signed SPDU
  * shall indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2,
- * that is, it is invalid in the sense that its validity cannot be 
+ * that is, it is invalid in the sense that its validity cannot be
  * established.
  *
  * @note Canonicalization: This data structure is subject to canonicalization
@@ -742,22 +742,22 @@ Signature ::= CHOICE {
  * represented as an EccP256CurvePoint indicating the choice compressed-y-0,
  * compressed-y-1, or uncompressed at the sender's discretion.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. When this data structure 
- * is canonicalized, the EccP256CurvePoint in rSig is represented in the 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. When this data structure
+ * is canonicalized, the EccP256CurvePoint in rSig is represented in the
  * form x-only.
  *
  * @note When the signature is of form x-only, the x-value in rSig is
  * an integer mod n, the order of the group; when the signature is of form
- * compressed-y-\*, the x-value in rSig is an integer mod p, the underlying
+ * compressed-y-, the x-value in rSig is an integer mod p, the underlying
  * prime defining the finite field. In principle, this means that to convert a
- * signature from form compressed-y-\* to form x-only, the converter checks 
- * the x-value to see if it lies between n and p and reduces it mod n if so. 
- * In practice, this check is unnecessary: Haase's Theorem states that 
- * difference between n and p is always less than 2*square-root(p), and so the 
- * chance that an integer lies between n and p, for a 256-bit curve, is 
- * bounded above by approximately square-root(p)/p or 2^(-128). For the 
- * 256-bit curves in this standard, the exact values of n and p in hexadecimal 
+ * signature from form compressed-y- to form x-only, the converter checks
+ * the x-value to see if it lies between n and p and reduces it mod n if so.
+ * In practice, this check is unnecessary: Haase's Theorem states that
+ * difference between n and p is always less than 2*square-root(p), and so the
+ * chance that an integer lies between n and p, for a 256-bit curve, is
+ * bounded above by approximately square-root(p)/p or 2^(-128). For the
+ * 256-bit curves in this standard, the exact values of n and p in hexadecimal
  * are:
  *
  * NISTp256:
@@ -786,15 +786,15 @@ EcdsaP256Signature ::= SEQUENCE {
  * represented as an EccP384CurvePoint indicating the choice compressed-y-0,
  * compressed-y-1, or uncompressed at the sender's discretion.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. When this data structure 
- * is canonicalized, the EccP384CurvePoint in rSig is represented in the 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. When this data structure
+ * is canonicalized, the EccP384CurvePoint in rSig is represented in the
  * form x-only.
  *
  * @note When the signature is of form x-only, the x-value in rSig is
  * an integer mod n, the order of the group; when the signature is of form
- * compressed-y-\*, the x-value in rSig is an integer mod p, the underlying
- * prime defining the finite field. In principle, this means that to convert a 
+ * compressed-y-, the x-value in rSig is an integer mod p, the underlying
+ * prime defining the finite field. In principle, this means that to convert a
  * signature from form compressed-y-* to form x-only, the converter checks the
  * x-value to see if it lies between n and p and reduces it mod n if so. In
  * practice, this check is unnecessary: Haase's Theorem states that difference
@@ -814,7 +814,7 @@ EcdsaP384Signature ::= SEQUENCE {
 
 /**
  * @brief This structure represents a elliptic curve signature where the
- * component r is constrained to be an integer. This structure supports SM2 
+ * component r is constrained to be an integer. This structure supports SM2
  * signatures as specified in 5.3.1.3.
  */
 EcsigP256Signature ::= SEQUENCE  {
@@ -840,9 +840,9 @@ EcsigP256Signature ::= SEQUENCE  {
  * as an unsigned integer of length 32 octets in network byte order.
  *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2 if it appears in a 
+ * for the relevant operations specified in 6.1.2 if it appears in a
  * HeaderInfo or in a ToBeSignedCertificate. See the definitions of HeaderInfo
- * and ToBeSignedCertificate for a specification of the canonicalization 
+ * and ToBeSignedCertificate for a specification of the canonicalization
  * operations.
  */
 EccP256CurvePoint::= CHOICE {
@@ -871,16 +871,16 @@ EccP256CurvePoint::= CHOICE {
  * compressed-y-0, and if the least significant bit of y is 1, type takes the
  * value compressed-y-1. If the point is uncompressed, y is encoded
  * explicitly as an unsigned integer of length 48 octets in network byte order.
- * 
+ *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2 if it appears in a 
+ * for the relevant operations specified in 6.1.2 if it appears in a
  * HeaderInfo or in a ToBeSignedCertificate. See the definitions of HeaderInfo
- * and ToBeSignedCertificate for a specification of the canonicalization 
+ * and ToBeSignedCertificate for a specification of the canonicalization
  * operations.
  */
 EccP384CurvePoint::= CHOICE {
   x-only           OCTET STRING (SIZE (48)),
-  fill             NULL,	
+  fill             NULL,
   compressed-y-0   OCTET STRING (SIZE (48)),
   compressed-y-1   OCTET STRING (SIZE (48)),
   uncompressedP384 SEQUENCE {
@@ -897,24 +897,24 @@ EccP384CurvePoint::= CHOICE {
  * Counter Mode Encryption With Cipher Block Chaining Message Authentication
  * Code (CCM). Full details are given in 5.3.8.
  */
-SymmAlgorithm ::= ENUMERATED { 
+SymmAlgorithm ::= ENUMERATED {
   aes128Ccm,
   ...,
   sm4Ccm
 }
 
 /**
- * @brief This structure identifies a hash algorithm. The value sha256, 
- * indicates SHA-256. The value sha384 indicates SHA-384. The value sm3 
+ * @brief This structure identifies a hash algorithm. The value sha256,
+ * indicates SHA-256. The value sha384 indicates SHA-384. The value sm3
  * indicates SM3. See 5.3.3 for more details.
  *
  * @note Critical information fields: This is a critical information field as
  * defined in 5.2.6. An implementation that does not recognize the enumerated
- * value of this type in a signed SPDU when verifying a signed SPDU shall 
- * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that 
+ * value of this type in a signed SPDU when verifying a signed SPDU shall
+ * indicate that the signed SPDU is invalid in the sense of 4.2.2.3.2, that
  * is, it is invalid in the sense that its validity cannot be established.
  */
-HashAlgorithm ::= ENUMERATED { 
+HashAlgorithm ::= ENUMERATED {
   sha256,
   ...,
   sha384,
@@ -923,17 +923,17 @@ HashAlgorithm ::= ENUMERATED {
 
 /**
  * @brief This data structure is used to transfer a 16-byte symmetric key
- * encrypted using ECIES as specified in IEEE Std 1363a-2004. The symmetric 
- * key is input to the key encryption process with no headers, encapsulation, 
- * or length indication. Encryption and decryption are carried out as 
+ * encrypted using ECIES as specified in IEEE Std 1363a-2004. The symmetric
+ * key is input to the key encryption process with no headers, encapsulation,
+ * or length indication. Encryption and decryption are carried out as
  * specified in 5.3.5.1.
  *
  * @param v: is the sender's ephemeral public key, which is the output V from
  * encryption as specified in 5.3.5.1.
  *
- * @param c: is the encrypted symmetric key, which is the output C from 
- * encryption as specified in 5.3.5.1. The algorithm for the symmetric key 
- * is identified by the CHOICE indicated in the following SymmetricCiphertext. 
+ * @param c: is the encrypted symmetric key, which is the output C from
+ * encryption as specified in 5.3.5.1. The algorithm for the symmetric key
+ * is identified by the CHOICE indicated in the following SymmetricCiphertext.
  * For ECIES this shall be AES-128.
  *
  * @param t: is the authentication tag, which is the output tag from
@@ -942,22 +942,22 @@ HashAlgorithm ::= ENUMERATED {
 EciesP256EncryptedKey ::= SEQUENCE {
   v EccP256CurvePoint,
   c OCTET STRING (SIZE (16)),
-  t OCTET STRING (SIZE (16))     
+  t OCTET STRING (SIZE (16))
 }
 
 /**
- * @brief This data structure is used to transfer a 16-byte symmetric key 
- * encrypted using SM2 encryption as specified in 5.3.3. The symmetric key is 
- * input to the key encryption process with no headers, encapsulation, or 
- * length indication. Encryption and decryption are carried out as specified 
+ * @brief This data structure is used to transfer a 16-byte symmetric key
+ * encrypted using SM2 encryption as specified in 5.3.3. The symmetric key is
+ * input to the key encryption process with no headers, encapsulation, or
+ * length indication. Encryption and decryption are carried out as specified
  * in 5.3.5.2.
- * 
+ *
  * @param v: is the sender's ephemeral public key, which is the output V from
  * encryption as specified in 5.3.5.2.
  *
- * @param c: is the encrypted symmetric key, which is the output C from 
- * encryption as specified in 5.3.5.2. The algorithm for the symmetric key 
- * is identified by the CHOICE indicated in the following SymmetricCiphertext. 
+ * @param c: is the encrypted symmetric key, which is the output C from
+ * encryption as specified in 5.3.5.2. The algorithm for the symmetric key
+ * is identified by the CHOICE indicated in the following SymmetricCiphertext.
  * For SM2 this algorithm shall be SM4.
  *
  * @param t: is the authentication tag, which is the output tag from
@@ -966,7 +966,7 @@ EciesP256EncryptedKey ::= SEQUENCE {
 EcencP256EncryptedKey ::= SEQUENCE  {
   v EccP256CurvePoint,
   c OCTET STRING (SIZE (16)),
-  t OCTET STRING (SIZE (32))     
+  t OCTET STRING (SIZE (32))
 }
 
 
@@ -974,47 +974,47 @@ EcencP256EncryptedKey ::= SEQUENCE  {
  * @brief This structure contains an encryption key, which may be a public or
  * a symmetric key.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2 if it appears in a 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2 if it appears in a
  * HeaderInfo or in a ToBeSignedCertificate. The canonicalization applies to
- * the PublicEncryptionKey. See the definitions of HeaderInfo and 
- * ToBeSignedCertificate for a specification of the canonicalization 
+ * the PublicEncryptionKey. See the definitions of HeaderInfo and
+ * ToBeSignedCertificate for a specification of the canonicalization
  * operations.
  */
 EncryptionKey ::= CHOICE {
   public    PublicEncryptionKey,
-  symmetric SymmetricEncryptionKey 
+  symmetric SymmetricEncryptionKey
 }
 
 /**
  * @brief This structure specifies a public encryption key and the associated
  * symmetric algorithm which is used for bulk data encryption when encrypting
  * for that public key.
- * 
+ *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2 if it appears in a 
- * HeaderInfo or in a ToBeSignedCertificate. The canonicalization applies to 
- * the BasePublicEncryptionKey. See the definitions of HeaderInfo and 
- * ToBeSignedCertificate for a specification of the canonicalization 
+ * for the relevant operations specified in 6.1.2 if it appears in a
+ * HeaderInfo or in a ToBeSignedCertificate. The canonicalization applies to
+ * the BasePublicEncryptionKey. See the definitions of HeaderInfo and
+ * ToBeSignedCertificate for a specification of the canonicalization
  * operations.
  */
-PublicEncryptionKey ::= SEQUENCE { 
+PublicEncryptionKey ::= SEQUENCE {
   supportedSymmAlg SymmAlgorithm,
   publicKey        BasePublicEncryptionKey
 }
 
 /**
- * @brief This structure specifies the bytes of a public encryption key for 
- * a particular algorithm. Supported public key encryption algorithms are 
+ * @brief This structure specifies the bytes of a public encryption key for
+ * a particular algorithm. Supported public key encryption algorithms are
  * defined in 5.3.5.
  *
  * @note Canonicalization: This data structure is subject to canonicalization
- * for the relevant operations specified in 6.1.2 if it appears in a 
+ * for the relevant operations specified in 6.1.2 if it appears in a
  * HeaderInfo or in a ToBeSignedCertificate. See the definitions of HeaderInfo
  * and ToBeSignedCertificate for a specification of the canonicalization
  * operations.
  */
-BasePublicEncryptionKey ::= CHOICE { 
+BasePublicEncryptionKey ::= CHOICE {
   eciesNistP256        EccP256CurvePoint,
   eciesBrainpoolP256r1 EccP256CurvePoint,
   ...,
@@ -1022,26 +1022,26 @@ BasePublicEncryptionKey ::= CHOICE {
 }
 
 /**
- * @brief This structure represents a public key and states with what 
- * algorithm the public key is to be used. Cryptographic mechanisms are 
+ * @brief This structure represents a public key and states with what
+ * algorithm the public key is to be used. Cryptographic mechanisms are
  * defined in 5.3.
- * An EccP256CurvePoint or EccP384CurvePoint within a PublicVerificationKey 
- * structure is invalid if it indicates the choice x-only. 
+ * An EccP256CurvePoint or EccP384CurvePoint within a PublicVerificationKey
+ * structure is invalid if it indicates the choice x-only.
  *
- * @note Critical information fields: If present, this is a critical 
- * information field as defined in 5.2.6. An implementation that does not 
- * recognize the indicated CHOICE when verifying a signed SPDU shall indicate 
- * that the signed SPDU is invalid indicate that the signed SPDU is invalid 
- * in the sense of 4.2.2.3.2, that is, it is invalid in the sense that its 
- * validity cannot be established. 
+ * @note Critical information fields: If present, this is a critical
+ * information field as defined in 5.2.6. An implementation that does not
+ * recognize the indicated CHOICE when verifying a signed SPDU shall indicate
+ * that the signed SPDU is invalid indicate that the signed SPDU is invalid
+ * in the sense of 4.2.2.3.2, that is, it is invalid in the sense that its
+ * validity cannot be established.
  *
- * @note Canonicalization: This data structure is subject to canonicalization 
- * for the relevant operations specified in 6.1.2. The canonicalization 
- * applies to the EccP256CurvePoint and the Ecc384CurvePoint. Both forms of 
- * point are encoded in compressed form, i.e., such that the choice indicated 
+ * @note Canonicalization: This data structure is subject to canonicalization
+ * for the relevant operations specified in 6.1.2. The canonicalization
+ * applies to the EccP256CurvePoint and the Ecc384CurvePoint. Both forms of
+ * point are encoded in compressed form, i.e., such that the choice indicated
  * within the Ecc*CurvePoint is compressed-y-0 or compressed-y-1.
  */
-PublicVerificationKey ::= CHOICE { 
+PublicVerificationKey ::= CHOICE {
   ecdsaNistP256        EccP256CurvePoint,
   ecdsaBrainpoolP256r1 EccP256CurvePoint,
   ... ,
@@ -1051,8 +1051,8 @@ PublicVerificationKey ::= CHOICE {
 }
 
 /**
- * @brief This structure provides the key bytes for use with an identified 
- * symmetric algorithm. The supported symmetric algorithms are AES-128 and 
+ * @brief This structure provides the key bytes for use with an identified
+ * symmetric algorithm. The supported symmetric algorithms are AES-128 and
  * SM4 in CCM mode as specified in 5.3.8.
  */
 SymmetricEncryptionKey ::= CHOICE {
@@ -1067,21 +1067,21 @@ SymmetricEncryptionKey ::= CHOICE {
 --***************************************************************************--
 
 /**
- * @brief This structure represents the permissions that the certificate 
- * holder has with respect to activities for a single application area, 
- * identified by a Psid. 
+ * @brief This structure represents the permissions that the certificate
+ * holder has with respect to activities for a single application area,
+ * identified by a Psid.
  *
- * @note The determination as to whether the activities are consistent with 
- * the permissions indicated by the PSID and ServiceSpecificPermissions is 
- * made by the SDEE and not by the SDS; the SDS provides the PSID and SSP 
- * information to the SDEE to enable the SDEE to make that determination. 
+ * @note The determination as to whether the activities are consistent with
+ * the permissions indicated by the PSID and ServiceSpecificPermissions is
+ * made by the SDEE and not by the SDS; the SDS provides the PSID and SSP
+ * information to the SDEE to enable the SDEE to make that determination.
  * See 5.2.4.3.3 for more information.
  *
- * @note The SDEE specification is expected to specify what application 
+ * @note The SDEE specification is expected to specify what application
  * activities are permitted by particular ServiceSpecificPermissions values.
- * The SDEE specification is also expected EITHER to specify application 
- * activities that are permitted if the ServiceSpecificPermissions is 
- * omitted, OR to state that the ServiceSpecificPermissions need to always be 
+ * The SDEE specification is also expected EITHER to specify application
+ * activities that are permitted if the ServiceSpecificPermissions is
+ * omitted, OR to state that the ServiceSpecificPermissions need to always be
  * present.
  *
  * @note Consistency with signed SPDU: As noted in 5.1.1,

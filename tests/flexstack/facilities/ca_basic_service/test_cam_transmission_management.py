@@ -1,6 +1,5 @@
-import threading
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 
 from flexstack.facilities.ca_basic_service.cam_transmission_management import (
@@ -10,12 +9,7 @@ from flexstack.facilities.ca_basic_service.cam_transmission_management import (
     VehicleData,
     T_GEN_CAM_MIN,
     T_GEN_CAM_MAX,
-    T_GEN_CAM_DCC,
     N_GEN_CAM_DEFAULT,
-    T_GEN_CAM_LF_MS,
-    T_GEN_CAM_SPECIAL_MS,
-    T_GEN_CAM_VLF_MS,
-    TWO_WHEELER_STATION_TYPES,
     _haversine_m,
 )
 from flexstack.facilities.ca_basic_service.cam_coder import CAMCoder
@@ -147,7 +141,8 @@ class TestCooperativeAwarenessMessage(unittest.TestCase):
         cam.fullfill_with_vehicle_data(vd)
         params = cam.cam["cam"]["camParameters"]
         self.assertEqual(cam.cam["header"]["stationId"], vd.station_id)
-        self.assertEqual(params["basicContainer"]["stationType"], vd.station_type)
+        self.assertEqual(params["basicContainer"]
+                         ["stationType"], vd.station_type)
         self.assertEqual(
             params["highFrequencyContainer"][1]["driveDirection"],
             vd.drive_direction,
@@ -156,7 +151,8 @@ class TestCooperativeAwarenessMessage(unittest.TestCase):
             params["highFrequencyContainer"][1]["vehicleLength"]["vehicleLengthValue"],
             vd.vehicle_length["vehicleLengthValue"],
         )
-        self.assertEqual(params["highFrequencyContainer"][1]["vehicleWidth"], vd.vehicle_width)
+        self.assertEqual(params["highFrequencyContainer"]
+                         [1]["vehicleWidth"], vd.vehicle_width)
 
     def test_fullfill_with_tpv_data(self):
         tpv = {
@@ -209,7 +205,8 @@ class TestVehicleData(unittest.TestCase):
 class TestHaversine(unittest.TestCase):
 
     def test_zero_distance(self):
-        self.assertAlmostEqual(_haversine_m(41.0, 2.0, 41.0, 2.0), 0.0, places=3)
+        self.assertAlmostEqual(_haversine_m(
+            41.0, 2.0, 41.0, 2.0), 0.0, places=3)
 
     def test_known_distance_approx(self):
         # ~5 m north at latitude 41°
@@ -304,7 +301,6 @@ class TestStartStop(unittest.TestCase):
 
     def test_double_start_is_idempotent(self):
         ctm, _, _, _ = _make_ctm()
-        call_count = []
         with patch(
             "flexstack.facilities.ca_basic_service.cam_transmission_management.threading.Timer"
         ) as mock_timer_cls:
@@ -395,12 +391,14 @@ class TestCheckDynamics(unittest.TestCase):
 
     def test_heading_diff_under_4_deg_returns_false(self):
         ctm = self._ctm_with_last_cam(90.0, 41.0, 2.0, 5.0)
-        self.assertFalse(ctm._check_dynamics(_make_tpv(track=93.0, lat=41.0, lon=2.0, speed=5.0)))
+        self.assertFalse(ctm._check_dynamics(
+            _make_tpv(track=93.0, lat=41.0, lon=2.0, speed=5.0)))
 
     def test_heading_wrap_around_360(self):
         ctm = self._ctm_with_last_cam(358.0, 41.0, 2.0, 5.0)
         # 2 - 358 ... wraps to 4° difference exactly; 5° should trigger
-        self.assertTrue(ctm._check_dynamics(_make_tpv(track=3.0, lat=41.0, lon=2.0, speed=5.0)))
+        self.assertTrue(ctm._check_dynamics(
+            _make_tpv(track=3.0, lat=41.0, lon=2.0, speed=5.0)))
 
     def test_position_diff_over_4m_returns_true(self):
         ctm = self._ctm_with_last_cam(90.0, 41.0, 2.0, 5.0)
@@ -442,36 +440,44 @@ class TestContainerInclusion(unittest.TestCase):
         ctm, _, _, _ = _make_ctm()
         ctm._cam_count = 1
         ctm._last_lf_time_ms = 500
-        self.assertTrue(ctm._should_include_lf(1000))   # elapsed = 500 ms ≥ 500 ms
+        # elapsed = 500 ms ≥ 500 ms
+        self.assertTrue(ctm._should_include_lf(1000))
 
     def test_lf_not_before_500ms(self):
         ctm, _, _, _ = _make_ctm()
         ctm._cam_count = 1
         ctm._last_lf_time_ms = 600
-        self.assertFalse(ctm._should_include_lf(1000))  # elapsed = 400 ms < 500 ms
+        # elapsed = 400 ms < 500 ms
+        self.assertFalse(ctm._should_include_lf(1000))
 
     # --- Special Vehicle Container ---
 
     def test_special_not_included_for_default_role(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(vehicle_role=0))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(vehicle_role=0))
         self.assertFalse(ctm._should_include_special_vehicle(1000))
 
     def test_special_on_first_cam_non_default_role(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(vehicle_role=6))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(vehicle_role=6))
         ctm._cam_count = 0
         self.assertTrue(ctm._should_include_special_vehicle(1000))
 
     def test_special_after_500ms(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(vehicle_role=6))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(vehicle_role=6))
         ctm._cam_count = 1
         ctm._last_special_time_ms = 400
-        self.assertTrue(ctm._should_include_special_vehicle(900))   # 500 ms elapsed
+        # 500 ms elapsed
+        self.assertTrue(ctm._should_include_special_vehicle(900))
 
     def test_special_not_before_500ms(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(vehicle_role=6))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(vehicle_role=6))
         ctm._cam_count = 1
         ctm._last_special_time_ms = 700
-        self.assertFalse(ctm._should_include_special_vehicle(900))  # 200 ms elapsed
+        # 200 ms elapsed
+        self.assertFalse(ctm._should_include_special_vehicle(900))
 
     # --- Very Low Frequency Container ---
 
@@ -495,13 +501,15 @@ class TestContainerInclusion(unittest.TestCase):
         ctm, _, _, _ = _make_ctm()
         ctm._cam_count = 5
         ctm._last_vlf_time_ms = 0
-        self.assertFalse(ctm._should_include_vlf(10001, include_lf=True, include_special=False))
+        self.assertFalse(ctm._should_include_vlf(
+            10001, include_lf=True, include_special=False))
 
     def test_vlf_not_if_special_included(self):
         ctm, _, _, _ = _make_ctm()
         ctm._cam_count = 5
         ctm._last_vlf_time_ms = 0
-        self.assertFalse(ctm._should_include_vlf(10001, include_lf=False, include_special=True))
+        self.assertFalse(ctm._should_include_vlf(
+            10001, include_lf=False, include_special=True))
 
     def test_vlf_not_before_10s(self):
         ctm, _, _, _ = _make_ctm()
@@ -512,19 +520,23 @@ class TestContainerInclusion(unittest.TestCase):
     # --- Two-Wheeler Container ---
 
     def test_two_wheeler_for_cyclist(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(station_type=2))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(station_type=2))
         self.assertTrue(ctm._should_include_two_wheeler())
 
     def test_two_wheeler_for_moped(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(station_type=3))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(station_type=3))
         self.assertTrue(ctm._should_include_two_wheeler())
 
     def test_two_wheeler_for_motorcycle(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(station_type=4))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(station_type=4))
         self.assertTrue(ctm._should_include_two_wheeler())
 
     def test_two_wheeler_not_for_passenger_car(self):
-        ctm, _, _, _ = _make_ctm(vehicle_data=_make_vehicle_data(station_type=5))
+        ctm, _, _, _ = _make_ctm(
+            vehicle_data=_make_vehicle_data(station_type=5))
         self.assertFalse(ctm._should_include_two_wheeler())
 
 
@@ -537,6 +549,7 @@ class TestGenerateAndSendCam(unittest.TestCase):
     def _ctm_with_send_capture(self, vehicle_data=None):
         ctm, btp_router, cam_coder, vd = _make_ctm(vehicle_data=vehicle_data)
         sent = []
+
         def capture(cam_obj):
             sent.append(cam_obj)
         ctm._send_cam = capture
@@ -556,7 +569,8 @@ class TestGenerateAndSendCam(unittest.TestCase):
            return_value=1000.0)
     def test_lf_container_content(self, _mock_time):
         ctm, sent, _, _ = self._ctm_with_send_capture(
-            vehicle_data=_make_vehicle_data(vehicle_role=0, exterior_lights=b"\x80")
+            vehicle_data=_make_vehicle_data(
+                vehicle_role=0, exterior_lights=b"\x80")
         )
         tpv = _make_tpv()
         ctm._generate_and_send_cam(tpv, 1_000_000, condition=1)
@@ -593,7 +607,8 @@ class TestGenerateAndSendCam(unittest.TestCase):
         ctm._last_lf_time_ms = 999_600  # LF recently sent
         tpv = _make_tpv()
         ctm._generate_and_send_cam(tpv, 1_000_000, condition=2)
-        ext = sent[0].cam["cam"]["camParameters"].get("extensionContainers", [])
+        ext = sent[0].cam["cam"]["camParameters"].get(
+            "extensionContainers", [])
         container_ids = [e["containerId"] for e in ext]
         self.assertIn(1, container_ids)  # TwoWheeler = container id 1
 
@@ -848,7 +863,8 @@ class TestPathHistory(unittest.TestCase):
            return_value=1000.0)
     def test_path_history_capped_at_23_entries(self, _mock_time):
         ctm, _, _, _ = _make_ctm()
-        ctm._path_history = [(41.0 + i * 0.000001, 2.0, 900_000 + i * 1000) for i in range(30)]
+        ctm._path_history = [
+            (41.0 + i * 0.000001, 2.0, 900_000 + i * 1000) for i in range(30)]
         tpv = _make_tpv(lat=41.0, lon=2.0)
         result = ctm._get_path_history(tpv)
         self.assertLessEqual(len(result), 23)
@@ -856,4 +872,3 @@ class TestPathHistory(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

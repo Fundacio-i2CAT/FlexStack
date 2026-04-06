@@ -3,6 +3,7 @@ from collections.abc import Callable
 from dataclasses import replace as dataclass_replace
 from enum import Enum
 from threading import Thread, Lock, Event, Timer
+from typing import Union, cast
 import math
 import random
 from ..linklayer.exceptions import (
@@ -20,6 +21,7 @@ from .gn_address import GNAddress
 from .service_access_point import (
     CommonNH,
     HeaderType,
+    HeaderSubType,
     TopoBroadcastHST,
     GeoBroadcastHST,
     GeoAnycastHST,
@@ -151,9 +153,9 @@ class Router:
             self.gn_data_request_beacon()
             # §10.3.6.2 step 5: TBeacon = itsGnBeaconServiceRetransmitTimer
             #                            + RAND[0, itsGnBeaconServiceMaxJitter]
+            assert self.mib.itsGnBeaconServiceMaxJitter is not None
             jitter_ms = random.uniform(0, self.mib.itsGnBeaconServiceMaxJitter)
-            timeout = (self.mib.itsGnBeaconServiceRetransmitTimer +
-                       jitter_ms) / 1000
+            timeout = (self.mib.itsGnBeaconServiceRetransmitTimer + jitter_ms) / 1000
             # If SHB fires during the wait it sets the event, causing wait() to
             # return True.  Clear the event and restart the full interval so no
             # redundant beacon is emitted immediately after an SHB.
@@ -958,6 +960,7 @@ class Router:
             request.destination) if request.destination else None
         if de_entry is None:
             # No LocTE for destination → invoke Location Service (§10.3.7.1.2)
+            assert request.destination is not None
             self.gn_ls_request(request.destination, request)
             return GNDataConfirm(result_code=ResultCode.ACCEPTED)
         de_lpv = de_entry.position_vector
@@ -1167,8 +1170,7 @@ class Router:
                 )
             # Step 10: outside area (F < 0) → forward only, no delivery to upper layer
             # §B.3: Geographical area size control – do not forward if area exceeds itsGnMaxGeoAreaSize
-            # type: ignore
-            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
+            if Router._compute_area_size_m2(cast(Union[GeoBroadcastHST, GeoAnycastHST], common_header.hst), area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
                 return None
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
             so_entry = self.location_table.get_entry(
@@ -1239,7 +1241,7 @@ class Router:
         common_header = CommonHeader(
             nh=CommonNH.ANY,
             ht=HeaderType.LS,
-            hst=LocationServiceHST.LS_REQUEST,
+            hst=cast(HeaderSubType, LocationServiceHST.LS_REQUEST),
             tc=TrafficClass(),
             flags=self.mib.itsGnIsMobile.value,
             pl=0,
@@ -1397,7 +1399,7 @@ class Router:
                 reply_common = CommonHeader(
                     nh=CommonNH.ANY,
                     ht=HeaderType.LS,
-                    hst=LocationServiceHST.LS_REPLY,
+                    hst=cast(HeaderSubType, LocationServiceHST.LS_REPLY),
                     tc=TrafficClass(),
                     flags=self.mib.itsGnIsMobile.value,
                     pl=0,
@@ -1639,8 +1641,7 @@ class Router:
                 )
             # TODO: Step 8: flush LS packet buffer and UC forwarding packet buffer for SO
             # §B.3: Geographical area size control – do not forward if area exceeds itsGnMaxGeoAreaSize
-            # type: ignore
-            if Router._compute_area_size_m2(common_header.hst, area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
+            if Router._compute_area_size_m2(cast(Union[GeoBroadcastHST, GeoAnycastHST], common_header.hst), area) > self.mib.itsGnMaxGeoAreaSize * 1_000_000:
                 return indication
             # §B.2: PDR enforcement – do not forward if SO PDR exceeds itsGnMaxPacketDataRate
             so_entry = self.location_table.get_entry(

@@ -83,20 +83,20 @@ class DccStateConfig:
 #: Table A.1 – T_on at most 1 ms.
 #: States ordered from RELAXED to RESTRICTIVE.
 _TABLE_A1: dict[DccState, DccStateConfig] = {
-    DccState.RELAXED:     DccStateConfig(0.00, 0.30, 10.0,  100.0),
-    DccState.ACTIVE_1:    DccStateConfig(0.30, 0.40,  5.0,  200.0),
-    DccState.ACTIVE_2:    DccStateConfig(0.40, 0.50,  2.5,  400.0),
-    DccState.ACTIVE_3:    DccStateConfig(0.50, 0.60,  2.0,  500.0),
-    DccState.RESTRICTIVE: DccStateConfig(0.60, 1.01,  1.0, 1000.0),
+    DccState.RELAXED: DccStateConfig(0.00, 0.30, 10.0, 100.0),
+    DccState.ACTIVE_1: DccStateConfig(0.30, 0.40, 5.0, 200.0),
+    DccState.ACTIVE_2: DccStateConfig(0.40, 0.50, 2.5, 400.0),
+    DccState.ACTIVE_3: DccStateConfig(0.50, 0.60, 2.0, 500.0),
+    DccState.RESTRICTIVE: DccStateConfig(0.60, 1.01, 1.0, 1000.0),
 }
 
 #: Table A.2 – T_on at most 500 µs.
 _TABLE_A2: dict[DccState, DccStateConfig] = {
-    DccState.RELAXED:     DccStateConfig(0.00, 0.30, 20.0,   50.0),
-    DccState.ACTIVE_1:    DccStateConfig(0.30, 0.40, 10.0,  100.0),
-    DccState.ACTIVE_2:    DccStateConfig(0.40, 0.50,  5.0,  200.0),
-    DccState.ACTIVE_3:    DccStateConfig(0.50, 0.65,  4.0,  250.0),
-    DccState.RESTRICTIVE: DccStateConfig(0.65, 1.01,  1.0, 1000.0),
+    DccState.RELAXED: DccStateConfig(0.00, 0.30, 20.0, 50.0),
+    DccState.ACTIVE_1: DccStateConfig(0.30, 0.40, 10.0, 100.0),
+    DccState.ACTIVE_2: DccStateConfig(0.40, 0.50, 5.0, 200.0),
+    DccState.ACTIVE_3: DccStateConfig(0.50, 0.65, 4.0, 250.0),
+    DccState.RESTRICTIVE: DccStateConfig(0.65, 1.01, 1.0, 1000.0),
 }
 
 # Ordered list of states used for single-step transitions.

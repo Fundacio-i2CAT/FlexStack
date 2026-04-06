@@ -136,4 +136,3 @@ class TestApplicationCallbacks(unittest.TestCase):
         }
         crm.add_application_callback(lambda c: (_ for _ in ()).throw(RuntimeError("oops")))
         crm.reception_callback(_make_indication())  # Should not raise
-

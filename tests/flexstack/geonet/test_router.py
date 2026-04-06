@@ -281,7 +281,8 @@ class TestRouter(unittest.TestCase):
         packet = position_vector.encode() + bytes(4) + b'payload'
 
         # When
-        result = router.gn_data_indicate_shb(packet, common_header, basic_header)
+        result = router.gn_data_indicate_shb(
+            packet, common_header, basic_header)
 
         # Then
         router.location_table.new_shb_packet.assert_called_once()
@@ -308,7 +309,8 @@ class TestRouter(unittest.TestCase):
         packet = gbc_extended_header.encode() + b'payload'
 
         # When
-        result = router.gn_data_indicate_gbc(packet, common_header, basic_header)
+        result = router.gn_data_indicate_gbc(
+            packet, common_header, basic_header)
 
         # Then
         self.assertEqual(result.data, b'payload')
@@ -375,7 +377,8 @@ class TestRouter(unittest.TestCase):
 
         # Build an unsecured SHB packet (NH=COMMON_HEADER)
         basic_header = BasicHeader(version=1)
-        common_header = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP)  # type: ignore
+        common_header = CommonHeader(
+            ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP)  # type: ignore
         packet = basic_header.encode_to_bytes() + common_header.encode_to_bytes() + bytes(28)
 
         router.gn_data_indicate(packet)
@@ -392,7 +395,8 @@ class TestRouter(unittest.TestCase):
         router.register_indication_callback(callback)
 
         basic_header = BasicHeader(version=1)
-        common_header = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP)  # type: ignore
+        common_header = CommonHeader(
+            ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP)  # type: ignore
         packet = basic_header.encode_to_bytes() + common_header.encode_to_bytes() + bytes(28)
 
         router.gn_data_indicate(packet)
@@ -415,8 +419,7 @@ class TestRouter(unittest.TestCase):
         # CommonHeader: NH=ANY(0x00), HT=BEACON(0x1)(+HST=0 => 0x10), TC=0,
         #               flags=itsGnIsMobile=MOBILE=0x80, PL=0, MHL=1, reserved=0
         link_layer.send.assert_called_once_with(
-            b'\x11\x00\x1a\x01\x00\x10\x00\x01\x00\x00\x01\x00'
-            + bytes(24)
+            b'\x11\x00\x1a\x01\x00\x10\x00\x01\x00\x00\x01\x00' + bytes(24)
         )
 
     def test_GNDataIndicateBeacon(self):
@@ -574,7 +577,8 @@ class TestProcessBasicHeader(unittest.TestCase):
 
         router.process_common_header.assert_called_once()
         args = router.process_common_header.call_args[0]
-        self.assertEqual(args[0], payload)  # remaining bytes after basic header
+        # remaining bytes after basic header
+        self.assertEqual(args[0], payload)
 
     def test_secured_packet_dispatches_to_process_security_header(self):
         """NH=SECURED_PACKET must forward to process_security_header."""
@@ -664,7 +668,8 @@ class TestProcessCommonHeader(unittest.TestCase):
         router.register_indication_callback(callback)
 
         ch, bh, packet = self._make_common_header_packet(
-            HeaderType.GEOBROADCAST, GeoBroadcastHST.GEOBROADCAST_CIRCLE, payload=bytes(44)
+            HeaderType.GEOBROADCAST, GeoBroadcastHST.GEOBROADCAST_CIRCLE, payload=bytes(
+                44)
         )
         router.process_common_header(packet, bh)
 
@@ -712,7 +717,8 @@ class TestProcessSecurityHeader(unittest.TestCase):
         router = Router(mib)  # verify_service=None
         router.process_common_header = Mock()
 
-        router.process_security_header(b"signed_data", self._make_basic_header())
+        router.process_security_header(
+            b"signed_data", self._make_basic_header())
 
         router.process_common_header.assert_not_called()
 
@@ -756,7 +762,8 @@ class TestProcessSecurityHeader(unittest.TestCase):
         router.process_security_header(b"valid_data", bh)
 
         verify_service.verify.assert_called_once()
-        router.process_common_header.assert_called_once_with(plain_message, bh.set_nh(BasicNH.COMMON_HEADER))
+        router.process_common_header.assert_called_once_with(
+            plain_message, bh.set_nh(BasicNH.COMMON_HEADER))
 
 
 class TestGNDataIndicateTSB(unittest.TestCase):
@@ -766,7 +773,8 @@ class TestGNDataIndicateTSB(unittest.TestCase):
         """Return (basic_header, common_header, tsb_ext_header, upper_payload, raw_packet_after_common_header)."""
         from flexstack.geonet.tsb_extended_header import TSBExtendedHeader
         bh = BasicHeader(version=1, rhl=rhl)
-        ch = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.TSB,
+                          hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
         tsb = TSBExtendedHeader(sn=1, so_pv=LongPositionVector())
         payload = b"tsb_upper_payload"
         packet_after_common = tsb.encode() + payload
@@ -832,7 +840,8 @@ class TestGNDataIndicateTSB(unittest.TestCase):
 
         from flexstack.geonet.tsb_extended_header import TSBExtendedHeader
         bh = BasicHeader(version=1)
-        ch = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.TSB,
+                          hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
         tsb = TSBExtendedHeader(sn=1)
         packet = bh.encode_to_bytes() + ch.encode_to_bytes() + tsb.encode() + b"data"
 
@@ -877,7 +886,8 @@ class TestGNDataRequestGUC(unittest.TestCase):
         router = Router(mib)
         dest_addr = _make_gn_addr()
         request = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=dest_addr,
             data=b"hello",
         )
@@ -890,7 +900,8 @@ class TestGNDataRequestGUC(unittest.TestCase):
         router = Router(mib)
         dest_addr = _make_gn_addr()
         # Inject a fake LocTE for the destination
-        de_lpv = LongPositionVector(gn_addr=dest_addr, latitude=100, longitude=200)
+        de_lpv = LongPositionVector(
+            gn_addr=dest_addr, latitude=100, longitude=200)
         fake_entry = Mock()
         fake_entry.position_vector = de_lpv
         router.location_table.get_entry = Mock(return_value=fake_entry)
@@ -900,7 +911,8 @@ class TestGNDataRequestGUC(unittest.TestCase):
         router.link_layer = link_layer
 
         request = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=dest_addr,
             data=b"hello",
         )
@@ -913,10 +925,12 @@ class TestGNDataRequestGUC(unittest.TestCase):
         """gn_data_request must dispatch GEOUNICAST to gn_data_request_guc."""
         mib = MIB()
         router = Router(mib)
-        router.gn_data_request_guc = Mock(return_value=GNDataConfirm(result_code=ResultCode.ACCEPTED))
+        router.gn_data_request_guc = Mock(
+            return_value=GNDataConfirm(result_code=ResultCode.ACCEPTED))
         dest_addr = _make_gn_addr()
         request = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=dest_addr,
             data=b"hello",
         )
@@ -951,7 +965,8 @@ class TestGNDataIndicateGUC(unittest.TestCase):
         indication = router.gn_data_indicate_guc(raw, ch, bh)
 
         self.assertEqual(indication.data, payload)
-        self.assertEqual(indication.packet_transport_type.header_type, HeaderType.GEOUNICAST)
+        self.assertEqual(
+            indication.packet_transport_type.header_type, HeaderType.GEOUNICAST)
         router.duplicate_address_detection.assert_called_once()
         router.location_table.new_guc_packet.assert_called_once()
 
@@ -1069,7 +1084,8 @@ class TestGNDataRequestGAC(unittest.TestCase):
         """gn_data_request must dispatch GEOANYCAST to gn_data_request_gac."""
         mib = MIB()
         router = Router(mib)
-        router.gn_data_request_gac = Mock(return_value=GNDataConfirm(result_code=ResultCode.ACCEPTED))
+        router.gn_data_request_gac = Mock(
+            return_value=GNDataConfirm(result_code=ResultCode.ACCEPTED))
         request = self._make_request(inside=True)
         router.gn_data_request(request)
         router.gn_data_request_gac.assert_called_once_with(request)
@@ -1079,7 +1095,8 @@ class TestGNDataRequestGAC(unittest.TestCase):
         mib = MIB()
         router = Router(mib)
         # Ego is at (0,0), area centred at (0,0) radius 100 m → inside
-        router.ego_position_vector = LongPositionVector(latitude=0, longitude=0)
+        router.ego_position_vector = LongPositionVector(
+            latitude=0, longitude=0)
         link_layer = Mock()
         router.link_layer = link_layer
 
@@ -1093,7 +1110,8 @@ class TestGNDataRequestGAC(unittest.TestCase):
         mib = MIB()
         router = Router(mib)
         # Move ego far outside the area
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         link_layer = Mock()
         router.link_layer = link_layer
 
@@ -1111,7 +1129,8 @@ class TestGNDataIndicateGAC(unittest.TestCase):
         """Router ego placed inside the GAC area (lat=0, lon=0, area centred at 0,0 r=100m)."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=0, longitude=0)
+        router.ego_position_vector = LongPositionVector(
+            latitude=0, longitude=0)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gac_packet = Mock()
         return router
@@ -1120,7 +1139,8 @@ class TestGNDataIndicateGAC(unittest.TestCase):
         """Router ego placed outside the GAC area."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gac_packet = Mock()
         return router
@@ -1128,7 +1148,8 @@ class TestGNDataIndicateGAC(unittest.TestCase):
     def _base_gac_raw(self, so_pv, area, rhl=3, payload=b"gac_payload"):
         """Return (bh, ch, gbc_ext, payload, raw_after_common)."""
         bh = BasicHeader(version=1, rhl=rhl)
-        ch = CommonHeader(ht=HeaderType.GEOANYCAST, hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOANYCAST,
+                          hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
         gbc = GBCExtendedHeader(
             sn=1, so_pv=so_pv,
             latitude=area.latitude, longitude=area.longitude,
@@ -1147,7 +1168,8 @@ class TestGNDataIndicateGAC(unittest.TestCase):
         indication = router.gn_data_indicate_gac(raw, ch, bh)
 
         self.assertEqual(indication.data, payload)
-        self.assertEqual(indication.packet_transport_type.header_type, HeaderType.GEOANYCAST)
+        self.assertEqual(
+            indication.packet_transport_type.header_type, HeaderType.GEOANYCAST)
         router.duplicate_address_detection.assert_called_once()
         router.location_table.new_gac_packet.assert_called_once()
 
@@ -1167,7 +1189,8 @@ class TestGNDataIndicateGAC(unittest.TestCase):
     def test_outside_area_forwards_with_decremented_rhl(self):
         """§10.3.12.3 step 10: outside area → packet forwarded with RHL decremented by 1."""
         router = self._setup_router_outside()
-        area = _make_gac_area(inside=True)  # area at (0,0); ego is far away → outside
+        # area at (0,0); ego is far away → outside
+        area = _make_gac_area(inside=True)
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         link_layer = Mock()
         router.link_layer = link_layer
@@ -1234,8 +1257,10 @@ def _make_ls_request_packet(
 ) -> bytes:
     """Build a complete LS Request wire packet (BH + CH + ext)."""
     bh = BasicHeader(version=1, rhl=rhl)
-    ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REQUEST)  # type: ignore
-    ls_req = LSRequestExtendedHeader(sn=1, so_pv=so_pv, request_gn_addr=request_gn_addr)
+    ch = CommonHeader(ht=HeaderType.LS,
+                      hst=LocationServiceHST.LS_REQUEST)  # type: ignore
+    ls_req = LSRequestExtendedHeader(
+        sn=1, so_pv=so_pv, request_gn_addr=request_gn_addr)
     return bh.encode_to_bytes() + ch.encode_to_bytes() + ls_req.encode() + payload
 
 
@@ -1247,7 +1272,8 @@ def _make_ls_reply_packet(
 ) -> bytes:
     """Build a complete LS Reply wire packet (BH + CH + ext)."""
     bh = BasicHeader(version=1, rhl=rhl)
-    ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+    ch = CommonHeader(ht=HeaderType.LS,
+                      hst=LocationServiceHST.LS_REPLY)  # type: ignore
     ls_reply = LSReplyExtendedHeader(sn=2, so_pv=so_pv, de_pv=de_pv)
     return bh.encode_to_bytes() + ch.encode_to_bytes() + ls_reply.encode() + payload
 
@@ -1268,7 +1294,6 @@ class TestGNLSRequest(unittest.TestCase):
         link_layer.send.assert_called_once()
         raw = link_layer.send.call_args[0][0]
         # Verify it is an LS Request packet
-        bh = BasicHeader.decode_from_bytes(raw[0:4])
         ch = CommonHeader.decode_from_bytes(raw[4:12])
         self.assertEqual(ch.ht, HeaderType.LS)
         self.assertEqual(ch.hst, LocationServiceHST.LS_REQUEST)
@@ -1299,7 +1324,8 @@ class TestGNLSRequest(unittest.TestCase):
 
         # Build a dummy buffered request
         extra_req = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=sought,
             data=b"extra",
         )
@@ -1354,7 +1380,8 @@ class TestGNLSRequest(unittest.TestCase):
         router.link_layer = link_layer
         dest = _make_gn_addr()
         request = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=dest,
             data=b"hello",
         )
@@ -1373,7 +1400,8 @@ class TestGNDataIndicateLSRequest(unittest.TestCase):
 
     def _build_packet_body(self, so_pv, request_gn_addr, payload=b""):
         """Return the bytes AFTER the common header (ext header + payload)."""
-        ls_req = LSRequestExtendedHeader(sn=1, so_pv=so_pv, request_gn_addr=request_gn_addr)
+        ls_req = LSRequestExtendedHeader(
+            sn=1, so_pv=so_pv, request_gn_addr=request_gn_addr)
         return ls_req.encode() + payload
 
     def test_forwarder_forwards_with_decremented_rhl(self):
@@ -1389,7 +1417,8 @@ class TestGNDataIndicateLSRequest(unittest.TestCase):
         # request_gn_addr is NOT self → forwarder role
         request_gn_addr = _make_gn_addr()
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REQUEST)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REQUEST)  # type: ignore
         body = self._build_packet_body(so_pv, request_gn_addr)
 
         router.gn_data_indicate_ls_request(body, ch, bh)
@@ -1411,7 +1440,8 @@ class TestGNDataIndicateLSRequest(unittest.TestCase):
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         request_gn_addr = _make_gn_addr()
         bh = BasicHeader(version=1, rhl=1)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REQUEST)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REQUEST)  # type: ignore
         body = self._build_packet_body(so_pv, request_gn_addr)
 
         router.gn_data_indicate_ls_request(body, ch, bh)
@@ -1436,7 +1466,8 @@ class TestGNDataIndicateLSRequest(unittest.TestCase):
         # request_gn_addr IS self
         request_gn_addr = mib.itsGnLocalGnAddr
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REQUEST)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REQUEST)  # type: ignore
         body = self._build_packet_body(so_pv, request_gn_addr)
 
         router.gn_data_indicate_ls_request(body, ch, bh)
@@ -1463,7 +1494,8 @@ class TestGNDataIndicateLSRequest(unittest.TestCase):
 
         request_gn_addr = mib.itsGnLocalGnAddr
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REQUEST)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REQUEST)  # type: ignore
         body = self._build_packet_body(so_pv, request_gn_addr)
 
         router.gn_data_indicate_ls_request(body, ch, bh)
@@ -1510,7 +1542,8 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         router._ls_retransmit_counters[so_addr] = 1
 
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REPLY)  # type: ignore
         body = self._build_packet_body(so_pv, de_pv)
 
         router.gn_data_indicate_ls_reply(body, ch, bh)
@@ -1532,7 +1565,8 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
 
         # Prepare a buffered request for so_addr
         buffered_req = GNDataRequest(
-            packet_transport_type=PacketTransportType(header_type=HeaderType.GEOUNICAST),
+            packet_transport_type=PacketTransportType(
+                header_type=HeaderType.GEOUNICAST),
             destination=so_addr,
             data=b"buffered",
         )
@@ -1542,14 +1576,16 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         router._ls_retransmit_counters[so_addr] = 0
 
         # Inject a LocTE with a real position vector so gn_data_request_guc can build GUC packet
-        so_pv_full = LongPositionVector(gn_addr=so_addr, latitude=100, longitude=200)
+        so_pv_full = LongPositionVector(
+            gn_addr=so_addr, latitude=100, longitude=200)
         fake_entry = Mock()
         fake_entry.position_vector = so_pv_full
         router.location_table.get_entry = Mock(return_value=fake_entry)
         router.location_table.get_neighbours = Mock(return_value=[fake_entry])
 
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REPLY)  # type: ignore
         body = self._build_packet_body(so_pv, de_pv)
 
         router.gn_data_indicate_ls_reply(body, ch, bh)
@@ -1575,10 +1611,12 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         de_addr = _make_gn_addr()
         de_pv = ShortPositionVector(gn_addr=de_addr)
 
-        router.location_table.get_entry = Mock(return_value=None)  # DE not a neighbour
+        router.location_table.get_entry = Mock(
+            return_value=None)  # DE not a neighbour
 
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REPLY)  # type: ignore
         body = self._build_packet_body(so_pv, de_pv)
 
         router.gn_data_indicate_ls_reply(body, ch, bh)
@@ -1604,7 +1642,8 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         router.location_table.get_entry = Mock(return_value=None)
 
         bh = BasicHeader(version=1, rhl=1)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REPLY)  # type: ignore
         body = self._build_packet_body(so_pv, de_pv)
 
         router.gn_data_indicate_ls_reply(body, ch, bh)
@@ -1638,27 +1677,31 @@ class TestAnnexB(unittest.TestCase):
         """§B.3: Circle area = π × a²."""
         import math
         area = Area(a=1000, b=0, latitude=0, longitude=0, angle=0)
-        result = Router._compute_area_size_m2(GeoBroadcastHST.GEOBROADCAST_CIRCLE, area)
+        result = Router._compute_area_size_m2(
+            GeoBroadcastHST.GEOBROADCAST_CIRCLE, area)
         self.assertAlmostEqual(result, math.pi * 1000 ** 2, places=0)
 
     def test_compute_area_size_ellipse(self):
         """§B.3: Ellipse area = π × a × b."""
         import math
         area = Area(a=2000, b=500, latitude=0, longitude=0, angle=0)
-        result = Router._compute_area_size_m2(GeoBroadcastHST.GEOBROADCAST_ELIP, area)
+        result = Router._compute_area_size_m2(
+            GeoBroadcastHST.GEOBROADCAST_ELIP, area)
         self.assertAlmostEqual(result, math.pi * 2000 * 500, places=0)
 
     def test_compute_area_size_rect(self):
         """§B.3: Rectangle area = 4 × a × b (a, b are half-lengths from centre)."""
         area = Area(a=1000, b=500, latitude=0, longitude=0, angle=0)
-        result = Router._compute_area_size_m2(GeoBroadcastHST.GEOBROADCAST_RECT, area)
+        result = Router._compute_area_size_m2(
+            GeoBroadcastHST.GEOBROADCAST_RECT, area)
         self.assertAlmostEqual(result, 4 * 1000 * 500, places=0)
 
     def test_compute_area_size_gac_circle(self):
         """§B.3: GAC circle variant also handled correctly."""
         import math
         area = Area(a=1000, b=0, latitude=0, longitude=0, angle=0)
-        result = Router._compute_area_size_m2(GeoAnycastHST.GEOANYCAST_CIRCLE, area)
+        result = Router._compute_area_size_m2(
+            GeoAnycastHST.GEOANYCAST_CIRCLE, area)
         self.assertAlmostEqual(result, math.pi * 1000 ** 2, places=0)
 
     # ── §B.3 GBC source ────────────────────────────────────────────────────
@@ -1677,7 +1720,8 @@ class TestAnnexB(unittest.TestCase):
             data=b"hello",
         )
         confirm = router.gn_data_request_gbc(request)
-        self.assertEqual(confirm.result_code, ResultCode.GEOGRAPHICAL_SCOPE_TOO_LARGE)
+        self.assertEqual(confirm.result_code,
+                         ResultCode.GEOGRAPHICAL_SCOPE_TOO_LARGE)
 
     def test_gbc_source_small_area_not_rejected(self):
         """§B.3: gn_data_request_gbc must NOT reject when area ≤ itsGnMaxGeoAreaSize."""
@@ -1711,7 +1755,8 @@ class TestAnnexB(unittest.TestCase):
             data=b"hello",
         )
         confirm = router.gn_data_request_gac(request)
-        self.assertEqual(confirm.result_code, ResultCode.GEOGRAPHICAL_SCOPE_TOO_LARGE)
+        self.assertEqual(confirm.result_code,
+                         ResultCode.GEOGRAPHICAL_SCOPE_TOO_LARGE)
 
     # ── §B.3 GBC forwarder ─────────────────────────────────────────────────
 
@@ -1719,7 +1764,8 @@ class TestAnnexB(unittest.TestCase):
         """§B.3: Forwarder must NOT forward a GBC with oversized area, but MUST deliver if inside."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=0, longitude=0)
+        router.ego_position_vector = LongPositionVector(
+            latitude=0, longitude=0)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gbc_packet = Mock()
         router.location_table.get_entry = Mock(return_value=None)
@@ -1728,9 +1774,11 @@ class TestAnnexB(unittest.TestCase):
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         # Circle a=2000m → area > 10 km²; centred at (0,0), ego at (0,0) → inside
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOBROADCAST, hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOBROADCAST,
+                          hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         indication = router.gn_data_indicate_gbc(raw, ch, bh)
@@ -1742,7 +1790,8 @@ class TestAnnexB(unittest.TestCase):
         """§B.3: Forwarder must NOT forward a GBC with oversized area even when outside."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gbc_packet = Mock()
         router.location_table.get_entry = Mock(return_value=None)
@@ -1750,9 +1799,11 @@ class TestAnnexB(unittest.TestCase):
         router.link_layer = link_layer
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOBROADCAST, hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOBROADCAST,
+                          hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         indication = router.gn_data_indicate_gbc(raw, ch, bh)
@@ -1767,7 +1818,8 @@ class TestAnnexB(unittest.TestCase):
         """§B.3: Forwarder must NOT forward a GAC with oversized area when outside."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gac_packet = Mock()
         router.location_table.get_entry = Mock(return_value=None)
@@ -1775,9 +1827,11 @@ class TestAnnexB(unittest.TestCase):
         router.link_layer = link_layer
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=2000, b=0)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOANYCAST, hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOANYCAST,
+                          hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         router.gn_data_indicate_gac(raw, ch, bh)
@@ -1796,17 +1850,21 @@ class TestAnnexB(unittest.TestCase):
         """§B.2: GBC inside area must still be delivered to upper entity even when SO PDR exceeded."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=0, longitude=0)
+        router.ego_position_vector = LongPositionVector(
+            latitude=0, longitude=0)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gbc_packet = Mock()
-        router.location_table.get_entry = Mock(return_value=self._make_high_pdr_entry(mib))
+        router.location_table.get_entry = Mock(
+            return_value=self._make_high_pdr_entry(mib))
         link_layer = Mock()
         router.link_layer = link_layer
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOBROADCAST, hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOBROADCAST,
+                          hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         indication = router.gn_data_indicate_gbc(raw, ch, bh)
@@ -1818,7 +1876,8 @@ class TestAnnexB(unittest.TestCase):
         """§B.2: GBC must be forwarded when SO PDR is within limit."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=0, longitude=0)
+        router.ego_position_vector = LongPositionVector(
+            latitude=0, longitude=0)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gbc_packet = Mock()
         entry = Mock()
@@ -1827,9 +1886,11 @@ class TestAnnexB(unittest.TestCase):
         router.gn_data_forward_gbc = Mock()
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOBROADCAST, hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOBROADCAST,
+                          hst=GeoBroadcastHST.GEOBROADCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         router.gn_data_indicate_gbc(raw, ch, bh)
@@ -1842,17 +1903,21 @@ class TestAnnexB(unittest.TestCase):
         """§B.2: GAC outside area must NOT be forwarded when SO PDR exceeded."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gac_packet = Mock()
-        router.location_table.get_entry = Mock(return_value=self._make_high_pdr_entry(mib))
+        router.location_table.get_entry = Mock(
+            return_value=self._make_high_pdr_entry(mib))
         link_layer = Mock()
         router.link_layer = link_layer
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        gbc = GBCExtendedHeader(sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
+        gbc = GBCExtendedHeader(
+            sn=1, so_pv=so_pv, latitude=0, longitude=0, a=100, b=100)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.GEOANYCAST, hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOANYCAST,
+                          hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
         raw = gbc.encode() + b"payload"
 
         router.gn_data_indicate_gac(raw, ch, bh)
@@ -1867,14 +1932,14 @@ class TestAnnexB(unittest.TestCase):
         router = Router(mib)
         router.duplicate_address_detection = Mock()
         router.location_table.new_guc_packet = Mock()
-        router.location_table.get_entry = Mock(return_value=self._make_high_pdr_entry(mib))
+        router.location_table.get_entry = Mock(
+            return_value=self._make_high_pdr_entry(mib))
         link_layer = Mock()
         router.link_layer = link_layer
 
         so_addr = _make_gn_addr()
         so_pv = LongPositionVector(gn_addr=so_addr)
         de_addr = _make_gn_addr()  # not self → forwarder role
-        de_pv = ShortPositionVector(gn_addr=de_addr)
         raw = _make_guc_packet(so_pv, de_addr)
         bh = BasicHeader.decode_from_bytes(raw[0:4])
         ch = CommonHeader.decode_from_bytes(raw[4:12])
@@ -1893,14 +1958,16 @@ class TestAnnexB(unittest.TestCase):
         router = Router(mib)
         router.duplicate_address_detection = Mock()
         router.location_table.new_tsb_packet = Mock()
-        router.location_table.get_entry = Mock(return_value=self._make_high_pdr_entry(mib))
+        router.location_table.get_entry = Mock(
+            return_value=self._make_high_pdr_entry(mib))
         link_layer = Mock()
         router.link_layer = link_layer
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         tsb = TSBExtendedHeader(sn=1, so_pv=so_pv)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.TSB,
+                          hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
         raw = tsb.encode() + b"payload"
 
         router.gn_data_indicate_tsb(raw, ch, bh)
@@ -1914,12 +1981,14 @@ class TestAnnexB(unittest.TestCase):
         router = Router(mib)
         router.duplicate_address_detection = Mock()
         router.location_table.new_tsb_packet = Mock()
-        router.location_table.get_entry = Mock(return_value=self._make_high_pdr_entry(mib))
+        router.location_table.get_entry = Mock(
+            return_value=self._make_high_pdr_entry(mib))
 
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         tsb = TSBExtendedHeader(sn=1, so_pv=so_pv)
         bh = BasicHeader(version=1, rhl=3)
-        ch = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.TSB,
+                          hst=TopoBroadcastHST.MULTI_HOP)  # type: ignore
         raw = tsb.encode() + b"payload"
 
         indication = router.gn_data_indicate_tsb(raw, ch, bh)
@@ -1938,7 +2007,8 @@ class TestAnnexC(unittest.TestCase):
 
     def _make_de_entry(self, mib: MIB, tst_seconds: float) -> Mock:
         """Return a Mock LocTE entry that is a neighbour, with a given LPV timestamp."""
-        de_addr = GNAddress(m=M.GN_MULTICAST, st=ST.CYCLIST, mid=MID(b"\xbb\xcc\xdd\xee\x11\x22"))
+        de_addr = GNAddress(m=M.GN_MULTICAST, st=ST.CYCLIST,
+                            mid=MID(b"\xbb\xcc\xdd\xee\x11\x22"))
         de_lpv = LongPositionVector(
             gn_addr=de_addr, latitude=111111, longitude=222222
         ).set_tst_in_normal_timestamp_seconds(tst_seconds)
@@ -1965,7 +2035,8 @@ class TestAnnexC(unittest.TestCase):
             gn_addr=de_addr
         ).set_tst_in_normal_timestamp_seconds(de_tst_seconds)
         bh = BasicHeader(version=1, rhl=rhl)
-        ch = CommonHeader(ht=HeaderType.LS, hst=LocationServiceHST.LS_REPLY)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.LS,
+                          hst=LocationServiceHST.LS_REPLY)  # type: ignore
         ls_reply = LSReplyExtendedHeader(sn=2, so_pv=so_pv, de_pv=de_spv)
         raw = ls_reply.encode() + b"ls_payload"
         return bh, ch, ls_reply, raw
@@ -1987,6 +2058,7 @@ class TestAnnexC(unittest.TestCase):
         # DE is a neighbour with LocT TST = TIMESTAMP + 1 (newer than packet's DE PV)
         de_entry, de_addr = self._make_de_entry(mib, self._TIMESTAMP + 1.0)
         # LocT entry for SO (get_entry called for SO in PDR check, then for DE in C.3)
+
         def mock_get_entry(addr):
             if addr == de_addr:
                 return de_entry
@@ -1994,7 +2066,8 @@ class TestAnnexC(unittest.TestCase):
         router.location_table.get_entry = Mock(side_effect=mock_get_entry)
 
         # Packet DE PV has older TST = TIMESTAMP
-        bh, ch, guc, raw = self._build_guc_raw_with_tst(so_pv, de_addr, self._TIMESTAMP)
+        bh, ch, guc, raw = self._build_guc_raw_with_tst(
+            so_pv, de_addr, self._TIMESTAMP)
         router.gn_data_indicate_guc(raw, ch, bh)
 
         link_layer.send.assert_called_once()
@@ -2021,6 +2094,7 @@ class TestAnnexC(unittest.TestCase):
 
         # DE is a neighbour with LocT TST = TIMESTAMP (same, not newer than packet's DE PV)
         de_entry, de_addr = self._make_de_entry(mib, self._TIMESTAMP)
+
         def mock_get_entry(addr):
             if addr == de_addr:
                 return de_entry
@@ -2028,7 +2102,8 @@ class TestAnnexC(unittest.TestCase):
         router.location_table.get_entry = Mock(side_effect=mock_get_entry)
 
         # Packet DE PV has the same TST = TIMESTAMP (LocT is not strictly newer)
-        bh, ch, guc, raw = self._build_guc_raw_with_tst(so_pv, de_addr, self._TIMESTAMP)
+        bh, ch, guc, raw = self._build_guc_raw_with_tst(
+            so_pv, de_addr, self._TIMESTAMP)
         router.gn_data_indicate_guc(raw, ch, bh)
 
         link_layer.send.assert_called_once()
@@ -2059,6 +2134,7 @@ class TestAnnexC(unittest.TestCase):
 
         # DE is a neighbour with LocT TST = TIMESTAMP + 1 (newer)
         de_entry, de_addr = self._make_de_entry(mib, self._TIMESTAMP + 1.0)
+
         def mock_get_entry(addr):
             if addr == de_addr:
                 return de_entry
@@ -2090,6 +2166,7 @@ class TestAnnexC(unittest.TestCase):
 
         # DE is a neighbour with LocT TST = TIMESTAMP (not newer than packet)
         de_entry, de_addr = self._make_de_entry(mib, self._TIMESTAMP)
+
         def mock_get_entry(addr):
             if addr == de_addr:
                 return de_entry
@@ -2179,7 +2256,8 @@ class TestAnnexD(unittest.TestCase):
         """§D ELSE, no sender (source op): SE_POS_VALID = False → NON_AREA_FORWARDING."""
         router = self._make_router_outside()
         result = router.gn_forwarding_algorithm_selection(self._make_request())
-        self.assertEqual(result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
+        self.assertEqual(
+            result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
 
     def test_ego_outside_sender_outside_pai_true_returns_non_area_forwarding(self):
         """§D ELSE: sender outside area, PAI=True → F_SE < 0 → NON_AREA_FORWARDING."""
@@ -2194,7 +2272,8 @@ class TestAnnexD(unittest.TestCase):
 
         result = router.gn_forwarding_algorithm_selection(
             self._make_request(), sender_gn_addr=sender_addr)
-        self.assertEqual(result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
+        self.assertEqual(
+            result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
 
     def test_ego_outside_sender_inside_pai_true_returns_discarted(self):
         """§D ELSE: sender inside area, PAI=True → SE_POS_VALID AND F_SE ≥ 0 → DISCARTED."""
@@ -2224,7 +2303,8 @@ class TestAnnexD(unittest.TestCase):
 
         result = router.gn_forwarding_algorithm_selection(
             self._make_request(), sender_gn_addr=sender_addr)
-        self.assertEqual(result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
+        self.assertEqual(
+            result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
 
     def test_ego_outside_sender_not_in_loct_returns_non_area_forwarding(self):
         """§D ELSE: sender not in LocT → PV_SE not found → SE_POS_VALID=False → NON_AREA_FORWARDING."""
@@ -2233,7 +2313,8 @@ class TestAnnexD(unittest.TestCase):
                                  mid=MID(b"\xff\xff\xff\xff\xff\xff"))
         result = router.gn_forwarding_algorithm_selection(
             self._make_request(), sender_gn_addr=unknown_addr)
-        self.assertEqual(result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
+        self.assertEqual(
+            result, GNForwardingAlgorithmResponse.NON_AREA_FORWARDING)
 
     # ── §D.4 GAC indicate – Annex D sender check ────────────────────────────
 
@@ -2241,7 +2322,8 @@ class TestAnnexD(unittest.TestCase):
         """Build a complete GAC wire packet with the given SO PV."""
         area = _make_gac_area(inside=True)  # centred at (0,0), r=100m
         bh = BasicHeader(version=1, rhl=rhl)
-        ch = CommonHeader(ht=HeaderType.GEOANYCAST, hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
+        ch = CommonHeader(ht=HeaderType.GEOANYCAST,
+                          hst=GeoAnycastHST.GEOANYCAST_CIRCLE)  # type: ignore
         gbc = GBCExtendedHeader(
             sn=1, so_pv=so_pv,
             latitude=area.latitude, longitude=area.longitude,
@@ -2253,7 +2335,8 @@ class TestAnnexD(unittest.TestCase):
         """Return a router whose ego is outside the GAC test area at (0,0) r=100m."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         router.duplicate_address_detection = Mock()
         router.location_table.new_gac_packet = Mock()  # prevent LocT-update side-effects
         link_layer = Mock()
@@ -2266,10 +2349,12 @@ class TestAnnexD(unittest.TestCase):
         so_addr = _make_gn_addr()
         # Pre-populate LocT: sender at area centre (0,0), PAI=True → F_SE = 1 ≥ 0
         se_entry = router.location_table.ensure_entry(so_addr)
-        se_pv = LongPositionVector(gn_addr=so_addr, pai=True, latitude=0, longitude=0)
+        se_pv = LongPositionVector(
+            gn_addr=so_addr, pai=True, latitude=0, longitude=0)
         se_entry.update_position_vector(se_pv)
 
-        so_pv = LongPositionVector(gn_addr=so_addr, pai=True, latitude=0, longitude=0)
+        so_pv = LongPositionVector(
+            gn_addr=so_addr, pai=True, latitude=0, longitude=0)
         raw = self._build_gac_raw_with_pv(so_pv, rhl=3)
         ch = CommonHeader.decode_from_bytes(raw[4:12])
         bh = BasicHeader.decode_from_bytes(raw[0:4])
@@ -2284,10 +2369,12 @@ class TestAnnexD(unittest.TestCase):
         so_addr = _make_gn_addr()
         # Pre-populate LocT: sender at area centre (0,0) but PAI=False → SE_POS_VALID = False
         se_entry = router.location_table.ensure_entry(so_addr)
-        se_pv = LongPositionVector(gn_addr=so_addr, pai=False, latitude=0, longitude=0)
+        se_pv = LongPositionVector(
+            gn_addr=so_addr, pai=False, latitude=0, longitude=0)
         se_entry.update_position_vector(se_pv)
 
-        so_pv = LongPositionVector(gn_addr=so_addr, pai=False, latitude=0, longitude=0)
+        so_pv = LongPositionVector(
+            gn_addr=so_addr, pai=False, latitude=0, longitude=0)
         raw = self._build_gac_raw_with_pv(so_pv, rhl=3)
         ch = CommonHeader.decode_from_bytes(raw[4:12])
         bh = BasicHeader.decode_from_bytes(raw[0:4])
@@ -2342,7 +2429,8 @@ class TestAnnexE(unittest.TestCase):
 
     def _neighbour_entry(self, router: Router, lat: int, lon: int):
         """Insert a LocTE marked as neighbour at (lat, lon)."""
-        addr = GNAddress(m=M.GN_MULTICAST, st=ST.UNKNOWN, mid=MID(b"\x01\x02\x03\x04\x05\x06"))
+        addr = GNAddress(m=M.GN_MULTICAST, st=ST.UNKNOWN,
+                         mid=MID(b"\x01\x02\x03\x04\x05\x06"))
         entry = router.location_table.ensure_entry(addr)
         pv = LongPositionVector(gn_addr=addr, latitude=lat, longitude=lon)
         entry.update_position_vector(pv)
@@ -2353,12 +2441,14 @@ class TestAnnexE(unittest.TestCase):
 
     def test_distance_m_zero_same_point(self):
         """Distance from a point to itself is 0."""
-        d = Router._distance_m(self._EGO_LAT, self._EGO_LON, self._EGO_LAT, self._EGO_LON)
+        d = Router._distance_m(self._EGO_LAT, self._EGO_LON,
+                               self._EGO_LAT, self._EGO_LON)
         self.assertAlmostEqual(d, 0.0)
 
     def test_distance_m_positive_different_points(self):
         """Distance between two distinct points is positive."""
-        d = Router._distance_m(self._EGO_LAT, self._EGO_LON, self._DEST_LAT, self._DEST_LON)
+        d = Router._distance_m(self._EGO_LAT, self._EGO_LON,
+                               self._DEST_LAT, self._DEST_LON)
         self.assertGreater(d, 0.0)
 
     # ── gn_greedy_forwarding ────────────────────────────────────────────────
@@ -2371,7 +2461,8 @@ class TestAnnexE(unittest.TestCase):
         mid_lon = (self._EGO_LON + self._DEST_LON) // 2
         self._neighbour_entry(router, self._DEST_LAT, mid_lon)
 
-        result = router.gn_greedy_forwarding(self._DEST_LAT, self._DEST_LON, tc)
+        result = router.gn_greedy_forwarding(
+            self._DEST_LAT, self._DEST_LON, tc)
 
         self.assertTrue(result)
 
@@ -2380,7 +2471,8 @@ class TestAnnexE(unittest.TestCase):
         router = self._make_router()
         tc = TrafficClass(scf=False)
 
-        result = router.gn_greedy_forwarding(self._DEST_LAT, self._DEST_LON, tc)
+        result = router.gn_greedy_forwarding(
+            self._DEST_LAT, self._DEST_LON, tc)
 
         self.assertTrue(result)
 
@@ -2389,7 +2481,8 @@ class TestAnnexE(unittest.TestCase):
         router = self._make_router()
         tc = TrafficClass(scf=True)
 
-        result = router.gn_greedy_forwarding(self._DEST_LAT, self._DEST_LON, tc)
+        result = router.gn_greedy_forwarding(
+            self._DEST_LAT, self._DEST_LON, tc)
 
         self.assertFalse(result)
 
@@ -2401,7 +2494,8 @@ class TestAnnexE(unittest.TestCase):
         far_lon = self._EGO_LON - (self._DEST_LON - self._EGO_LON)
         self._neighbour_entry(router, self._EGO_LAT, far_lon)
 
-        result = router.gn_greedy_forwarding(self._DEST_LAT, self._DEST_LON, tc)
+        result = router.gn_greedy_forwarding(
+            self._DEST_LAT, self._DEST_LON, tc)
 
         self.assertTrue(result)
 
@@ -2416,7 +2510,8 @@ class TestAnnexE(unittest.TestCase):
         far_neigh_lon = self._EGO_LON - (self._DEST_LON - self._EGO_LON) * 2
         self._neighbour_entry(router, self._EGO_LAT, far_neigh_lon)
         # Destination positioned at ego → MFR=0; no neighbour is closer → local optimum
-        dest_addr = GNAddress(m=M.GN_MULTICAST, st=ST.UNKNOWN, mid=MID(b"\xAA\xBB\xCC\xDD\xEE\xFF"))
+        dest_addr = GNAddress(m=M.GN_MULTICAST, st=ST.UNKNOWN,
+                              mid=MID(b"\xAA\xBB\xCC\xDD\xEE\xFF"))
         dest_entry = router.location_table.ensure_entry(dest_addr)
         dest_lpv = LongPositionVector(
             gn_addr=dest_addr, latitude=self._EGO_LAT, longitude=self._EGO_LON)
@@ -2442,7 +2537,8 @@ class TestAnnexE(unittest.TestCase):
         """§E.2 via gn_data_request_gbc: ego outside area + no neighbours + SCF=False → sent."""
         mib = MIB()
         router = Router(mib)
-        router.ego_position_vector = LongPositionVector(latitude=100000000, longitude=100000000)
+        router.ego_position_vector = LongPositionVector(
+            latitude=100000000, longitude=100000000)
         link_layer = Mock()
         router.link_layer = link_layer
 
@@ -2472,7 +2568,8 @@ class TestAnnexE(unittest.TestCase):
         router.link_layer = link_layer
         # Add a neighbour 600 m from area centre (farther than ego) so the
         # "no-neighbours + SCF" pre-check is bypassed and GF is actually exercised
-        neigh_addr = GNAddress(m=M.GN_MULTICAST, st=ST.UNKNOWN, mid=MID(b"\x11\x22\x33\x44\x55\x66"))
+        neigh_addr = GNAddress(
+            m=M.GN_MULTICAST, st=ST.UNKNOWN, mid=MID(b"\x11\x22\x33\x44\x55\x66"))
         neigh_entry = router.location_table.ensure_entry(neigh_addr)
         neigh_pv = LongPositionVector(
             gn_addr=neigh_addr,
@@ -2540,7 +2637,8 @@ class TestAnnexF(unittest.TestCase):
         """§F.3 eq. F.1: DIST=DIST_MAX → TO = TO_CBF_MIN."""
         mib = MIB()
         router = Router(mib)
-        to = router._cbf_compute_timeout_ms(float(mib.itsGnDefaultMaxCommunicationRange))
+        to = router._cbf_compute_timeout_ms(
+            float(mib.itsGnDefaultMaxCommunicationRange))
         self.assertAlmostEqual(to, mib.itsGnCbfMinTime)
 
     def test_cbf_timeout_linear_midpoint(self):
@@ -2603,7 +2701,6 @@ class TestAnnexF(unittest.TestCase):
         bh, ch, gbc = self._make_gbc_headers(so_pv)
 
         fired_event = threading.Event()
-        original_send = link_layer.send.side_effect
 
         def send_and_signal(pkt):
             fired_event.set()

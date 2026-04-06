@@ -57,7 +57,7 @@ FROM Ieee1609Dot2BaseTypes {iso(1) identified-organization(3) ieee(111)
  * 7.4 the crlCraca is consistent with the associatedCraca field in the
  * Service Specific Permissions as defined in 7.4.3.3. The HashedId8 is
  * calculated with the whole-certificate hash algorithm, determined as
- * described in 6.4.3, applied to the COER-encoded certificate, canonicalized 
+ * described in 6.4.3, applied to the COER-encoded certificate, canonicalized
  * as defined in the definition of Certificate.
  *
  * @param issueDate: specifies the time when the CRL was issued.
@@ -78,8 +78,8 @@ CrlContents ::= SEQUENCE {
   version      Uint8 (1),
   crlSeries    CrlSeries,
   crlCraca     HashedId8,
-  issueDate    Time32,   
-  nextCrl      Time32,  
+  issueDate    Time32,
+  nextCrl      Time32,
   priorityInfo CrlPriorityInfo,
   typeSpecific TypeSpecificCrlContents
 }
@@ -97,7 +97,7 @@ CrlContents ::= SEQUENCE {
  * @note This mechanism is for future use; details are not specified in this
  * version of the standard.
  */
-CrlPriorityInfo ::= SEQUENCE {  
+CrlPriorityInfo ::= SEQUENCE {
   priority Uint8 OPTIONAL,
   ...
 }
@@ -121,7 +121,7 @@ CrlPriorityInfo ::= SEQUENCE {
  * A Hash-based CRL should not include any certificates that had expired at the
  * time the CRL was generated; however, the inclusion of expired certificates
  * does not make a CRL invalid, and there is no expectation that receivers of a
- * CRL will check whether any of the certificates on the CRL have expired. 
+ * CRL will check whether any of the certificates on the CRL have expired.
  *
  * @note Since a recipient of a hash-based CRLonly receives the hash, they
  * cannot directly establish the validity period of any certificate on the CRL
@@ -153,8 +153,8 @@ CrlPriorityInfo ::= SEQUENCE {
  * receiver of the CRL. See below in this subclause for details.
  *
  * @note It is the intent of this standard that once a certificate is revoked,
- * it remains revoked for the rest of its lifetime. CRL signers are expected 
- * to include a revoked certificate on all CRLs issued between the 
+ * it remains revoked for the rest of its lifetime. CRL signers are expected
+ * to include a revoked certificate on all CRLs issued between the
  * certificate's revocation and its expiry.
  *
  * @note Seed evolution function and linkage value generation function
@@ -178,8 +178,8 @@ CrlPriorityInfo ::= SEQUENCE {
  * lvGenFn1-sm4.
  */
 TypeSpecificCrlContents ::= CHOICE {
-  fullHashCrl           ToBeSignedHashIdCrl,            
-  deltaHashCrl          ToBeSignedHashIdCrl,            
+  fullHashCrl           ToBeSignedHashIdCrl,
+  deltaHashCrl          ToBeSignedHashIdCrl,
   fullLinkedCrl         ToBeSignedLinkageValueCrl,
   deltaLinkedCrl        ToBeSignedLinkageValueCrl,
   ...,
@@ -198,11 +198,11 @@ TypeSpecificCrlContents ::= CHOICE {
  *
  * @param entries: contains the individual revocation information items.
  *
- * @note To indicate that a hash-based CRL contains no individual revocation 
- * information items, the recommended approach is for the SEQUENCE OF in the 
+ * @note To indicate that a hash-based CRL contains no individual revocation
+ * information items, the recommended approach is for the SEQUENCE OF in the
  * SequenceOfHashBasedRevocationInfo in this field to indicate zero entries.
  */
-ToBeSignedHashIdCrl ::= SEQUENCE {  
+ToBeSignedHashIdCrl ::= SEQUENCE {
   crlSerial Uint32,
   entries   SequenceOfHashBasedRevocationInfo,
   ...
@@ -211,14 +211,14 @@ ToBeSignedHashIdCrl ::= SEQUENCE {
 /**
  * @brief This type is used for clarity of definitions.
  */
-SequenceOfHashBasedRevocationInfo ::= 
-  SEQUENCE OF HashBasedRevocationInfo 
+SequenceOfHashBasedRevocationInfo ::=
+  SEQUENCE OF HashBasedRevocationInfo
 
 /**
  * @brief In this structure:
  *
- * @param	id: is the HashedId10 identifying the revoked certificate. The 
- * HashedId10 is calculated with the whole-certificate hash algorithm, 
+ * @param	id: is the HashedId10 identifying the revoked certificate. The
+ * HashedId10 is calculated with the whole-certificate hash algorithm,
  * determined as described in 6.4.3, applied to the COER-encoded certificate,
  * canonicalized as defined in the definition of Certificate.
  *
@@ -255,7 +255,7 @@ HashBasedRevocationInfo ::= SEQUENCE {
  * data, the recommended approach is for the SEQUENCE OF in the
  * SequenceOfGroupCrlEntry in this field to indicate zero entries.
  *
- * @param groupsSingleSeed: contains group linkage data generated with a single 
+ * @param groupsSingleSeed: contains group linkage data generated with a single
  * seed.
  *
  * @param iPeriodInfo contains information about the duration of the revocation
@@ -263,7 +263,7 @@ HashBasedRevocationInfo ::= SEQUENCE {
  * necessary to have calculated the linkage values associated with future time
  * periods.
  */
-ToBeSignedLinkageValueCrl ::= SEQUENCE {  
+ToBeSignedLinkageValueCrl ::= SEQUENCE {
   iRev             IValue,
   indexWithinI     Uint8,
   individual       SequenceOfJMaxGroup OPTIONAL,
@@ -328,20 +328,20 @@ SequenceOfIMaxGroup ::= SEQUENCE OF IMaxGroup
 /**
  * @brief In this structure:
  *
- * @param iMax indicates that for the entries in contents, revocation 
- * information need no longer be calculated once iCert > iMax as the holder 
- * is known to have no more valid certs at that point. iMax is not directly 
- * used in the calculation of the linkage values, it is used to determine 
+ * @param iMax indicates that for the entries in contents, revocation
+ * information need no longer be calculated once iCert > iMax as the holder
+ * is known to have no more valid certs at that point. iMax is not directly
+ * used in the calculation of the linkage values, it is used to determine
  * when revocation information can safely be deleted.
  *
- * @param contents contains individual linkage data for certificates that are 
- * revoked using two seeds, per the algorithm given in per the mechanisms 
- * given in 5.1.3.4 and with seedEvolutionFunctionIdentifier and 
+ * @param contents contains individual linkage data for certificates that are
+ * revoked using two seeds, per the algorithm given in per the mechanisms
+ * given in 5.1.3.4 and with seedEvolutionFunctionIdentifier and
  * linkageValueGenerationFunctionIdentifier obtained as specified in 7.3.3.
  *
- * @param singleSeed contains individual linkage data for certificates that 
- * are revoked using a single seed, per the algorithm given in per the 
- * mechanisms given in 5.1.3.4 and with seedEvolutionFunctionIdentifier and 
+ * @param singleSeed contains individual linkage data for certificates that
+ * are revoked using a single seed, per the algorithm given in per the
+ * mechanisms given in 5.1.3.4 and with seedEvolutionFunctionIdentifier and
  * linkageValueGenerationFunctionIdentifier obtained as specified in 7.3.3.
  */
 IMaxGroup ::= SEQUENCE {
@@ -354,19 +354,19 @@ IMaxGroup ::= SEQUENCE {
 /**
  * @brief This type is used for clarity of definitions.
  */
-SequenceOfIndividualRevocation ::= 
+SequenceOfIndividualRevocation ::=
   SEQUENCE (SIZE(0..MAX)) OF IndividualRevocation
 
 /**
  * @brief In this structure:
  *
- * @param linkageSeed1 is the value LinkageSeed1 used in the algorithm given 
+ * @param linkageSeed1 is the value LinkageSeed1 used in the algorithm given
  * in 5.1.3.4.
  *
- * @param linkageSeed2 is the value LinkageSeed2 used in the algorithm given 
+ * @param linkageSeed2 is the value LinkageSeed2 used in the algorithm given
  * in 5.1.3.4.
- */ 
-IndividualRevocation ::= SEQUENCE { 
+ */
+IndividualRevocation ::= SEQUENCE {
   linkageSeed1 LinkageSeed,
   linkageSeed2 LinkageSeed,
   ...
@@ -380,22 +380,22 @@ SequenceOfGroupCrlEntry ::= SEQUENCE OF GroupCrlEntry
 /**
  * @brief In this structure:
  *
- * @param iMax: indicates that for these certificates, revocation information 
- * need no longer be calculated once iCert > iMax as the holders are known 
+ * @param iMax: indicates that for these certificates, revocation information
+ * need no longer be calculated once iCert > iMax as the holders are known
  * to have no more valid certs for that (crlCraca, crlSeries) at that point.
  *
- * @param la1Id: is the value LinkageAuthorityIdentifier1 used in the 
- * algorithm given in 5.1.3.4. This value applies to all linkage-based 
+ * @param la1Id: is the value LinkageAuthorityIdentifier1 used in the
+ * algorithm given in 5.1.3.4. This value applies to all linkage-based
  * revocation information included within contents.
  *
- * @param linkageSeed1: is the value LinkageSeed1 used in the algorithm given 
+ * @param linkageSeed1: is the value LinkageSeed1 used in the algorithm given
  * in 5.1.3.4.
  *
- * @param la2Id: is the value LinkageAuthorityIdentifier2 used in the 
- * algorithm given in 5.1.3.4. This value applies to all linkage-based 
+ * @param la2Id: is the value LinkageAuthorityIdentifier2 used in the
+ * algorithm given in 5.1.3.4. This value applies to all linkage-based
  * revocation information included within contents.
  *
- * @param linkageSeed2: is the value LinkageSeed2 used in the algorithm given 
+ * @param linkageSeed2: is the value LinkageSeed2 used in the algorithm given
  * in 5.1.3.4.
  */
 GroupCrlEntry ::= SEQUENCE {
@@ -409,36 +409,36 @@ GroupCrlEntry ::= SEQUENCE {
 
 /**
  * @brief In this structure:
- * 
- * @param iRev is the value iRev used in the algorithm given in 5.1.3.4. This 
- * value applies to all linkage-based revocation information included within 
+ *
+ * @param iRev is the value iRev used in the algorithm given in 5.1.3.4. This
+ * value applies to all linkage-based revocation information included within
  * either indvidual or groups.
- * 
- * @param indexWithinI is a counter that is set to 0 for the first CRL issued 
+ *
+ * @param indexWithinI is a counter that is set to 0 for the first CRL issued
  * for the indicated combination of crlCraca, crlSeries, and iRev, and increments
- * by 1 every time a new full or delta CRL is issued for the indicated crlCraca 
+ * by 1 every time a new full or delta CRL is issued for the indicated crlCraca
  * and crlSeries values without changing iRev.
- * 
- * @param seedEvolution contains an identifier for the seed evolution 
+ *
+ * @param seedEvolution contains an identifier for the seed evolution
  * function, used as specified in  5.1.3.4.
- * 
- * @param lvGeneration contains an identifier for the linkage value 
+ *
+ * @param lvGeneration contains an identifier for the linkage value
  * generation function, used as specified in  5.1.3.4.
- * 
+ *
  * @param individual contains individual linkage data.
- * 
- * @param groups contains group linkage data for linkage value generation 
+ *
+ * @param groups contains group linkage data for linkage value generation
  * with two seeds.
- * 
- * @param groupsSingleSeed contains group linkage data for linkage value 
+ *
+ * @param groupsSingleSeed contains group linkage data for linkage value
  * generation with one seed.
  *
- * @param iPeriodInfo contains information about the duration of the 
+ * @param iPeriodInfo contains information about the duration of the
  * revocation time periods, to allow a receiver to determine at what point
  * it will be necessary to have calculated the linkage values associated
  * with future time periods.
  */
-ToBeSignedLinkageValueCrlWithAlgIdentifier ::= SEQUENCE {  
+ToBeSignedLinkageValueCrlWithAlgIdentifier ::= SEQUENCE {
   iRev             IValue,
   indexWithinI     Uint8,
   seedEvolution    SeedEvolutionFunctionIdentifier,
@@ -454,11 +454,11 @@ ToBeSignedLinkageValueCrlWithAlgIdentifier ::= SEQUENCE {
 /**
  * @brief This type is used for clarity of definitions.
  */
-SequenceOfGroupSingleSeedCrlEntry ::= 
+SequenceOfGroupSingleSeedCrlEntry ::=
   SEQUENCE OF GroupSingleSeedCrlEntry
 
 /**
- * @brief This structure contains the linkage seed for group revocation with 
+ * @brief This structure contains the linkage seed for group revocation with
  * a single seed. The seed is used as specified in the algorithms in 5.1.3.4.
  */
 GroupSingleSeedCrlEntry ::= SEQUENCE {
@@ -468,7 +468,7 @@ GroupSingleSeedCrlEntry ::= SEQUENCE {
 }
 
 /**
- * @brief This structure contains an identifier for the algorithms specified 
+ * @brief This structure contains an identifier for the algorithms specified
  * in 5.1.3.4.
  */
 ExpansionAlgorithmIdentifier ::= ENUMERATED {
@@ -478,13 +478,13 @@ ExpansionAlgorithmIdentifier ::= ENUMERATED {
 }
 
 /**
- * @brief This is the identifier for the seed evolution function. See 5.1.3 
+ * @brief This is the identifier for the seed evolution function. See 5.1.3
  * for details of use.
  */
 SeedEvolutionFunctionIdentifier ::= NULL
 
 /**
- * @brief This is the identifier for the linkage value generation function. 
+ * @brief This is the identifier for the linkage value generation function.
  * See 5.1.3 for details of use.
  */
 LvGenerationFunctionIdentifier ::= NULL
@@ -504,7 +504,7 @@ LvGenerationFunctionIdentifier ::= NULL
  * should be the minimum necessary to convey the information, e.g. if the
  * duration of the time periods is not going to change, the CRL should contain
  * a single IPeriodInfo.
- * 
+ *
  * @note The information about the duration of future time periods can be
  * assumed to be available to the CRL signer, because pseudonym certificates
  * that use linkage values are typically issued for future time periods rather
@@ -516,13 +516,13 @@ LvGenerationFunctionIdentifier ::= NULL
  * synch with each other so that all certificates on the same CRL will have
  * synchronized time period starts and ends. How these CAs are synchronized
  * with each other is out of scope for this document.
- * 
+ *
  * An IPeriodInfo appears in a CRL that has an iRev field. The CRL contains a
  * SEQUENCE of IPeriodInfo. Each IPeriodInfo makes use of the previous iRev
  * value, prevI. For the first IPeriodInfo in the SEQUENCE, prevI is the value
  * of iRev in the CRL. For each subsequent IPeriodInfo in the SEQUENCE, prevI
- * is the value of guaranteedToIValue in the previous IPeriodInfo. 
- * 
+ * is the value of guaranteedToIValue in the previous IPeriodInfo.
+ *
  * In this structure:
  *
  * @param startOfNextIPeriod is the start time of the i-period with i = prevI +

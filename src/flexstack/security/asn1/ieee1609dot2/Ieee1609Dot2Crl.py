@@ -39,21 +39,21 @@ FROM Ieee1609Dot2CrlBaseTypes {iso(1) identified-organization(3) ieee(111)
 CrlPsid ::= Psid(256)
 
 /**
- * @brief This structure is the SPDU used to contain a signed CRL. A valid 
+ * @brief This structure is the SPDU used to contain a signed CRL. A valid
  * signed CRL meets the validity criteria of 7.4.
  */
-SecuredCrl ::= Ieee1609Dot2Data (WITH COMPONENTS {..., 
+SecuredCrl ::= Ieee1609Dot2Data (WITH COMPONENTS {...,
   content (WITH COMPONENTS {
-    signedData  (WITH COMPONENTS {..., 
+    signedData  (WITH COMPONENTS {...,
       tbsData (WITH COMPONENTS {
-        payload (WITH COMPONENTS {..., 
+        payload (WITH COMPONENTS {...,
           data (WITH COMPONENTS {...,
              content (WITH COMPONENTS {
                 unsecuredData (CONTAINING CrlContents)
             })
           })
         }),
-        headerInfo (WITH COMPONENTS {..., 
+        headerInfo (WITH COMPONENTS {...,
           psid (CrlPsid),
           generationTime ABSENT,
           expiryTime ABSENT,

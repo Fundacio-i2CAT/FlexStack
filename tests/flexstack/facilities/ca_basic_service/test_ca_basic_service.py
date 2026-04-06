@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from flexstack.facilities.ca_basic_service.ca_basic_service import (
     CooperativeAwarenessBasicService,
 )
@@ -54,4 +54,3 @@ class TestCooperativeAwarenessBasicService(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

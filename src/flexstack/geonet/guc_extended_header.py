@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from .exceptions import DecodeError
 from .position_vector import LongPositionVector, ShortPositionVector
-from .service_access_point import GNDataRequest
 
 
 @dataclass(frozen=True)
