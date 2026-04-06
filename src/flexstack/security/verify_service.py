@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .sn_sap import ReportVerify, SNVERIFYRequest, SNVERIFYConfirm
 from .sign_service import ECDSABackend, SignService
 from .certificate import SECURITY_CODER
