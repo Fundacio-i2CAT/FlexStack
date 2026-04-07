@@ -238,7 +238,7 @@ class TestSNVERIFYConfirm(unittest.TestCase):
             its_aid=self.its_aid,
             permissions=self.permissions,
         )
-        expected_repr = f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, permissions={self.permissions})"
+        expected_repr = f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, permissions={self.permissions}, plain_message={b''})"
         self.assertEqual(repr(confirm), expected_repr)
 
     def test_str(self):
@@ -249,8 +249,32 @@ class TestSNVERIFYConfirm(unittest.TestCase):
             its_aid=self.its_aid,
             permissions=self.permissions,
         )
-        expected_str = f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, permissions={self.permissions})"
+        expected_str = f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, permissions={self.permissions}, plain_message={b''})"
         self.assertEqual(str(confirm), expected_str)
+
+    def test_plain_message_defaults_to_empty(self):
+        """Test that plain_message defaults to empty bytes when not provided."""
+        confirm = SNVERIFYConfirm(
+            report=self.report,
+            certificate_id=self.certificate_id,
+            its_aid_length=self.its_aid_length,
+            its_aid=self.its_aid,
+            permissions=self.permissions,
+        )
+        self.assertEqual(confirm.plain_message, b"")
+
+    def test_plain_message_can_be_set(self):
+        """Test that plain_message is stored correctly when explicitly provided."""
+        payload = b"inner_gn_payload"
+        confirm = SNVERIFYConfirm(
+            report=self.report,
+            certificate_id=self.certificate_id,
+            its_aid_length=self.its_aid_length,
+            its_aid=self.its_aid,
+            permissions=self.permissions,
+            plain_message=payload,
+        )
+        self.assertEqual(confirm.plain_message, payload)
 
 
 class TestSNENCRYPTRequest(unittest.TestCase):

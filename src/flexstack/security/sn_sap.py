@@ -35,6 +35,10 @@ class SNSIGNRequest:
         Context information which could be used in selecting properties of the underlying security protocol for various purposes.
     key_handle : int (optional)
         An indicator for the security entity to decide which key to use
+    generation_location : dict | None (optional)
+        3D location to embed in the signed message headerInfo as generationLocation.
+        Required for DENM (§7.1.2).  Expected keys: 'latitude' (int), 'longitude' (int),
+        'elevation' (int, Uint16 in 0.2 m units; 0xF000 = unavailable).
     """
     tbs_message_length: int
     tbs_message: bytes
@@ -43,6 +47,7 @@ class SNSIGNRequest:
     permissions: bytes
     context_information: bytes | None = None
     key_handle: int | None = None
+    generation_location: dict | None = None
 
     def __repr__(self):
         return (
@@ -174,25 +179,29 @@ class SNVERIFYConfirm:
         ITS AID
     permissions : bytes
         Permissions of the signer (Max length 31 octets)
+    plain_message : bytes
+        The verified plain-text payload extracted from the signed message.
+        Empty bytes when verification does not succeed.
     """
     report: ReportVerify
     certificate_id: bytes
     its_aid_length: int
     its_aid: bytes
     permissions: bytes
+    plain_message: bytes = b""
 
     def __repr__(self):
         return (
             f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, "
             f"its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, "
-            f"permissions={self.permissions})"
+            f"permissions={self.permissions}, plain_message={self.plain_message})"
         )
 
     def __str__(self):
         return (
             f"SNVERIFYConfirm(report={self.report}, certificate_id={self.certificate_id}, "
             f"its_aid_length={self.its_aid_length}, its_aid={self.its_aid}, "
-            f"permissions={self.permissions})"
+            f"permissions={self.permissions}, plain_message={self.plain_message})"
         )
 
 

@@ -1,3 +1,6 @@
+# Generated certificate chain (private keys – never commit)
+examples/certs/
+
 # Byte-compiled / optimized / DLL files
 *__pycache__/*
 *.py[cod]
@@ -169,3 +172,6 @@ doc/_build/
 gpsd_fake.py
 src\flexstack\facilities\local_dynamic_map\todo.txt
 storage.json
+*.pdf
+*.txt
+acceptance_tests/

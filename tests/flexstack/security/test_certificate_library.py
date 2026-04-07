@@ -314,6 +314,28 @@ class TestCertificateLibrary(unittest.TestCase):
                 [{"at": "data"}, {"aa": "data"}, {"root": "data"}], self.backend
             )
 
+    def test_get_ca_certificate_by_hashedid3_found_in_aa(self):
+        """get_ca_certificate_by_hashedid3 finds AA cert by last 3 bytes of its HashedId8."""
+        library = CertificateLibrary(
+            self.backend, [self.root_cert], [self.aa_cert], []
+        )
+        # AA hashedid8 = b'\x11\x12\x13\x14\x15\x16\x17\x18' → hashedid3 = b'\x16\x17\x18'
+        result = library.get_ca_certificate_by_hashedid3(b'\x16\x17\x18')
+        self.assertEqual(result, self.aa_cert)
+
+    def test_get_ca_certificate_by_hashedid3_found_in_root(self):
+        """get_ca_certificate_by_hashedid3 finds Root CA cert by last 3 bytes of its HashedId8."""
+        library = CertificateLibrary(self.backend, [self.root_cert], [], [])
+        # Root hashedid8 = b'\x01\x02\x03\x04\x05\x06\x07\x08' → hashedid3 = b'\x06\x07\x08'
+        result = library.get_ca_certificate_by_hashedid3(b'\x06\x07\x08')
+        self.assertEqual(result, self.root_cert)
+
+    def test_get_ca_certificate_by_hashedid3_not_found(self):
+        """get_ca_certificate_by_hashedid3 returns None when no certificate matches."""
+        library = CertificateLibrary(self.backend, [], [], [])
+        result = library.get_ca_certificate_by_hashedid3(b'\xff\xff\xff')
+        self.assertIsNone(result)
+
 
 if __name__ == '__main__':
     unittest.main()

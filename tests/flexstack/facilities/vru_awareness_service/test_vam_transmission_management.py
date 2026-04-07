@@ -252,10 +252,12 @@ class TestVAMTransmissionManagement(unittest.TestCase):
     def test_location_service_callback_first_sending(self) -> None:
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_called_once()
-        sent_vam: VAMMessage = self.vam_transmission_management.send_next_vam.call_args.kwargs["vam"]
+        sent_vam: VAMMessage = self.vam_transmission_management.send_next_vam.call_args.kwargs[
+            "vam"]
         self.assertIsInstance(sent_vam, VAMMessage)
         self.assertEqual(
             sent_vam.vam["header"]["stationId"],
@@ -277,7 +279,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self.vam_transmission_management.t_genvam = vam_constants.T_GENVAMMIN
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
@@ -291,7 +294,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self._set_previous_vam_state()
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_not_called()
 
@@ -305,7 +309,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self._set_previous_vam_state()
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
@@ -319,7 +324,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self._set_previous_vam_state(speed=-1.0)
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_called_once()
 
@@ -333,7 +339,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self._set_previous_vam_state(speed=0.2)
         self.vam_transmission_management.send_next_vam = MagicMock()
 
-        self.vam_transmission_management.location_service_callback(self.tpv_data)
+        self.vam_transmission_management.location_service_callback(
+            self.tpv_data)
 
         self.vam_transmission_management.send_next_vam.assert_not_called()
 
@@ -348,7 +355,8 @@ class TestVAMTransmissionManagement(unittest.TestCase):
         self.btp_router.btp_data_request.assert_called_once()
         self.assertEqual(
             self.vam_transmission_management.last_vam_generation_delta_time,
-            GenerationDeltaTime(msec=vam_message.vam["vam"]["generationDeltaTime"]),
+            GenerationDeltaTime(
+                msec=vam_message.vam["vam"]["generationDeltaTime"]),
         )
 
     def test_send_next_vam_updates_ldm(self) -> None:
@@ -364,7 +372,198 @@ class TestVAMTransmissionManagement(unittest.TestCase):
 
         manager.send_next_vam(vam_message)
 
-        ldm_adapter.add_provider_data_to_ldm.assert_called_once_with(vam_message.vam)
+        ldm_adapter.add_provider_data_to_ldm.assert_called_once_with(
+            vam_message.vam)
+
+    # ------------------------------------------------------------------
+    # Condition 4: heading-change trigger (clause 6.4.1)
+    # ------------------------------------------------------------------
+
+    @patch(
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
+    )
+    def test_location_service_callback_heading_threshold(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        """A heading change > MINGROUNDVELOCITYORIENTATIONCHANGETHRESHOLD triggers a VAM."""
+        self._set_previous_vam_state()
+        # Set last heading to 0°; new track is well above the 4° threshold.
+        self.vam_transmission_management.last_vam_heading = 0.0
+        tpv = dict(self.tpv_data)
+        tpv["track"] = vam_constants.MINGROUNDVELOCITYORIENTATIONCHANGETHRESHOLD + 5.0
+        self.vam_transmission_management.send_next_vam = MagicMock()
+
+        self.vam_transmission_management.location_service_callback(tpv)
+
+        self.vam_transmission_management.send_next_vam.assert_called_once()
+
+    @patch(
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
+    )
+    def test_location_service_callback_heading_threshold_not_met(
+        self, _mock_distance: MagicMock
+    ) -> None:
+        """A heading change <= threshold should NOT trigger a VAM on its own."""
+        self._set_previous_vam_state()
+        self.vam_transmission_management.last_vam_heading = 0.0
+        tpv = dict(self.tpv_data)
+        tpv["track"] = vam_constants.MINGROUNDVELOCITYORIENTATIONCHANGETHRESHOLD - 1.0
+        self.vam_transmission_management.send_next_vam = MagicMock()
+
+        self.vam_transmission_management.location_service_callback(tpv)
+
+        self.vam_transmission_management.send_next_vam.assert_not_called()
+
+    @patch(
+        "flexstack.facilities.vru_awareness_service.vam_transmission_management.Utils.euclidian_distance",
+        return_value=0,
+    )
+    def test_heading_wrap_around_360(self, _mock_distance: MagicMock) -> None:
+        """Heading diff of 355° vs 5° should resolve to 10°, which is > 4°."""
+        self._set_previous_vam_state()
+        self.vam_transmission_management.last_vam_heading = 355.0
+        tpv = dict(self.tpv_data)
+        tpv["track"] = 5.0  # 10° difference across 0°/360° boundary
+        self.vam_transmission_management.send_next_vam = MagicMock()
+
+        self.vam_transmission_management.location_service_callback(tpv)
+
+        self.vam_transmission_management.send_next_vam.assert_called_once()
+
+    def test_heading_fields_use_value_and_confidence(self) -> None:
+        """VAMMessage heading dict uses 'value'/'confidence', not legacy names."""
+        tpv = dict(self.tpv_data)
+        tpv["track"] = 180.0
+        tpv["epd"] = 5.0
+        vam_message = VAMMessage()
+        vam_message.fullfill_high_frequency_container_with_tpv_data(tpv)
+        heading = vam_message.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"]
+        self.assertIn("value", heading)
+        self.assertIn("confidence", heading)
+        self.assertNotIn("headingValue", heading)
+        self.assertNotIn("headingConfidence", heading)
+        self.assertEqual(heading["value"], int(180.0 * 10))
+
+    def test_send_next_vam_updates_heading_tracking(self) -> None:
+        """send_next_vam stores the transmitted heading for future diff checks."""
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
+        vam_message.vam["vam"]["vamParameters"]["vruHighFrequencyContainer"]["heading"][
+            "value"
+        ] = 900  # 90.0°
+        self.vam_transmission_management.send_next_vam(vam_message)
+        self.assertAlmostEqual(
+            self.vam_transmission_management.last_vam_heading, 90.0)
+
+    # ------------------------------------------------------------------
+    # LF container (clause 6.2)
+    # ------------------------------------------------------------------
+
+    def test_lf_container_included_on_first_vam(self) -> None:
+        """The VRU Low-Frequency Container must be present in the first VAM."""
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
+        self.vam_transmission_management.send_next_vam(vam_message)
+        self.assertIn(
+            "vruLowFrequencyContainer",
+            vam_message.vam["vam"]["vamParameters"],
+        )
+
+    def test_lf_container_not_included_when_not_due(self) -> None:
+        """After first VAM, LF container should NOT be included until T_GenVamLFMin expires."""
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        # Send first VAM (sets last_lf_vam_time and is_first_vam=False)
+        self.vam_transmission_management.send_next_vam(VAMMessage())
+        # Immediately send a second VAM — LF timeout has not elapsed
+        vam2 = VAMMessage()
+        self.vam_transmission_management.send_next_vam(vam2)
+        # LF container should be absent on the second VAM
+        self.assertNotIn(
+            "vruLowFrequencyContainer",
+            vam2.vam["vam"]["vamParameters"],
+        )
+
+    def test_lf_container_included_after_timeout(self) -> None:
+        """LF container re-appears once T_GenVamLFMin has elapsed."""
+        import time as _time_module
+
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        self.vam_transmission_management.send_next_vam(VAMMessage())
+        # Backdate last_lf_vam_time so the timeout has expired
+        self.vam_transmission_management.last_lf_vam_time = (
+            _time_module.time() - vam_constants.T_GENVAM_LFMIN / 1000.0 - 1.0
+        )
+        vam2 = VAMMessage()
+        self.vam_transmission_management.send_next_vam(vam2)
+        self.assertIn(
+            "vruLowFrequencyContainer",
+            vam2.vam["vam"]["vamParameters"],
+        )
+
+    # ------------------------------------------------------------------
+    # Clustering integration
+    # ------------------------------------------------------------------
+
+    def test_passive_vru_suppresses_transmission(self) -> None:
+        """VAM must not be sent when clustering manager says not to transmit."""
+        clustering_manager = MagicMock()
+        clustering_manager.should_transmit_vam.return_value = False
+        manager = VAMTransmissionManagement(
+            self.btp_router,
+            self.vam_coder,
+            self.device_data_provider,
+            clustering_manager=clustering_manager,
+        )
+        manager.send_next_vam = MagicMock()
+
+        manager.location_service_callback(self.tpv_data)
+
+        manager.send_next_vam.assert_not_called()
+
+    def test_cluster_info_container_attached_on_send(self) -> None:
+        """Cluster information container from manager is injected into outgoing VAM."""
+        clustering_manager = MagicMock()
+        clustering_manager.get_cluster_information_container.return_value = {
+            "vruClusterInformation": {"clusterId": 7, "clusterCardinalitySize": 3,
+                                      "clusterBoundingBoxShape": {"circular": {"radius": 5}}}
+        }
+        clustering_manager.get_cluster_operation_container.return_value = None
+        manager = VAMTransmissionManagement(
+            self.btp_router,
+            self.vam_coder,
+            self.device_data_provider,
+            clustering_manager=clustering_manager,
+        )
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
+        manager.send_next_vam(vam_message)
+        self.assertIn(
+            "vruClusterInformationContainer",
+            vam_message.vam["vam"]["vamParameters"],
+        )
+
+    def test_cluster_op_container_attached_on_send(self) -> None:
+        """Cluster operation container from manager is injected into outgoing VAM."""
+        clustering_manager = MagicMock()
+        clustering_manager.get_cluster_information_container.return_value = None
+        clustering_manager.get_cluster_operation_container.return_value = {
+            "clusterJoinInfo": {"clusterId": 5, "joinTime": 10}
+        }
+        manager = VAMTransmissionManagement(
+            self.btp_router,
+            self.vam_coder,
+            self.device_data_provider,
+            clustering_manager=clustering_manager,
+        )
+        self.vam_coder.encode = MagicMock(return_value=b"encoded")
+        vam_message = VAMMessage()
+        manager.send_next_vam(vam_message)
+        self.assertIn(
+            "vruClusterOperationContainer",
+            vam_message.vam["vam"]["vamParameters"],
+        )
 
 
 if __name__ == "__main__":

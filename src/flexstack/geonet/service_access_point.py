@@ -1,8 +1,9 @@
 from enum import Enum
 from base64 import b64encode, b64decode
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from .position_vector import LongPositionVector
+from .gn_address import GNAddress
 from ..security.security_profiles import SecurityProfile
 
 
@@ -423,7 +424,9 @@ class GNDataRequest:
     length: int = 0
     data: bytes = b""
     area: Area = field(default_factory=Area)
-    max_hop_limit: int = 10
+    max_hop_limit: int = 1
+    max_packet_lifetime: Optional[float] = None
+    destination: Optional[GNAddress] = None
 
     def to_dict(self) -> dict:
         """
@@ -444,6 +447,8 @@ class GNDataRequest:
             "length": self.length,
             "data": b64encode(self.data).decode("utf-8"),
             "area": self.area.to_dict(),
+            "max_hop_limit": self.max_hop_limit,
+            "max_packet_lifetime": self.max_packet_lifetime,
         }
 
     @classmethod
@@ -470,6 +475,8 @@ class GNDataRequest:
         length = gn_data_request["length"]
         data = b64decode(gn_data_request["data"])
         area = Area.from_dict(gn_data_request["area"])
+        max_hop_limit = gn_data_request.get("max_hop_limit", 0)
+        max_packet_lifetime = gn_data_request.get("max_packet_lifetime")
         return cls(
             upper_protocol_entity=upper_protocol_entity,
             packet_transport_type=packet_transport_type,
@@ -478,6 +485,8 @@ class GNDataRequest:
             length=length,
             data=data,
             area=area,
+            max_hop_limit=max_hop_limit,
+            max_packet_lifetime=max_packet_lifetime,
         )
 
 
@@ -538,10 +547,16 @@ class GNDataIndication:
         Upper Protocol Entity.
     packet_transport_type : PacketTransportType
         Packet Transport Type.
+    destination_area : Area or None
+        Destination geographical area (GBC/GAC only). Optional per Annex J4.
     source_position_vector : LongPositionVector
         Source Position Vector.
     traffic_class : TrafficClass
         Traffic Class.
+    remaining_packet_lifetime : float or None
+        Remaining lifetime of the packet in seconds. Optional per Annex J4.
+    remaining_hop_limit : int or None
+        Remaining hop limit of the packet. Optional per Annex J4.
     length : int
         Length of the payload.
     data : bytes
@@ -551,9 +566,12 @@ class GNDataIndication:
     upper_protocol_entity: CommonNH = CommonNH.ANY
     packet_transport_type: PacketTransportType = field(
         default_factory=PacketTransportType)
+    destination_area: Optional[Any] = None
     source_position_vector: LongPositionVector = field(
         default_factory=LongPositionVector)
     traffic_class: TrafficClass = field(default_factory=TrafficClass)
+    remaining_packet_lifetime: Optional[float] = None
+    remaining_hop_limit: Optional[int] = None
     length: int = 0
     data: bytes = b""
 
@@ -569,12 +587,15 @@ class GNDataIndication:
         return {
             "upper_protocol_entity": self.upper_protocol_entity.value,
             "packet_transport_type": self.packet_transport_type.to_dict(),
+            "destination_area": self.destination_area.to_dict() if self.destination_area is not None else None,
             "source_position_vector": b64encode(
                 self.source_position_vector.encode()
             ).decode("utf-8"),
             "traffic_class": b64encode(self.traffic_class.encode_to_bytes()).decode(
                 "utf-8"
             ),
+            "remaining_packet_lifetime": self.remaining_packet_lifetime,
+            "remaining_hop_limit": self.remaining_hop_limit,
             "length": self.length,
             "data": b64encode(self.data).decode("utf-8"),
         }
@@ -594,19 +615,26 @@ class GNDataIndication:
         packet_transport_type = PacketTransportType.from_dict(
             gn_data_indication["packet_transport_type"]
         )
+        raw_dest = gn_data_indication.get("destination_area")
+        destination_area = Area.from_dict(raw_dest) if raw_dest is not None else None
         source_position_vector = LongPositionVector.decode(
             b64decode(gn_data_indication["source_position_vector"])
         )
         traffic_class = TrafficClass.decode_from_bytes(
             b64decode(gn_data_indication["traffic_class"])
         )
+        remaining_packet_lifetime = gn_data_indication.get("remaining_packet_lifetime")
+        remaining_hop_limit = gn_data_indication.get("remaining_hop_limit")
         length = gn_data_indication["length"]
         data = b64decode(gn_data_indication["data"])
         return cls(
             upper_protocol_entity=upper_protocol_entity,
             packet_transport_type=packet_transport_type,
+            destination_area=destination_area,
             source_position_vector=source_position_vector,
             traffic_class=traffic_class,
+            remaining_packet_lifetime=remaining_packet_lifetime,
+            remaining_hop_limit=remaining_hop_limit,
             length=length,
             data=data,
         )

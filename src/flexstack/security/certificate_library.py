@@ -242,3 +242,26 @@ class CertificateLibrary:
                     certificates[:-1], backend
                 )
         return None
+
+    def get_ca_certificate_by_hashedid3(self, hashedid3: bytes) -> Certificate | None:
+        """
+        Look up an Authorization Authority or Root CA certificate by the last
+        3 bytes of its HashedId8 (HashedId3).
+
+        Parameters
+        ----------
+        hashedid3 : bytes
+            The last 3 bytes of the certificate's HashedId8.
+
+        Returns
+        -------
+        Certificate | None
+            The matching certificate, or None if not found.
+        """
+        for hashedid8, cert in self.known_authorization_authorities.items():
+            if hashedid8[-3:] == hashedid3:
+                return cert
+        for hashedid8, cert in self.known_root_certificates.items():
+            if hashedid8[-3:] == hashedid3:
+                return cert
+        return None

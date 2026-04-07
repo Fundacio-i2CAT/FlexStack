@@ -147,3 +147,31 @@ class TestPythonECDSABackend(unittest.TestCase):
             data=b'whatever',
             hashfunc=hashlib.sha256
         )
+
+    def test_export_signing_key(self):
+        """Test that export_signing_key returns a valid PEM-encoded private key."""
+        identifier = self.backend.create_key()
+
+        pem = self.backend.export_signing_key(identifier)
+
+        self.assertIsInstance(pem, bytes)
+        self.assertIn(b"-----BEGIN EC PRIVATE KEY-----", pem)
+
+    def test_import_signing_key(self):
+        """Test that import_signing_key loads a PEM key and returns a usable identifier."""
+        # Create a key, export it, then import it under a fresh backend instance
+        original_id = self.backend.create_key()
+        pem = self.backend.export_signing_key(original_id)
+
+        imported_id = self.backend.import_signing_key(pem)
+
+        # The imported key must be a new distinct identifier
+        self.assertNotEqual(imported_id, original_id)
+        # Public keys derived from both identifiers must be identical
+        self.assertEqual(
+            self.backend.get_public_key(original_id),
+            self.backend.get_public_key(imported_id),
+        )
+        # The imported key must be able to produce a valid signature
+        signature = self.backend.sign(b"test_data", imported_id)
+        self.assertTrue(self.backend.verify(b"test_data", signature, imported_id))

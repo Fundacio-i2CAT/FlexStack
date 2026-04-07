@@ -173,7 +173,7 @@ def main():
     )
     location_service.add_callback(
         ca_basic_service.cam_transmission_management.location_service_callback)
-
+    ca_basic_service.start()
 
     # Instantiate a Link Layer
     btp_router.freeze_callbacks()
@@ -188,6 +188,7 @@ def main():
     except KeyboardInterrupt:
         print("Exiting...")
     
+    ca_basic_service.stop()
     location_service.stop_event.set()
     location_service.location_service_thread.join()
     link_layer.sock.close()

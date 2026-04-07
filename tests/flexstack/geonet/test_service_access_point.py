@@ -138,6 +138,8 @@ class TestGNDataRequest(unittest.TestCase):
                 "traffic_class": "AA==",
                 "length": 0,
                 "data": "",
+                'max_hop_limit': 1,
+                "max_packet_lifetime": None,
                 "area": {"latitude": 0, "longitude": 0, "a": 0, "b": 0, "angle": 0},
             },
         )
@@ -187,8 +189,11 @@ class TestGNDataIndication(unittest.TestCase):
             {
                 "upper_protocol_entity": 0,
                 "packet_transport_type": {"header_type": 5, "header_subtype": 0},
+                "destination_area": None,
                 "source_position_vector": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 "traffic_class": "AA==",
+                "remaining_packet_lifetime": None,
+                "remaining_hop_limit": None,
                 "length": 0,
                 "data": "",
             },

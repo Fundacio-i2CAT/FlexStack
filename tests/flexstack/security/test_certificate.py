@@ -17,7 +17,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_from_dict(self):
         # Given
-        certificate_dict = {'version': 3, 'type': 'explicit', 'issuer': ('self', 'sha256'), 'toBeSigned': {'id': ('name', 'root'), 'cracaId': b'\xa4\x95\x99', 'crlSeries': 0, 'validityPeriod': {'start': 0, 'duration': ('seconds', 30)}, 'certIssuePermissions': [{'subjectPermissions': ('all', None), 'minChainLength': 2, 'chainLengthRange': 0, 'eeType': (b'\x00', 1)}], 'verifyKeyIndicator': ('verificationKey', ('ecdsaNistP256', ('uncompressedP256', {
+        certificate_dict = {'version': 3, 'type': 'explicit', 'issuer': ('self', 'sha256'), 'toBeSigned': {'id': ('name', 'root'), 'cracaId': b'\x00\x00\x00', 'crlSeries': 0, 'validityPeriod': {'start': 0, 'duration': ('seconds', 30)}, 'certIssuePermissions': [{'subjectPermissions': ('all', None), 'minChainLength': 2, 'chainLengthRange': 0, 'eeType': (b'\x00', 1)}], 'verifyKeyIndicator': ('verificationKey', ('ecdsaNistP256', ('uncompressedP256', {
             'x': b'\xbc\x0b\x0e\xd4\xd1\rRY\xa7\xb9\xff@\x89\xb9\xbc\xf0\x16)\x9b\xed\xa3Ni\x19\x06\xc6\xa3VG\x92\xdd^', 'y': b'\xfd\xd8\xca\x19\xa8xO\xae\xc9\xcd\xcc\xfa2@\x87\x07\x8b\xaf\xb9\x9d\xbdp\xe0\r"E\xd3FEx\xfbj'})))}, 'signature': ('ecdsaNistP256Signature', {'rSig': ('x-only', b"\x89\x03>\x04'\xdd\xd0W\xb5\xf2\xda\x9b\xcbY\x10p\x94\xd1}\xfcD\x15\xb6\xfb\x12\rd\x7f\x9cj\xc4\xb7"), 'sSig': b'8li\n\xa1e\xef\xb8\xa9\n\xb0\x8a\xd4A\x8f\xfb\x10\xb3\x06\x13|_j\x14\xda-\xce\xa9&r\xd9\x9c'})}
         # When
         cert = Certificate.from_dict(certificate_dict)
@@ -55,7 +55,7 @@ class TestCertificate(unittest.TestCase):
             "issuer": ("sha256AndDigest", (0xa495991b7852b855).to_bytes(8, byteorder='big')),
             "toBeSigned": {
                 "id": ("name", "i2cat.net"),
-                "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+                "cracaId": b'\x00\x00\x00',
                 "crlSeries": 0,
                 "validityPeriod": {
                     "start": 0,
@@ -200,7 +200,7 @@ class TestCertificate(unittest.TestCase):
         backend = self.backend
         to_be_signed = {
             "id": ("name", "root"),
-            "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
             "certIssuePermissions": [
@@ -217,6 +217,141 @@ class TestCertificate(unittest.TestCase):
             backend, to_be_signed)
         self.assertTrue(root_certificate.verify(backend))
 
+    # ------------------------------------------------------------------ §7.2
+    def _make_cert(self, issuer, id_choice, tbs_extras=None):
+        """Helper: build a Certificate dict for profile tests."""
+        tbs = {
+            "id": id_choice,
+            "cracaId": b'\x00\x00\x00',
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+            "appPermissions": [{"psid": 36}],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None))),
+        }
+        if tbs_extras:
+            tbs.update(tbs_extras)
+        return Certificate(certificate={
+            "version": 3,
+            "type": "explicit",
+            "issuer": issuer,
+            "toBeSigned": tbs,
+            "signature": ("ecdsaNistP256Signature", {"rSig": ("fill", None), "sSig": b'\x00' * 32}),
+        })
+
+    def test_is_authorization_ticket_valid(self):
+        """§7.2.1: issued cert, id=none, no certIssuePermissions → True."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("none", None),
+        )
+        self.assertTrue(cert.is_authorization_ticket())
+
+    def test_is_authorization_ticket_rejects_self_signed(self):
+        """§7.2.1: self-signed issuer is not an AT."""
+        cert = self._make_cert(
+            issuer=("self", "sha256"),
+            id_choice=("none", None),
+        )
+        self.assertFalse(cert.is_authorization_ticket())
+
+    def test_is_authorization_ticket_rejects_id_name(self):
+        """§7.2.1: id=name is not an AT (must be none)."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "some-name"),
+        )
+        self.assertFalse(cert.is_authorization_ticket())
+
+    def test_is_authorization_ticket_rejects_cert_issue_permissions(self):
+        """§7.2.1: certIssuePermissions SHALL be absent in an AT."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("none", None),
+            tbs_extras={"certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 1, "chainLengthRange": 0, "eeType": (b'\x00', 1)}]},
+        )
+        self.assertFalse(cert.is_authorization_ticket())
+
+    def test_is_enrolment_credential_valid(self):
+        """§7.2.2: explicit, issued, id=name, no certIssuePermissions → True."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "ec-name"),
+        )
+        self.assertTrue(cert.is_enrolment_credential())
+
+    def test_is_enrolment_credential_rejects_id_none(self):
+        """§7.2.2: id=none is not an EC (must be name)."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("none", None),
+        )
+        self.assertFalse(cert.is_enrolment_credential())
+
+    def test_is_enrolment_credential_rejects_cert_issue_permissions(self):
+        """§7.2.2: certIssuePermissions SHALL be absent in an EC."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "ec-name"),
+            tbs_extras={"certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 1, "chainLengthRange": 0, "eeType": (b'\x00', 1)}]},
+        )
+        self.assertFalse(cert.is_enrolment_credential())
+
+    def test_is_root_ca_certificate_valid(self):
+        """§7.2.3: explicit, self-signed, id=name, certIssuePermissions + appPermissions present → True."""
+        cert = self._make_cert(
+            issuer=("self", "sha256"),
+            id_choice=("name", "root-ca"),
+            tbs_extras={"certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 2, "chainLengthRange": 0, "eeType": (b'\x00', 1)}]},
+        )
+        self.assertTrue(cert.is_root_ca_certificate())
+
+    def test_is_root_ca_certificate_rejects_issued(self):
+        """§7.2.3: issued cert (sha256AndDigest) is not a Root CA."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "root-ca"),
+            tbs_extras={"certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 2, "chainLengthRange": 0, "eeType": (b'\x00', 1)}]},
+        )
+        self.assertFalse(cert.is_root_ca_certificate())
+
+    def test_is_root_ca_certificate_rejects_missing_cert_issue_permissions(self):
+        """§7.2.3: certIssuePermissions SHALL be present in Root CA."""
+        cert = self._make_cert(
+            issuer=("self", "sha256"),
+            id_choice=("name", "root-ca"),
+        )
+        self.assertFalse(cert.is_root_ca_certificate())
+
+    def test_is_subordinate_ca_certificate_valid(self):
+        """§7.2.4: explicit, issued, id=name, encryptionKey + certIssuePermissions present → True."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "sub-ca"),
+            tbs_extras={
+                "encryptionKey": {"supportedSymmAlg": "aes128Ccm", "publicKey": ("eciesNistP256", ("x-only", b'\x00' * 32))},
+                "certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 1, "chainLengthRange": 0, "eeType": (b'\x00', 1)}],
+            },
+        )
+        self.assertTrue(cert.is_subordinate_ca_certificate())
+
+    def test_is_subordinate_ca_certificate_rejects_missing_encryption_key(self):
+        """§7.2.4: encryptionKey SHALL be present in a subordinate CA."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "sub-ca"),
+            tbs_extras={"certIssuePermissions": [{"subjectPermissions": ("all", None), "minChainLength": 1, "chainLengthRange": 0, "eeType": (b'\x00', 1)}]},
+        )
+        self.assertFalse(cert.is_subordinate_ca_certificate())
+
+    def test_is_subordinate_ca_certificate_rejects_missing_cert_issue_permissions(self):
+        """§7.2.4: certIssuePermissions SHALL be present in a subordinate CA."""
+        cert = self._make_cert(
+            issuer=("sha256AndDigest", b'\x00' * 8),
+            id_choice=("name", "sub-ca"),
+            tbs_extras={"encryptionKey": {"supportedSymmAlg": "aes128Ccm", "publicKey": ("eciesNistP256", ("x-only", b'\x00' * 32))}},
+        )
+        self.assertFalse(cert.is_subordinate_ca_certificate())
+
 
 class TestOwnCertificate(unittest.TestCase):
     def setUp(self) -> None:
@@ -232,7 +367,7 @@ class TestOwnCertificate(unittest.TestCase):
         # Given
         to_be_signed = {
             "id": ("name", "test.com"),
-            "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {
                 "start": 0,
@@ -265,7 +400,7 @@ class TestOwnCertificate(unittest.TestCase):
         # Given
         acceptable_to_be_signed = {
             "id": ("name", "i2cat.net"),
-            "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {
                 "start": 0,
@@ -285,7 +420,7 @@ class TestOwnCertificate(unittest.TestCase):
             "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
         }
         bad_to_be_signed = {
-            "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {
                 "start": 0,
@@ -296,6 +431,38 @@ class TestOwnCertificate(unittest.TestCase):
             }],
             "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
         }
+        bad_wrong_cracaid = {
+            "id": ("name", "test"),
+            "cracaId": b'\xa4\x95\x99',
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+            "appPermissions": [{"psid": 0}],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
+        }
+        bad_wrong_id_choice = {
+            "id": ("linkageId", {"iCert": b'\x00\x01\x02\x03\x04\x05\x06\x07', "linkage-value": b'\x00\x01\x02\x03\x04\x05\x06\x07\x08'}),
+            "cracaId": b'\x00\x00\x00',
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+            "appPermissions": [{"psid": 0}],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
+        }
+        bad_no_permissions = {
+            "id": ("name", "test"),
+            "cracaId": b'\x00\x00\x00',
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
+        }
+        bad_has_cert_request_permissions = {
+            "id": ("name", "test"),
+            "cracaId": b'\x00\x00\x00',
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+            "appPermissions": [{"psid": 0}],
+            "certRequestPermissions": [{"subjectPermissions": ("all", None), "minChainLength": 1, "chainLengthRange": 0, "eeType": (b'\x00', 1)}],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None)))
+        }
         # When
         validity_good = OwnCertificate.verify_to_be_signed_certificate(
             acceptable_to_be_signed)
@@ -304,12 +471,16 @@ class TestOwnCertificate(unittest.TestCase):
         # Then
         self.assertTrue(validity_good)
         self.assertFalse(validity_bad)
+        self.assertFalse(OwnCertificate.verify_to_be_signed_certificate(bad_wrong_cracaid))
+        self.assertFalse(OwnCertificate.verify_to_be_signed_certificate(bad_wrong_id_choice))
+        self.assertFalse(OwnCertificate.verify_to_be_signed_certificate(bad_no_permissions))
+        self.assertFalse(OwnCertificate.verify_to_be_signed_certificate(bad_has_cert_request_permissions))
 
     def test_issue_certificate(self):
         # Given
         to_be_signed_to_issue = {
             "id": ("name", "root"),
-            "cracaId": (0xa23).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {
                 "start": 0,
@@ -330,7 +501,7 @@ class TestOwnCertificate(unittest.TestCase):
 
         to_be_signed_to_be_issued = {
             "id": ("name", "issued"),
-            "cracaId": (0xa49).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {
                 "start": 0,
@@ -350,7 +521,7 @@ class TestOwnCertificate(unittest.TestCase):
         # Given
         to_be_signed = {
             "id": ("name", "test"),
-            "cracaId": (0xa49599).to_bytes(3, byteorder='big'),
+            "cracaId": b'\x00\x00\x00',
             "crlSeries": 0,
             "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
             "certIssuePermissions": [

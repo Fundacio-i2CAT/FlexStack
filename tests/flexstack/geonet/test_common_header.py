@@ -2,11 +2,13 @@ import unittest
 
 from flexstack.geonet.common_header import CommonHeader, CommonNH, HeaderType, HeaderSubType, TrafficClass
 from flexstack.geonet.service_access_point import GNDataRequest, PacketTransportType, GeoBroadcastHST
+from flexstack.geonet.mib import MIB, GnIsMobile
 
 
 class TestCommonHeader(unittest.TestCase):
 
     def test_initialize_with_request(self):
+        mib = MIB(itsGnIsMobile=GnIsMobile.STATIONARY)
         request = GNDataRequest(
             upper_protocol_entity=CommonNH.BTP_B,
             packet_transport_type=PacketTransportType(
@@ -16,7 +18,7 @@ class TestCommonHeader(unittest.TestCase):
             traffic_class=TrafficClass(),
             length=500,
         )
-        ch = CommonHeader.initialize_with_request(request)
+        ch = CommonHeader.initialize_with_request(request, mib)
         self.assertEqual(ch.nh, CommonNH.BTP_B)
         self.assertEqual(ch.ht, HeaderType.GEOBROADCAST)
         self.assertEqual(ch.hst, GeoBroadcastHST.GEOBROADCAST_CIRCLE)
