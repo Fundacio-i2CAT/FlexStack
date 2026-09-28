@@ -2,3 +2,5 @@ asn1tools==0.165.0
 python-dateutil==2.8.2
 tinydb==4.7.1
 ecdsa==0.18.0
+cryptography>=42.0.0
+httpx>=0.27.0

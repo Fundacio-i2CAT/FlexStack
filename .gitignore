@@ -175,3 +175,4 @@ storage.json
 *.pdf
 *.txt
 acceptance_tests/
+examples/pki_certs/
