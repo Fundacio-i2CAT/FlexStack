@@ -1,67 +1,23 @@
 """
-pki_client/coder.py — ASN.1 encode/decode for TS 102 941 PKI messages (ITS-S side).
+pki_client/pki_coder.py — ASN.1 encode/decode for TS 102 941 PKI messages (ITS-S side).
 
 ``PkiCoder`` extends FlexStack's ``SecurityCoder`` by compiling the ETSI
 TS 102 941 ASN.1 schemas alongside the base IEEE 1609.2 / TS 103 097 schemas.
-This gives the ITS-S encoder the same type table as the pythonpki server,
+This gives the ITS-S encoder the same type table as the PKI server,
 ensuring interoperable COER encoding on both ends.
-
-The TS 102 941 ``.asn`` files are resolved from a configurable path, defaulting
-to the ``pythonpki/asn1/`` directory that lives next to the FlexStack repo root.
-Override via environment variable ``CITS_PKI_ASN1_DIR`` if the layout differs.
 
 Singleton
 ---------
 ``PKI_CODER`` is module-level singleton — compile once per process::
 
-    from flexstack.security.pki_client.coder import PKI_CODER
+    from flexstack.security.pki_client.pki_coder import PKI_CODER
 """
 from __future__ import annotations
 
-import os
-import pathlib
-
 import asn1tools
 
-from flexstack.security.security_asn1 import SECURITY_ASN1_DESCRIPTIONS
+from flexstack.security.pki_asn1 import PKI_ASN1_DESCRIPTIONS
 from flexstack.security.security_coder import SecurityCoder
-
-# ---------------------------------------------------------------------------
-# TS 102 941 ASN.1 file resolution
-# ---------------------------------------------------------------------------
-
-#: Default location: <idiadapki_root>/pythonpki/asn1/
-#: parents[5] resolves to the IDIADAPKI workspace root:
-#:   coder.py → pki_client(0) → security(1) → flexstack(2) → src(3) → FlexStack(4) → IDIADAPKI(5)
-_THIS_FILE = pathlib.Path(__file__).resolve()
-_DEFAULT_ASN1_DIR = _THIS_FILE.parents[5] / "pythonpki" / "asn1"
-
-_ASN1_DIR: pathlib.Path = pathlib.Path(
-    os.environ.get("CITS_PKI_ASN1_DIR", str(_DEFAULT_ASN1_DIR))
-)
-
-_PKI_ASN1_FILES: list[str] = [
-    "EtsiTs102941BaseTypes.asn",
-    "EtsiTs102941TypesEnrolment.asn",
-    "EtsiTs102941TypesAuthorization.asn",
-    "EtsiTs102941TypesAuthorizationValidation.asn",
-    "EtsiTs102941TrustLists.asn",
-    "EtsiTs102941MessagesItss.asn",
-]
-
-
-def _load_pki_asn1() -> str:
-    """Read and concatenate the TS 102 941 ASN.1 schema files."""
-    parts: list[str] = []
-    for fname in _PKI_ASN1_FILES:
-        fpath = _ASN1_DIR / fname
-        if not fpath.exists():
-            raise FileNotFoundError(
-                f"TS 102 941 ASN.1 file not found: {fpath}\n"
-                "Set CITS_PKI_ASN1_DIR to the directory containing the .asn files."
-            )
-        parts.append(fpath.read_text(encoding="utf-8"))
-    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -80,11 +36,8 @@ class PkiCoder(SecurityCoder):
     """
 
     def __init__(self) -> None:
-        # Override parent: compile everything in one shot so cross-module
-        # IMPORTS in the ASN.1 files resolve correctly.
-        pki_asn1 = _load_pki_asn1()
-        combined = SECURITY_ASN1_DESCRIPTIONS + "\n\n" + pki_asn1
-        self.asn_coder = asn1tools.compile_string(combined, codec="oer")
+        # pylint: disable=super-init-not-called
+        self.asn_coder = asn1tools.compile_string(PKI_ASN1_DESCRIPTIONS, codec="oer")
 
     # ------------------------------------------------------------------
     # Generic Ieee1609Dot2Data  (covers signed + encrypted variants)
@@ -186,5 +139,5 @@ class PkiCoder(SecurityCoder):
 
 #: Singleton ``PkiCoder`` instance.  Import this directly in protocol modules::
 #:
-#:     from flexstack.security.pki_client.coder import PKI_CODER
+#:     from flexstack.security.pki_client.pki_coder import PKI_CODER
 PKI_CODER: PkiCoder = PkiCoder()

@@ -28,7 +28,7 @@ Quick start::
 from flexstack.security.pki_client.client import PkiClient
 from flexstack.security.pki_client.enrolment import EnrolmentError, enroll
 from flexstack.security.pki_client.authorization import AuthorizationError, authorize
-from flexstack.security.pki_client.coder import PKI_CODER, PkiCoder
+from flexstack.security.pki_client.pki_coder import PKI_CODER, PkiCoder
 
 __all__ = [
     "PkiClient",

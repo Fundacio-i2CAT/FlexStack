@@ -203,7 +203,7 @@ def _public_key_from_tuple(pk_tuple: tuple) -> EllipticCurvePublicKey:
 # ECIES encrypt (sender / ITS-S side)
 # ---------------------------------------------------------------------------
 
-def ecies_encrypt(
+def ecies_encrypt(  # pylint: disable=too-many-locals
     plaintext: bytes,
     recipient_enc_key_tuple: tuple,
     recipient_cert_coer: bytes,

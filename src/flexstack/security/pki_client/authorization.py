@@ -31,8 +31,6 @@ identify the ITS-S (it forwards the encrypted blob to the EA for validation).
 """
 from __future__ import annotations
 
-import hashlib
-import hmac as _hmac
 import logging
 import os
 
@@ -47,7 +45,7 @@ from flexstack.security.pki_client.crypto import (
     now_time32,
     compute_hmac_key_tag,
 )
-from flexstack.security.pki_client.coder import PKI_CODER
+from flexstack.security.pki_client.pki_coder import PKI_CODER
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +65,7 @@ class AuthorizationError(Exception):
         self.code = code
 
 
-async def authorize(
+async def authorize(  # pylint: disable=too-many-arguments,too-many-locals
     aa_url: str,
     aa_cert: Certificate,
     ea_cert: Certificate,
@@ -295,7 +293,7 @@ def _extract_enc_info(cert: Certificate, role: str) -> tuple[tuple, bytes]:
     return enc_key["publicKey"], cert.encode()
 
 
-def _build_ec_signature(
+def _build_ec_signature(  # pylint: disable=too-many-locals
     shared_at_request: dict,
     ec_own: OwnCertificate,
     ea_cert: Certificate,
@@ -390,6 +388,23 @@ def _decrypt_psk_response(
         raise AuthorizationError(
             "badcontenttype",
             f"Expected encryptedData response, got {content_choice!r}",
+        )
+
+    recipients: list = content_value.get("recipients", [])
+    found = False
+    for recip_choice, recip_value in recipients:
+        if recip_choice == "pskRecipInfo" and recip_value == session_key_hid8:
+            found = True
+            break
+    if not found:
+        for recip_choice, _ in recipients:
+            if recip_choice == "pskRecipInfo":
+                found = True
+                break
+    if not found:
+        raise AuthorizationError(
+            "badcontenttype",
+            "Response has no pskRecipInfo — cannot decrypt with session key",
         )
 
     _, aes_ccm_dict = content_value.get("ciphertext", ("", {}))

@@ -59,7 +59,6 @@ Usage
 from __future__ import annotations
 
 import logging
-import os
 
 import httpx
 
@@ -71,7 +70,7 @@ from flexstack.security.pki_client.crypto import (
     psk_decrypt,
     now_time32,
 )
-from flexstack.security.pki_client.coder import PKI_CODER
+from flexstack.security.pki_client.pki_coder import PKI_CODER
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ class EnrolmentError(Exception):
         self.code = code
 
 
-async def enroll(
+async def enroll(  # pylint: disable=too-many-arguments,too-many-locals,unused-argument
     ea_url: str,
     ea_cert: Certificate,
     signer_cert: OwnCertificate,
@@ -380,7 +379,7 @@ def _decrypt_psk_response(
         raise EnrolmentError("badcontenttype", f"Expected encryptedData response, got {content_choice!r}")
 
     recipients: list = content_value.get("recipients", [])
-    aes_ccm_choice, aes_ccm_dict = content_value.get("ciphertext", ("", {}))
+    _, aes_ccm_dict = content_value.get("ciphertext", ("", {}))
 
     # Locate the pskRecipInfo entry matching our session key
     found = False

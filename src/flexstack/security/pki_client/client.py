@@ -33,14 +33,15 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-import os
 import pathlib
+import time
 
 from flexstack.security.certificate import Certificate, OwnCertificate
 from flexstack.security.ecdsa_backend import PythonECDSABackend
 
-from flexstack.security.pki_client.enrolment import EnrolmentError, enroll
-from flexstack.security.pki_client.authorization import AuthorizationError, authorize
+from flexstack.security.pki_client.pki_coder import PKI_CODER
+from flexstack.security.pki_client.enrolment import enroll
+from flexstack.security.pki_client.authorization import authorize
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class PkiClient:
         HTTP request timeout in seconds (default 30).
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         ea_url: str,
         aa_url: str,
@@ -279,7 +280,6 @@ class PkiClient:
             cert_coer = cert_path.read_bytes()
             key_pem = key_path.read_bytes()
             key_id = self.backend.import_signing_key(key_pem)
-            from flexstack.security.pki_client.coder import PKI_CODER
             cert_dict = PKI_CODER.decode_certificate(cert_coer)
             at_own = OwnCertificate(
                 certificate=cert_dict,
@@ -313,7 +313,6 @@ class PkiClient:
         # create a NEW key (we can't pass an existing key_id to it).  For the
         # canonical cert we always generate a fresh key — the canonical identity
         # is determined by the certificate content, not by a long-lived key.
-        import time
         start = int(time.time()) - _ITS_EPOCH
         tbs: dict = {
             "id": ("name", "its-s-canonical"),
