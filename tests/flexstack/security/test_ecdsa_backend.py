@@ -29,13 +29,21 @@ class TestPythonECDSABackend(unittest.TestCase):
 
     def test_get_public_key(self):
         """
-        Tests the get_public_key of the Python ECDSA Backend.
+        Tests the get_public_key of the Python ECDSA Backend (compressed and uncompressed).
         """
         self.backend.create_key()
+        # Default is compressed (compressed-y-0 or compressed-y-1)
         pk1 = self.backend.get_public_key(0)
         self.assertEqual(pk1[0], "ecdsaNistP256")
-        self.assertEqual(len(pk1[1][1]["x"]), 32)
-        self.assertEqual(len(pk1[1][1]["y"]), 32)
+        self.assertIn(pk1[1][0], ("compressed-y-0", "compressed-y-1"))
+        self.assertEqual(len(pk1[1][1]), 32)
+
+        # Explicit compressed=False
+        pk_uncompressed = self.backend.get_public_key(0, compressed=False)
+        self.assertEqual(pk_uncompressed[0], "ecdsaNistP256")
+        self.assertEqual(pk_uncompressed[1][0], "uncompressedP256")
+        self.assertEqual(len(pk_uncompressed[1][1]["x"]), 32)
+        self.assertEqual(len(pk_uncompressed[1][1]["y"]), 32)
 
     def test_sign(self):
         # Given
@@ -61,14 +69,23 @@ class TestPythonECDSABackend(unittest.TestCase):
         # Given
         self.backend.create_key()
         signature = self.backend.sign(b"Hello World", 0)
-        pk = self.backend.get_public_key(0)
-        # When
-        result = self.backend.verify_with_pk(b"Hello World", signature, pk)
-        # Then
-        self.assertTrue(result)
-        # Now false
-        result = self.backend.verify_with_pk(b"Hello World23", signature, pk)
-        self.assertFalse(result)
+        pk_comp = self.backend.get_public_key(0, compressed=True)
+        pk_uncomp = self.backend.get_public_key(0, compressed=False)
+
+        # When / Then with compressed pk
+        self.assertTrue(self.backend.verify_with_pk(b"Hello World", signature, pk_comp))
+        self.assertFalse(self.backend.verify_with_pk(b"Hello World23", signature, pk_comp))
+
+        # When / Then with uncompressed pk
+        self.assertTrue(self.backend.verify_with_pk(b"Hello World", signature, pk_uncomp))
+        self.assertFalse(self.backend.verify_with_pk(b"Hello World23", signature, pk_uncomp))
+
+        # Unsupported choices
+        with self.assertRaises(ValueError):
+            self.backend.verify_with_pk(b"data", signature, ("unknownCurve", ()))
+
+        with self.assertRaises(ValueError):
+            self.backend.verify_with_pk(b"data", signature, ("ecdsaNistP256", ("invalidChoice", b"")))
 
     @patch("ecdsa.SigningKey.generate")
     @patch("ecdsa.util.sigdecode_string")

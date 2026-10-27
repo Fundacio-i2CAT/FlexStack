@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 import unittest
 from flexstack.security.security_coder import SecurityCoder
@@ -37,6 +38,122 @@ class TestCertificate(unittest.TestCase):
         cert = Certificate().decode(encoded_certificate)
         self.assertEqual(cert.as_hashedid8(),
                          b'\xa9\xdb3\xac\x7fr\xb1\x0b')
+
+    def test_to_canonical(self):
+        # 1. Uncompressed verification key and compressed-y-0 rSig
+        uncompressed_x = b"\x01" * 32
+        uncompressed_y_even = b"\x02" * 31 + b"\x02"  # even y -> compressed-y-0
+        uncompressed_y_odd = b"\x02" * 31 + b"\x03"   # odd y -> compressed-y-1
+
+        cert_dict_even = {
+            "version": 3,
+            "type": "explicit",
+            "issuer": ("self", "sha256"),
+            "toBeSigned": {
+                "id": ("name", "test-even"),
+                "cracaId": b"\x00\x00\x00",
+                "crlSeries": 0,
+                "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+                "appPermissions": [{"psid": 0}],
+                "verifyKeyIndicator": (
+                    "verificationKey",
+                    ("ecdsaNistP256", ("uncompressedP256", {"x": uncompressed_x, "y": uncompressed_y_even})),
+                ),
+            },
+            "signature": (
+                "ecdsaNistP256Signature",
+                {"rSig": ("compressed-y-0", b"\x05" * 32), "sSig": b"\x06" * 32},
+            ),
+        }
+        cert_even = Certificate.from_dict(cert_dict_even)
+        canon_even = cert_even.to_canonical()
+
+        # Check key compressed to compressed-y-0
+        vki = canon_even.certificate["toBeSigned"]["verifyKeyIndicator"]
+        self.assertEqual(vki[1][0], "ecdsaNistP256")
+        self.assertEqual(vki[1][1][0], "compressed-y-0")
+        self.assertEqual(vki[1][1][1], uncompressed_x)
+
+        # Check signature rSig converted to x-only
+        sig = canon_even.certificate["signature"]
+        self.assertEqual(sig[1]["rSig"][0], "x-only")
+        self.assertEqual(sig[1]["rSig"][1], b"\x05" * 32)
+        self.assertEqual(sig[1]["sSig"], b"\x06" * 32)
+
+        # 2. Odd y -> compressed-y-1, and rSig compressed-y-1
+        cert_dict_odd = deepcopy(cert_dict_even)
+        cert_dict_odd["toBeSigned"]["verifyKeyIndicator"] = (
+            "verificationKey",
+            ("ecdsaNistP256", ("uncompressedP256", {"x": uncompressed_x, "y": uncompressed_y_odd})),
+        )
+        cert_dict_odd["signature"] = (
+            "ecdsaNistP256Signature",
+            {"rSig": ("compressed-y-1", b"\x07" * 32), "sSig": b"\x08" * 32},
+        )
+        cert_odd = Certificate.from_dict(cert_dict_odd)
+        canon_odd = cert_odd.to_canonical()
+
+        vki_odd = canon_odd.certificate["toBeSigned"]["verifyKeyIndicator"]
+        self.assertEqual(vki_odd[1][0], "ecdsaNistP256")
+        self.assertEqual(vki_odd[1][1][0], "compressed-y-1")
+        self.assertEqual(vki_odd[1][1][1], uncompressed_x)
+
+        sig_odd = canon_odd.certificate["signature"]
+        self.assertEqual(sig_odd[1]["rSig"][0], "x-only")
+        self.assertEqual(sig_odd[1]["rSig"][1], b"\x07" * 32)
+
+        # 3. Already canonical remains identical
+        canon_again = canon_even.to_canonical()
+        self.assertEqual(canon_even.certificate, canon_again.certificate)
+
+    def test_as_hashedid8_canonical_equivalence(self):
+        """
+        Verify that as_hashedid8() produces the exact same hash whether the certificate
+        stores the verification key uncompressed or compressed.
+        """
+        uncompressed_x = b"\x01" * 32
+        uncompressed_y = b"\x02" * 31 + b"\x02"  # even -> compressed-y-0
+        cert_uncompressed = Certificate.from_dict({
+            "version": 3,
+            "type": "explicit",
+            "issuer": ("self", "sha256"),
+            "toBeSigned": {
+                "id": ("name", "test-hashedid8"),
+                "cracaId": b"\x00\x00\x00",
+                "crlSeries": 0,
+                "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+                "appPermissions": [{"psid": 0}],
+                "verifyKeyIndicator": (
+                    "verificationKey",
+                    ("ecdsaNistP256", ("uncompressedP256", {"x": uncompressed_x, "y": uncompressed_y})),
+                ),
+            },
+            "signature": (
+                "ecdsaNistP256Signature",
+                {"rSig": ("x-only", b"\x05" * 32), "sSig": b"\x06" * 32},
+            ),
+        })
+        cert_compressed = Certificate.from_dict({
+            "version": 3,
+            "type": "explicit",
+            "issuer": ("self", "sha256"),
+            "toBeSigned": {
+                "id": ("name", "test-hashedid8"),
+                "cracaId": b"\x00\x00\x00",
+                "crlSeries": 0,
+                "validityPeriod": {"start": 0, "duration": ("seconds", 30)},
+                "appPermissions": [{"psid": 0}],
+                "verifyKeyIndicator": (
+                    "verificationKey",
+                    ("ecdsaNistP256", ("compressed-y-0", uncompressed_x)),
+                ),
+            },
+            "signature": (
+                "ecdsaNistP256Signature",
+                {"rSig": ("x-only", b"\x05" * 32), "sSig": b"\x06" * 32},
+            ),
+        })
+        self.assertEqual(cert_uncompressed.as_hashedid8(), cert_compressed.as_hashedid8())
 
     def test_encode(self):
         encoded_certificate = b'\x80\x03\x00\x80\xa4\x95\x99\x1bxR\xb8U\x18\x81\ti2cat.net\xa4\x95\x99\x00\x00\x00\x00\x00\x00\x82\x00\x1e\x01\x01\x00\x01\x00\x01\x01 \x81\x00\x80\x80\x81\x80\x81\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa4\x95\x99\x1bxR\xb8U'
@@ -542,3 +659,45 @@ class TestOwnCertificate(unittest.TestCase):
         # Then
         self.assertTrue(self.backend.verify(
             message, signature, own_certificate.key_id))
+
+    def test_issued_certificate_digest_verification(self):
+        """
+        Test that an issued certificate with sha256AndDigest issuer binds to the issuer certificate
+        via SHA256(tbs_hash || issuer_hash) and fails if tampered.
+        """
+        # Issuer (root CA)
+        tbs_root = {
+            "id": ("name", "root-ca"),
+            "cracaId": b"\x00\x00\x00",
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("years", 10)},
+            "certIssuePermissions": [
+                {
+                    "subjectPermissions": ("all", None),
+                    "minChainLength": 2,
+                    "chainLengthRange": 0,
+                    "eeType": (b"\x00", 1),
+                }
+            ],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None))),
+        }
+        root_cert = OwnCertificate.initialize_certificate(self.backend, tbs_root)
+        self.assertTrue(root_cert.verify(self.backend))
+
+        # Issued certificate
+        tbs_child = {
+            "id": ("name", "child-ee"),
+            "cracaId": b"\x00\x00\x00",
+            "crlSeries": 0,
+            "validityPeriod": {"start": 0, "duration": ("hours", 10)},
+            "appPermissions": [{"psid": 36}],
+            "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", ("fill", None))),
+        }
+        child_cert = OwnCertificate.initialize_certificate(self.backend, tbs_child, issuer=root_cert)
+        self.assertTrue(child_cert.verify(self.backend))
+
+        # Tampered toBeSigned fails verification
+        tampered_child_dict = deepcopy(child_cert.certificate)
+        tampered_child_dict["toBeSigned"]["id"] = ("name", "tampered-ee")
+        tampered_child = Certificate(tampered_child_dict, root_cert)
+        self.assertFalse(tampered_child.verify(self.backend))

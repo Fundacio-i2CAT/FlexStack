@@ -82,36 +82,44 @@ class PythonECDSABackend(ECDSABackend):
         self.keys[identifier] = key
         return identifier
 
-    def get_public_key(self, identifier: int) -> tuple:
+    def get_public_key(self, identifier: int, compressed: bool = True) -> tuple:
         """
         Returns the public key of the key pair with the identifier.
-        It returns as a dict to be oer encoded as PublicVerificationKey in oer.
+        Defaults to compressed format (compressed-y-0/1) per IEEE 1609.2 / ETSI TS 103 097.
 
         Parameters
         ----------
         identifier : int
             Identifier of the key.
+        compressed : bool, optional
+            Whether to return compressed format (default True).
 
         Returns
         -------
-        dict
+        tuple
             Public key in IEEE 1609.2 format.
         """
         key = self.keys[identifier]
-        return (
-            "ecdsaNistP256",
-            (
-                "uncompressedP256",
-                {
-                    "x": key.verifying_key.pubkey.point.x().to_bytes(
-                        32, byteorder="big"
-                    ),
-                    "y": key.verifying_key.pubkey.point.y().to_bytes(
-                        32, byteorder="big"
-                    ),
-                },
-            ),
-        )
+        x_bytes = key.verifying_key.pubkey.point.x().to_bytes(32, byteorder="big")
+        y_int = key.verifying_key.pubkey.point.y()
+
+        if compressed:
+            choice = "compressed-y-0" if (y_int % 2 == 0) else "compressed-y-1"
+            return (
+                "ecdsaNistP256",
+                (choice, x_bytes),
+            )
+        else:
+            return (
+                "ecdsaNistP256",
+                (
+                    "uncompressedP256",
+                    {
+                        "x": x_bytes,
+                        "y": y_int.to_bytes(32, byteorder="big"),
+                    },
+                ),
+            )
 
     def sign(self, data: bytes, identifier: int) -> tuple:
         """
@@ -191,15 +199,25 @@ class PythonECDSABackend(ECDSABackend):
             dec_signature = ecdsa.util.sigencode_string(r, s, ecdsa.NIST256p.order)
         else:
             raise ValueError("Signature format not supported")
-        if pk[0] == "ecdsaNistP256" and pk[1][0] == "uncompressedP256":
-            x = int.from_bytes(pk[1][1]["x"], byteorder="big")
-            y = int.from_bytes(pk[1][1]["y"], byteorder="big")
-            point = ecdsa.ellipticcurve.Point(
-                ecdsa.NIST256p.curve, x, y, ecdsa.NIST256p.order
-            )
-            vk: ecdsa.keys.VerifyingKey = ecdsa.VerifyingKey.from_public_point(
-                point, curve=ecdsa.NIST256p
-            )
+        if pk[0] == "ecdsaNistP256":
+            key_choice = pk[1][0]
+            if key_choice == "uncompressedP256":
+                x = int.from_bytes(pk[1][1]["x"], byteorder="big")
+                y = int.from_bytes(pk[1][1]["y"], byteorder="big")
+                point = ecdsa.ellipticcurve.Point(
+                    ecdsa.NIST256p.curve, x, y, ecdsa.NIST256p.order
+                )
+                vk: ecdsa.keys.VerifyingKey = ecdsa.VerifyingKey.from_public_point(
+                    point, curve=ecdsa.NIST256p
+                )
+            elif key_choice in ("compressed-y-0", "compressed-y-1"):
+                prefix = b"\x02" if key_choice == "compressed-y-0" else b"\x03"
+                x_bytes = pk[1][1]
+                vk = ecdsa.VerifyingKey.from_string(
+                    prefix + x_bytes, curve=ecdsa.NIST256p
+                )
+            else:
+                raise ValueError(f"Public key choice {key_choice} not supported")
             try:
                 return vk.verify(
                     signature=dec_signature, data=data, hashfunc=hashlib.sha256

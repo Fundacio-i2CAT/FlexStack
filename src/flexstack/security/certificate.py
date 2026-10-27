@@ -43,17 +43,42 @@ class Certificate:
             certificate)
         return Certificate.from_dict(cert_dict, issuer)
 
+    def to_canonical(self) -> Certificate:
+        """
+        Convert certificate to IEEE 1609.2 / ETSI TS 103 097 canonical form:
+        - Public verification key compressed (compressed-y-0/1).
+        - Signature rSig as x-only.
+        """
+        d = deepcopy(self.certificate)
+        tbs = d.get("toBeSigned", {})
+        vki = tbs.get("verifyKeyIndicator")
+        if vki and vki[0] == "verificationKey" and vki[1][0] == "ecdsaNistP256":
+            key_choice = vki[1][1][0]
+            if key_choice == "uncompressedP256":
+                x = vki[1][1][1]["x"]
+                y = vki[1][1][1]["y"]
+                y_choice = "compressed-y-0" if (y[-1] % 2 == 0) else "compressed-y-1"
+                tbs["verifyKeyIndicator"] = ("verificationKey", ("ecdsaNistP256", (y_choice, x)))
+        d["toBeSigned"] = tbs
+        sig = d.get("signature")
+        if sig and sig[0] == "ecdsaNistP256Signature":
+            rSig = sig[1]["rSig"]
+            if rSig[0] in ("compressed-y-0", "compressed-y-1"):
+                d["signature"] = ("ecdsaNistP256Signature", {"rSig": ("x-only", rSig[1]), "sSig": sig[1]["sSig"]})
+        return Certificate(d, self.issuer)
+
     def as_hashedid8(self) -> bytes:
         """
-        Return the certificate as a hashedid8.
+        Return the certificate as a canonical hashedid8.
 
         Returns
         -------
         bytes
             The certificate as a hashedid8.
         """
+        canon_cert = self.to_canonical()
         m = sha256()
-        m.update(SECURITY_CODER.encode_etsi_ts_103097_certificate(self.certificate))
+        m.update(SECURITY_CODER.encode_etsi_ts_103097_certificate(canon_cert.certificate))
         return m.digest()[-8:]
 
     def encode(self) -> bytes:
@@ -475,9 +500,16 @@ class Certificate:
             and self.check_issuer_has_subject_permissions(self.issuer)
         ):
             if self.signature_is_nist_p256() and self.verification_key_is_nist_p256():
-                if self.verify_signature(
-                    backend,
-                    self.certificate["toBeSigned"],
+                tbs_bytes = SECURITY_CODER.encode_ToBeSignedCertificate(self.certificate["toBeSigned"])
+                if self.certificate.get("issuer", [None])[0] == "sha256AndDigest":
+                    tbs_hash = sha256(tbs_bytes).digest()
+                    issuer_cert_bytes = self.issuer.to_canonical().encode()
+                    issuer_hash = sha256(issuer_cert_bytes).digest()
+                    payload = tbs_hash + issuer_hash
+                else:
+                    payload = tbs_bytes
+                if backend.verify_with_pk(
+                    payload,
                     self.certificate["signature"],
                     self.issuer.certificate["toBeSigned"]["verifyKeyIndicator"][1],
                 ):
@@ -875,12 +907,20 @@ class OwnCertificate(Certificate):
             The certificate to be signed.
         """
         certificate_dict = deepcopy(certificate.certificate)
-        certificate_dict["signature"] = backend.sign(
-            SECURITY_CODER.encode_ToBeSignedCertificate(
-                certificate.certificate["toBeSigned"]
-            ),
-            self.key_id,
+        tbs_bytes = SECURITY_CODER.encode_ToBeSignedCertificate(
+            certificate.certificate["toBeSigned"]
         )
+        issuer_type = certificate.certificate.get("issuer", [None])[0]
+        if issuer_type == "sha256AndDigest":
+            # IEEE 1609.2 §5.3.2 / ETSI TS 103 097:
+            # Digest to sign is SHA-256( SHA-256(tbs_bytes) || SHA-256(issuer_cert_bytes) )
+            tbs_hash = sha256(tbs_bytes).digest()
+            issuer_cert_bytes = self.to_canonical().encode()
+            issuer_hash = sha256(issuer_cert_bytes).digest()
+            payload = tbs_hash + issuer_hash
+            certificate_dict["signature"] = backend.sign(payload, self.key_id)
+        else:
+            certificate_dict["signature"] = backend.sign(tbs_bytes, self.key_id)
         return Certificate.from_dict(certificate_dict, self)
 
     def issue_certificate(
