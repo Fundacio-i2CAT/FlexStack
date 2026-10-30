@@ -9,15 +9,15 @@ on:
 jobs:
   test:
     name: Unit Tests (Python 3.8)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.8"
       - name: Cache pip
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache/pip
           key: ${{ runner.os }}-pip-3.8-${{ hashFiles('**/requirements.txt') }}
