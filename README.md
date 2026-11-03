@@ -94,6 +94,7 @@ This code has been developed within the following research and innovation projec
 - **PoDIUM** (Grant Agreement No. 101069547) – Funded under the Horizon 2021 programme, this project focuses on accelerating the implementation of connected, cooperative and automated mobility technology.
 - **SPRINGTIME** (PID2023-146378NB-I00) funded by the Spanish government (MCIU/AEI/10.13039/501100011033/FEDER/UE), this project focuses in techniques to get IP-based interconnection on multiple environments.
 - **ONOFRE-3** (PID2020-112675RB-C43) funded by the Spanish government (MCIN/ AEI /10.13039/501100011033), this project focuses on the adaptation of network and compute resources from the cloud to the far-edge.
+- **CERTAIN** (Grant Agreement No. 101203230) – Funded under the Horizon Europe call HORIZON-CL5-2024-D6-01-02 and focusing on harmonised safety validation, human-centric interaction, lifecycle assurance, trustworthy AI and connected V2X validation.
 
 # Copyright
 
