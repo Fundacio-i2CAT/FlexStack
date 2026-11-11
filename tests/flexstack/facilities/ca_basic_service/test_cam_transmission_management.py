@@ -9,6 +9,7 @@ from flexstack.facilities.ca_basic_service.cam_transmission_management import (
     VehicleData,
     T_GEN_CAM_MIN,
     T_GEN_CAM_MAX,
+    T_GEN_CAM_DCC,
     N_GEN_CAM_DEFAULT,
     _haversine_m,
 )
@@ -868,6 +869,73 @@ class TestPathHistory(unittest.TestCase):
         tpv = _make_tpv(lat=41.0, lon=2.0)
         result = ctm._get_path_history(tpv)
         self.assertLessEqual(len(result), 23)
+
+
+# ---------------------------------------------------------------------------
+# TestTGenCamDcc — management-layer (DCC) coupling, §6.1.3
+# ---------------------------------------------------------------------------
+
+_TIME = "flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time"
+
+
+class TestTGenCamDcc(unittest.TestCase):
+
+    def _evaluate_at(self, ctm, now_ms):
+        with patch(_TIME, return_value=now_ms / 1000.0):
+            ctm._evaluate_and_maybe_send()
+
+    def test_default_and_clamping(self):
+        ctm, _, _, _ = _make_ctm()
+        self.assertEqual(ctm.t_gen_cam_dcc, T_GEN_CAM_DCC)
+        ctm.set_t_gen_cam_dcc(400)
+        self.assertEqual(ctm.t_gen_cam_dcc, 400)
+        ctm.set_t_gen_cam_dcc(10)
+        self.assertEqual(ctm.t_gen_cam_dcc, T_GEN_CAM_MIN)
+        ctm.set_t_gen_cam_dcc(5000)
+        self.assertEqual(ctm.t_gen_cam_dcc, T_GEN_CAM_MAX)
+
+    def test_gates_condition1(self):
+        ctm, _, _, _ = _make_ctm()
+        ctm._send_cam = MagicMock()
+        ctm.set_t_gen_cam_dcc(500)
+        ctm._current_tpv = _make_tpv(track=90.0)
+        self._evaluate_at(ctm, 1_000)
+        self.assertEqual(ctm._send_cam.call_count, 1)
+        # Heading change of 45 degrees satisfies the dynamics check ...
+        ctm._current_tpv = _make_tpv(track=135.0)
+        # ... but elapsed (200 ms) < T_GenCam_DCC (500 ms): no CAM.
+        self._evaluate_at(ctm, 1_200)
+        self.assertEqual(ctm._send_cam.call_count, 1)
+        # Once elapsed >= T_GenCam_DCC the condition-1 CAM is sent.
+        self._evaluate_at(ctm, 1_500)
+        self.assertEqual(ctm._send_cam.call_count, 2)
+
+    def test_gates_condition2(self):
+        ctm, _, _, _ = _make_ctm()
+        ctm._send_cam = MagicMock()
+        ctm._current_tpv = _make_tpv()
+        self._evaluate_at(ctm, 1_000)
+        self.assertEqual(ctm._send_cam.call_count, 1)
+        ctm.t_gen_cam = 400
+        ctm.set_t_gen_cam_dcc(800)
+        # elapsed >= T_GenCam but < T_GenCam_DCC: no CAM.
+        self._evaluate_at(ctm, 1_500)
+        self.assertEqual(ctm._send_cam.call_count, 1)
+        self._evaluate_at(ctm, 1_800)
+        self.assertEqual(ctm._send_cam.call_count, 2)
+
+    def test_dcc_entity_drives_t_gen_cam_dcc(self):
+        from flexstack.management.cbr import SharedCbr
+        from flexstack.management.dcc_entity import DccEntity, DccMode
+        ctm, _, _, _ = _make_ctm()
+        cbr = SharedCbr()
+        dcc = DccEntity(DccMode.reactive(), cbr)
+        dcc.add_t_gen_cam_dcc_listener(ctm.set_t_gen_cam_dcc)
+        cbr.report(0.9)  # Restrictive band; reactive DCC steps up one state per evaluation
+        dcc.evaluate()
+        self.assertEqual(ctm.t_gen_cam_dcc, 200)  # Active1 T_off
+        dcc.evaluate()
+        self.assertEqual(ctm.t_gen_cam_dcc, 400)  # Active2 T_off
 
 
 if __name__ == "__main__":

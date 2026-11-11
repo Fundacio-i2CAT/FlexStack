@@ -46,7 +46,8 @@ from .cam_ldm_adaptation import CABasicServiceLDM
 T_GEN_CAM_MIN = 100       # T_GenCamMin [ms]
 T_GEN_CAM_MAX = 1000      # T_GenCamMax [ms]
 T_CHECK_CAM_GEN = T_GEN_CAM_MIN   # T_CheckCamGen ≤ T_GenCamMin [ms]
-T_GEN_CAM_DCC = T_GEN_CAM_MIN    # T_GenCam_DCC ∈ [T_GenCamMin, T_GenCamMax] [ms]
+T_GEN_CAM_DCC = T_GEN_CAM_MIN    # Default T_GenCam_DCC ∈ [T_GenCamMin, T_GenCamMax] [ms]
+#                                  until a DCC entity provides a value (see set_t_gen_cam_dcc)
 
 # ---------------------------------------------------------------------------
 # Optional-container intervals (§6.1.3)
@@ -639,6 +640,9 @@ class CAMTransmissionManagement:
         Local Dynamic Map adapter; may be None.
     t_gen_cam : int
         Current T_GenCam upper bound [ms].  Starts at T_GenCamMax per §6.1.3.
+    t_gen_cam_dcc : int
+        T_GenCam_DCC [ms] provided by the management layer (DCC), see
+        :meth:`set_t_gen_cam_dcc`.  Defaults to ``T_GEN_CAM_DCC``.
     last_cam_generation_delta_time : GenerationDeltaTime or None
         GenerationDeltaTime of the most recently sent CAM (legacy attribute).
     """
@@ -658,6 +662,8 @@ class CAMTransmissionManagement:
 
         # §6.1.3 — T_GenCam starts at T_GenCamMax (not T_GenCamMin!)
         self.t_gen_cam: int = T_GEN_CAM_MAX
+        # §6.1.3 — T_GenCam_DCC, provided by the management layer (DCC)
+        self.t_gen_cam_dcc: int = T_GEN_CAM_DCC
         self._n_gen_cam_counter: int = 0         # consecutive condition-1 CAMs
 
         # Dynamics state of the last transmitted CAM
@@ -720,6 +726,20 @@ class CAMTransmissionManagement:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
+
+    def set_t_gen_cam_dcc(self, t_gen_cam_dcc_ms: int) -> None:
+        """
+        Set T_GenCam_DCC (§6.1.3), clamped to [T_GenCamMin, T_GenCamMax].
+
+        Intended as a :class:`~flexstack.management.dcc_entity.DccEntity`
+        listener; may be called from the DCC thread while the CA service runs.
+
+        Parameters
+        ----------
+        t_gen_cam_dcc_ms : int
+            Minimum CAM generation interval imposed by DCC [ms].
+        """
+        self.t_gen_cam_dcc = max(T_GEN_CAM_MIN, min(T_GEN_CAM_MAX, int(t_gen_cam_dcc_ms)))
 
     # ------------------------------------------------------------------
     # Location service integration
@@ -784,14 +804,15 @@ class CAMTransmissionManagement:
             return
 
         elapsed_ms = now_ms - self._last_cam_time_ms
+        t_gen_cam_dcc = self.t_gen_cam_dcc
 
         # Condition 1 (§6.1.3): elapsed ≥ T_GenCam_DCC  AND  dynamics changed
-        if elapsed_ms >= T_GEN_CAM_DCC and self._check_dynamics(tpv):
+        if elapsed_ms >= t_gen_cam_dcc and self._check_dynamics(tpv):
             self._generate_and_send_cam(tpv, now_ms, condition=1)
             return
 
         # Condition 2 (§6.1.3): elapsed ≥ T_GenCam  AND  elapsed ≥ T_GenCam_DCC
-        if elapsed_ms >= self.t_gen_cam and elapsed_ms >= T_GEN_CAM_DCC:
+        if elapsed_ms >= self.t_gen_cam and elapsed_ms >= t_gen_cam_dcc:
             self._generate_and_send_cam(tpv, now_ms, condition=2)
 
     # ------------------------------------------------------------------

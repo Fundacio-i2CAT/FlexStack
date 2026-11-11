@@ -43,6 +43,12 @@ class TestCooperativeAwarenessBasicService(unittest.TestCase):
         service.stop()
         service.cam_transmission_management.stop.assert_called_once()
 
+    def test_set_t_gen_cam_dcc_reaches_transmission_management(self):
+        btp_router = MagicMock()
+        service = CooperativeAwarenessBasicService(btp_router, _make_vehicle_data())
+        service.set_t_gen_cam_dcc(400)
+        self.assertEqual(service.cam_transmission_management.t_gen_cam_dcc, 400)
+
     def test_location_service_callback_available(self):
         btp_router = MagicMock()
         service = CooperativeAwarenessBasicService(btp_router, _make_vehicle_data())

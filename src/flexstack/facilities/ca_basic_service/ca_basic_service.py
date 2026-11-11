@@ -94,3 +94,11 @@ class CooperativeAwarenessBasicService:
         """
         self.cam_transmission_management.stop()
         self.logging.info("CA Basic Service stopped.")
+
+    def set_t_gen_cam_dcc(self, t_gen_cam_dcc_ms: int) -> None:
+        """
+        Set T_GenCam_DCC (§6.1.3) on the transmission management, clamped to
+        [T_GenCamMin, T_GenCamMax].  Intended as a
+        :class:`~flexstack.management.dcc_entity.DccEntity` listener target.
+        """
+        self.cam_transmission_management.set_t_gen_cam_dcc(t_gen_cam_dcc_ms)
