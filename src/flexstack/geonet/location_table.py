@@ -1,20 +1,21 @@
 from __future__ import annotations
 from collections import deque
+import time
+from collections.abc import Callable
 from threading import Lock, RLock
-from ..utils.time_service import TimeService
 from .gbc_extended_header import GBCExtendedHeader
 from .tsb_extended_header import TSBExtendedHeader
 from .guc_extended_header import GUCExtendedHeader
 from .ls_extended_header import LSRequestExtendedHeader, LSReplyExtendedHeader
 from .gn_address import GNAddress
 from .mib import MIB
-from .position_vector import LongPositionVector, TST
+from .position_vector import LongPositionVector, ShortPositionVector, TST
 from .exceptions import DuplicatedPacketException
 
 
 class LocationTableEntry:
     """
-    Location table entry class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 8.1.2
+    Location table entry class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 8.2.2
 
 
     Attributes
@@ -44,6 +45,9 @@ class LocationTableEntry:
         self.version: int = mib.itsGnProtocolVersion
         self.position_vector_lock = Lock()
         self.position_vector: LongPositionVector = LongPositionVector()
+        # Local time (ms, router clock) of the last update: start of the
+        # itsGnLifetimeLocTE soft-state timer (clause 8.2.3).
+        self.updated_ms: float | None = None
         self.ls_pending: bool = False
         self.is_neighbour: bool = False
         self.tst_lock = Lock()
@@ -68,7 +72,7 @@ class LocationTableEntry:
     def update_position_vector(self, position_vector: LongPositionVector) -> None:
         """
         Updates the position vector.
-        Annex C.2 of ETSI EN 302 636-4-1 V1.4.1 (2020-01):
+        Annex C.2 of ETSI TS 103 836-4-1 V2.2.1 (2026-04):
         PV is updated only when the received TST is strictly newer than the stored TST
         (wrap-around handled by TST.__gt__). If not newer, the call returns silently
         and packet processing continues normally (no exception raised).
@@ -93,7 +97,7 @@ class LocationTableEntry:
     def update_pdr(self, position_vector: LongPositionVector, packet_size: int) -> None:
         """
         Updates the Packet Data Rate (PDR).
-        Annex B2 of ETSI EN 302 636-4-1 V1.4.1 (2020-01)
+        Annex B2 of ETSI TS 103 836-4-1 V2.2.1 (2026-04)
 
         Parameters
         ----------
@@ -119,7 +123,7 @@ class LocationTableEntry:
         """
         Updates the entry with a SHB packet.
 
-        Follows the steps 4, 5 and 6 of the algorithm in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.10.3
+        Follows the steps 4, 5 and 6 of the algorithm in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 10.3.10.3
 
         Parameters
         ----------
@@ -149,7 +153,7 @@ class LocationTableEntry:
         """
         Updates the entry with a TSB packet.
 
-        Follows steps 3-6 of §10.3.9.3 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        Follows steps 3-6 of §10.3.9.3 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
 
         Parameters
         ----------
@@ -185,7 +189,7 @@ class LocationTableEntry:
         """
         Updates the entry with a SHB packet.
 
-        Follows the steps 3, 4, 5 and 6 of the algorithm in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 10.3.11.3
+        Follows the steps 3, 4, 5 and 6 of the algorithm in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 10.3.11.3
 
         Parameters
         ----------
@@ -216,7 +220,7 @@ class LocationTableEntry:
         Checks if a packet with the given sequence number is a duplicate.
 
         Implements the SN-based DPD algorithm of annex A.2 of
-        ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        ETSI TS 103 836-4-1 V2.2.1 (2026-04).
 
         The DPL is a ring buffer of length itsGnDPLLength that stores the
         sequence numbers of the most recently received (non-duplicate) packets
@@ -251,7 +255,7 @@ class LocationTableEntry:
 
 class LocationTable:
     """
-    Location table class.  ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 8.1.1
+    Location table class.  ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 8.2.1
 
     Attributes
     ----------
@@ -261,7 +265,7 @@ class LocationTable:
         Location table.
     """
 
-    def __init__(self, mib: MIB):
+    def __init__(self, mib: MIB, clock: Callable[[], float] | None = None):
         """
         Constructor.
 
@@ -269,8 +273,11 @@ class LocationTable:
         ----------
         mib : MIB
             MIB to use.
+        clock : Callable[[], float] | None
+            Local clock in ms (the router clock) for the LocTE lifetime.
         """
         self.mib = mib
+        self._clock: Callable[[], float] = clock or (lambda: time.monotonic() * 1000)
         self.loc_t: dict[GNAddress, LocationTableEntry] = {}
         self.loc_t_lock = RLock()
 
@@ -288,9 +295,29 @@ class LocationTable:
         LocationTableEntry | None
             Location table entry.
         """
+        self.refresh_table()
         with self.loc_t_lock:
             return self.loc_t.get(gn_address, None)
-        return None
+
+    def update_with_de_pv(self, de_pv: ShortPositionVector) -> None:
+        """
+        Forwarder step 7 of clauses 10.3.8.3 / 10.3.7.2: when the DE LocTE does
+        not exist or is not a neighbour, update PV(DE) with the DE PV of the
+        packet (clause C.2, only when newer). The DE PV is a Short Position
+        Vector: PAI, speed and heading are set to 0 (NOTE 3).
+        """
+        with self.loc_t_lock:
+            entry = self.loc_t.get(de_pv.gn_addr)
+            if entry is not None and entry.is_neighbour:
+                return
+            if entry is None:
+                entry = LocationTableEntry(self.mib)
+                entry.is_neighbour = False
+                self.loc_t[de_pv.gn_addr] = entry
+        entry.update_position_vector(LongPositionVector(
+            gn_addr=de_pv.gn_addr, tst=de_pv.tst, latitude=de_pv.latitude, longitude=de_pv.longitude,
+            pai=False, s=0, h=0))
+        self._touch(entry)
 
     def ensure_entry(self, gn_address: GNAddress) -> LocationTableEntry:
         """
@@ -315,19 +342,47 @@ class LocationTable:
                 self.loc_t[gn_address] = entry
         return entry
 
+    def get_entry_by_mid(self, mid: bytes) -> LocationTableEntry | None:
+        """
+        LocTE whose GN_ADDR carries the link-layer address ``mid`` in its MID
+        field, used to identify the previous sender of a received packet.
+        """
+        with self.loc_t_lock:
+            for gn_address, entry in self.loc_t.items():
+                if gn_address.mid.mid == mid:
+                    return entry
+        return None
+
+    def remove_entry(self, gn_address: GNAddress) -> None:
+        """Removes the LocTE of ``gn_address`` (e.g. when a LS does not complete)."""
+        with self.loc_t_lock:
+            self.loc_t.pop(gn_address, None)
+
+    def _touch(self, entry: LocationTableEntry) -> None:
+        """Restart the lifetime of an updated LocTE, then expire the others."""
+        entry.updated_ms = self._clock()
+        self.refresh_table()
+
     def refresh_table(self) -> None:
         """
-        Removes the entries that have expired.
-
-        Temporarily solution following ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 8.1.3
+        Removes the entries whose soft-state lifetime itsGnLifetimeLocTE,
+        restarted at each update on the local clock, has expired (ETSI TS
+        103 836-4-1 V2.2.1 clause 8.2.3).
         """
-        current_time = TST.set_in_normal_timestamp_seconds(
-            int(TimeService.time()))
+        now = self._clock()
+        lifetime_ms = self.mib.itsGnLifetimeLocTE * 1000
+
+        def alive(entry: LocationTableEntry) -> bool:
+            # Entries of a pending Location Service carry no PV yet; they are
+            # removed by the LS itself (clause 10.3.7.1.3).
+            if entry.ls_pending:
+                return True
+            if entry.updated_ms is None:        # created without update: lifetime starts now
+                entry.updated_ms = now
+            return now - entry.updated_ms <= lifetime_ms
+
         with self.loc_t_lock:
-            self.loc_t = {
-                gn: entry for gn, entry in self.loc_t.items()
-                if (current_time - entry.position_vector.tst) <= self.mib.itsGnLifetimeLocTE * 1000
-            }
+            self.loc_t = {gn: entry for gn, entry in self.loc_t.items() if alive(entry)}
 
     def new_shb_packet(
         self, position_vector: LongPositionVector, packet: bytes
@@ -356,7 +411,7 @@ class LocationTable:
                 self.loc_t[position_vector.gn_addr] = entry
 
         entry.update_with_shb_packet(position_vector, packet)
-        self.refresh_table()
+        self._touch(entry)
 
     def new_guc_packet(
         self, guc_extended_header: GUCExtendedHeader, packet: bytes
@@ -364,7 +419,7 @@ class LocationTable:
         """
         Updates the location table with a new GUC packet (SO LocTE).
 
-        Follows steps 5-6 of §10.3.8.3 / §10.3.8.4 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        Follows steps 5-6 of §10.3.8.3 / §10.3.8.4 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
         IS_NEIGHBOUR is set to FALSE for new entries only; unchanged for existing ones (NOTE 2).
 
         Parameters
@@ -398,7 +453,7 @@ class LocationTable:
         # IS_NEIGHBOUR = FALSE only for new entry (NOTE 2: unchanged otherwise)
         if is_new_entry:
             entry.is_neighbour = False
-        self.refresh_table()
+        self._touch(entry)
 
     def new_tsb_packet(
         self, tsb_extended_header: TSBExtendedHeader, packet: bytes
@@ -429,7 +484,7 @@ class LocationTable:
                 self.loc_t[tsb_extended_header.so_pv.gn_addr] = entry
         assert entry is not None
         entry.update_with_tsb_packet(packet, tsb_extended_header, is_new_entry)
-        self.refresh_table()
+        self._touch(entry)
 
     def new_gac_packet(
         self, gbc_extended_header: GBCExtendedHeader, packet: bytes
@@ -437,7 +492,7 @@ class LocationTable:
         """
         Updates the location table with a new GAC packet (SO LocTE).
 
-        Follows steps 5-6 of §10.3.12.3 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        Follows steps 5-6 of §10.3.12.3 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
         GAC and GBC share the same extended header format (§9.8.5), so GBCExtendedHeader
         is reused for GAC.
         IS_NEIGHBOUR is set to FALSE for new entries only; unchanged for existing ones (NOTE 1).
@@ -473,7 +528,7 @@ class LocationTable:
         # IS_NEIGHBOUR = FALSE only for new entry (NOTE 1: unchanged otherwise)
         if is_new_entry:
             entry.is_neighbour = False
-        self.refresh_table()
+        self._touch(entry)
 
     def new_ls_request_packet(
         self, ls_request_header: LSRequestExtendedHeader, packet: bytes
@@ -481,7 +536,7 @@ class LocationTable:
         """
         Updates the location table with a new LS Request packet (SO LocTE).
 
-        Follows steps 5-6 of §10.3.7.3 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        Follows steps 5-6 of §10.3.7.3 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
         IS_NEIGHBOUR is set to FALSE for new entries only; unchanged for existing ones (NOTE).
 
         Parameters
@@ -515,7 +570,7 @@ class LocationTable:
         # Step 5b: IS_NEIGHBOUR = FALSE only for new entry (NOTE: unchanged otherwise)
         if is_new_entry:
             entry.is_neighbour = False
-        self.refresh_table()
+        self._touch(entry)
 
     def new_ls_reply_packet(
         self, ls_reply_header: LSReplyExtendedHeader, packet: bytes
@@ -523,7 +578,7 @@ class LocationTable:
         """
         Updates the location table with a new LS Reply packet (SO LocTE).
 
-        Follows steps 4-5 of §10.3.7.1.4 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+        Follows steps 4-5 of §10.3.7.1.4 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
         The LS Reply SO PV is the replier's position; IS_NEIGHBOUR is set to FALSE for new entries.
 
         Parameters
@@ -556,7 +611,7 @@ class LocationTable:
         entry.update_pdr(so_pv, len(packet) + 8 + 4)
         if is_new_entry:
             entry.is_neighbour = False
-        self.refresh_table()
+        self._touch(entry)
 
     def new_gbc_packet(
         self, gbc_extended_header: GBCExtendedHeader, packet: bytes
@@ -585,7 +640,7 @@ class LocationTable:
                 entry = LocationTableEntry(self.mib)
                 self.loc_t[gbc_extended_header.so_pv.gn_addr] = entry
         entry.update_with_gbc_packet(packet, gbc_extended_header)
-        self.refresh_table()
+        self._touch(entry)
 
     def get_neighbours(self) -> list[LocationTableEntry]:
         """
@@ -597,6 +652,7 @@ class LocationTable:
             List of neighbours.
         """
         neighbours: list[LocationTableEntry] = []
+        self.refresh_table()
         with self.loc_t_lock:
             for _, entry in self.loc_t.items():
                 if entry.is_neighbour:

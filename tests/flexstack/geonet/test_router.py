@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import dataclasses
 import unittest
 from unittest.mock import Mock, MagicMock
 
+from flexstack.geonet.packet_buffer import PacketBuffer
 from flexstack.geonet.router import DADException, GNForwardingAlgorithmResponse, Router
 from flexstack.geonet.mib import MIB, AreaForwardingAlgorithm
 from flexstack.geonet.position_vector import LongPositionVector, ShortPositionVector
-from flexstack.geonet.service_access_point import Area, CommonNH, GNDataIndication, GNDataRequest, GNDataConfirm, GeoBroadcastHST, GeoAnycastHST, HeaderType, LocationServiceHST, ResultCode, TopoBroadcastHST, PacketTransportType, TrafficClass
+from flexstack.geonet.service_access_point import HeaderSubType, Area, CommonNH, GNDataIndication, GNDataRequest, GNDataConfirm, GeoBroadcastHST, GeoAnycastHST, HeaderType, LocationServiceHST, ResultCode, TopoBroadcastHST, PacketTransportType, TrafficClass
 from flexstack.geonet.gn_address import ST, GNAddress, M, MID
-from flexstack.geonet.basic_header import BasicHeader, BasicNH
+from flexstack.geonet.basic_header import LT, BasicHeader, BasicNH
 from flexstack.geonet.common_header import CommonHeader
 from flexstack.geonet.gbc_extended_header import GBCExtendedHeader
 from flexstack.geonet.guc_extended_header import GUCExtendedHeader
@@ -39,11 +41,11 @@ class TestRouter(unittest.TestCase):
         # When
         sequence_number = router.get_sequence_number()
         # Then
-        self.assertEqual(sequence_number, 1)
+        self.assertEqual(sequence_number, 0)    # clause 8.4.2: initialized to 0
         # When
         sequence_number = router.get_sequence_number()
         # Then
-        self.assertEqual(sequence_number, 2)
+        self.assertEqual(sequence_number, 1)
 
     def test_register_indication_callback(self):
         # Given
@@ -86,7 +88,7 @@ class TestRouter(unittest.TestCase):
         # Assert that the result is an instance of GNDataConfirm
         self.assertIsInstance(result, GNDataConfirm)
         link_layer.send.assert_called_once_with(
-            b'\x11\x00\x1a\x01\x00P\x00\x80\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00request_data')
+            b'\x11\x00\x1a\x01\x00P\x00\x80\x00\x0c\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00request_data')
         self.assertEqual(result.result_code, ResultCode.ACCEPTED)
 
     def test_calculate_distance(self):
@@ -268,7 +270,7 @@ class TestRouter(unittest.TestCase):
         mib = MIB()
         router = Router(mib)
         router.location_table.new_shb_packet = Mock()
-        router.duplicate_address_detection = Mock()
+        router.resolve_address_conflict = Mock()
         common_header = CommonHeader(
             hst=TopoBroadcastHST.SINGLE_HOP,  # type: ignore
             ht=HeaderType.TSB
@@ -288,7 +290,8 @@ class TestRouter(unittest.TestCase):
 
         # Then
         router.location_table.new_shb_packet.assert_called_once()
-        router.duplicate_address_detection.assert_called_once()
+        # DAD (step 3): SO and local address are both the default GNAddress -> conflict
+        router.resolve_address_conflict.assert_called_once()
         self.assertEqual(result.data, b'payload')
 
     def test_GNDataIndicateGBC(self):
@@ -368,25 +371,65 @@ class TestRouter(unittest.TestCase):
         router.gn_data_indicate_gbc.assert_not_called()
         router.gn_data_indicate_shb.assert_called_once()
 
-    def test_gn_security_enabled_drops_unsecured_packets(self):
-        """When itsGnSecurity=ENABLED, unsecured packets (NH=COMMON_HEADER) must be silently dropped."""
+    def test_gn_security_enabled_unsecured_frame_with_our_mac_is_no_conflict(self):
+        """With itsGnSecurity=ENABLED an unsecured frame sent with our link-layer address
+        does not trigger the DAD of clause 10.2.1.5 step 1b (an unsecured packet cannot
+        alter the GN state); without security it does."""
         from flexstack.geonet.mib import GnSecurity
-        mib = MIB(itsGnSecurity=GnSecurity.ENABLED)
-        router = Router(mib)
+        own = GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, 1])))
+        common_header = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP, mhl=1)  # type: ignore
+        sender_pv = LongPositionVector(gn_addr=GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, 9])))).encode()
+        packet = BasicHeader(version=1).encode_to_bytes() + common_header.encode_to_bytes() + sender_pv + bytes(4)
+        for security, conflicts in ((GnSecurity.ENABLED, 0), (GnSecurity.DISABLED, 1)):
+            router = Router(MIB(itsGnLocalGnAddr=own, itsGnSecurity=security))
+            router.resolve_address_conflict = Mock()
+            router.gn_data_indicate(packet, sender_ll_address=own.mid.mid)
+            self.assertEqual(router.resolve_address_conflict.call_count, conflicts)
+
+    def test_gn_security_enabled_indicates_unsecured_shb_statelessly(self):
+        """With itsGnSecurity=ENABLED an unsecured SHB is indicated (no security report;
+        BTP filters it per port, see test_btp_router) without the SHB receiver
+        operations that change GN state (DAD, LocT update, buffer flush)."""
+        from flexstack.geonet.mib import GnSecurity
+        router = Router(MIB(itsGnSecurity=GnSecurity.ENABLED))
+        router.gn_data_indicate_shb = Mock()
         callback = Mock()
         router.register_indication_callback(callback)
-        router.gn_data_indicate_shb = Mock()
-
-        # Build an unsecured SHB packet (NH=COMMON_HEADER)
-        basic_header = BasicHeader(version=1)
-        common_header = CommonHeader(
-            ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP)  # type: ignore
-        packet = basic_header.encode_to_bytes() + common_header.encode_to_bytes() + bytes(28)
+        sender = GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, 9])))
+        common_header = CommonHeader(ht=HeaderType.TSB, hst=TopoBroadcastHST.SINGLE_HOP,  # type: ignore
+                                     nh=CommonNH.BTP_B, mhl=1, pl=3)
+        headers = BasicHeader(version=1).encode_to_bytes() + common_header.encode_to_bytes()
+        packet = headers + LongPositionVector(gn_addr=sender).encode() + bytes(4) + b"abc"
 
         router.gn_data_indicate(packet)
 
         router.gn_data_indicate_shb.assert_not_called()
-        callback.assert_not_called()
+        callback.assert_called_once()
+        indication = callback.call_args[0][0]
+        self.assertEqual((indication.data, indication.security_report), (b"abc", None))
+        self.assertEqual(indication.source_position_vector.gn_addr, sender)
+        self.assertIsNone(router.location_table.get_entry(sender))
+
+    def test_unsecured_profile_sends_unsecured_shb(self):
+        """Table 18: Security profile UNSECURED gives NH=COMMON_HEADER (no signature)
+        although itsGnSecurity=ENABLED; NO_SECURITY (not set) keeps the default signing."""
+        from flexstack.geonet.mib import GnSecurity
+        from flexstack.security.security_profiles import SecurityProfile
+        sign_service = Mock()
+        sign_service.sign_request.return_value = Mock(sec_message=b"\x03signed")
+        router = Router(MIB(itsGnSecurity=GnSecurity.ENABLED), sign_service=sign_service)
+        router.link_layer = Mock()
+        request = GNDataRequest(packet_transport_type=PacketTransportType(
+            header_type=HeaderType.TSB, header_subtype=TopoBroadcastHST.SINGLE_HOP),
+            security_profile=SecurityProfile.UNSECURED, data=b"payload", length=7)
+        router.gn_data_request(request)
+        sent = router.link_layer.send.call_args[0][0]
+        self.assertEqual(BasicHeader.decode_from_bytes(sent[:4]).nh, BasicNH.COMMON_HEADER)
+        self.assertTrue(sent.endswith(b"payload"))
+        sign_service.sign_request.assert_not_called()
+        router.gn_data_request(dataclasses.replace(request, security_profile=SecurityProfile.NO_SECURITY))
+        sent = router.link_layer.send.call_args[0][0]
+        self.assertEqual(BasicHeader.decode_from_bytes(sent[:4]).nh, BasicNH.SECURED_PACKET)
 
     def test_gn_security_disabled_accepts_unsecured_packets(self):
         """When itsGnSecurity=DISABLED (default), unsecured packets must be processed normally."""
@@ -421,7 +464,7 @@ class TestRouter(unittest.TestCase):
         # CommonHeader: NH=ANY(0x00), HT=BEACON(0x1)(+HST=0 => 0x10), TC=0,
         #               flags=itsGnIsMobile=MOBILE=0x80, PL=0, MHL=1, reserved=0
         link_layer.send.assert_called_once_with(
-            b'\x11\x00\x1a\x01\x00\x10\x00\x01\x00\x00\x01\x00' + bytes(24)
+            b'\x11\x00\x1a\x01\x00\x10\x00\x80\x00\x00\x01\x00' + bytes(24)
         )
 
     def test_GNDataIndicateBeacon(self):
@@ -429,7 +472,7 @@ class TestRouter(unittest.TestCase):
         mib = MIB()
         router = Router(mib)
         router.location_table.new_shb_packet = Mock()
-        router.duplicate_address_detection = Mock()
+        router.resolve_address_conflict = Mock()
         callback = Mock()
         router.register_indication_callback(callback)
         position_vector = LongPositionVector(
@@ -443,7 +486,8 @@ class TestRouter(unittest.TestCase):
         router.gn_data_indicate_beacon(packet)
 
         # Then: DAD is executed (§10.3.6.3 -> §10.3.10.3 step 3)
-        router.duplicate_address_detection.assert_called_once()
+        # DAD (step 3): SO and local address are both the default GNAddress -> conflict
+        router.resolve_address_conflict.assert_called_once()
         # And location table is updated
         router.location_table.new_shb_packet.assert_called_once()
         # Beacons do NOT pass payload to upper entity (§10.3.6.3 exception for step 8)
@@ -596,17 +640,23 @@ class TestProcessBasicHeader(unittest.TestCase):
         args = router.process_security_header.call_args[0]
         self.assertEqual(args[0], payload)
 
-    def test_security_enabled_drops_common_header(self):
-        """NH=COMMON_HEADER must be silently dropped when itsGnSecurity=ENABLED."""
+    def test_security_enabled_unsecured_packets_never_reach_gn_processing(self):
+        """With itsGnSecurity=ENABLED an unsecured packet (NH=COMMON_HEADER) never goes
+        through the full Common Header processing (LocT, DAD, forwarding): only a SHB is
+        indicated, statelessly; a Beacon, LS Request, GBC or multi-hop TSB is dropped."""
         from flexstack.geonet.mib import GnSecurity
-        mib = MIB(itsGnSecurity=GnSecurity.ENABLED)
-        router = Router(mib)
+        from flexstack.geonet.service_access_point import LocationServiceHST
+        router = Router(MIB(itsGnSecurity=GnSecurity.ENABLED))
         router.process_common_header = Mock()
-
-        packet = self._make_packet(BasicNH.COMMON_HEADER)
-        router.process_basic_header(packet)
-
+        callback = Mock()
+        router.register_indication_callback(callback)
+        for ht, hst, ext in ((HeaderType.BEACON, HeaderSubType.UNSPECIFIED, 24), (HeaderType.LS, LocationServiceHST.LS_REQUEST, 36),
+                             (HeaderType.GEOBROADCAST, GeoBroadcastHST.GEOBROADCAST_CIRCLE, 44),
+                             (HeaderType.TSB, TopoBroadcastHST.MULTI_HOP, 28)):
+            common = CommonHeader(ht=ht, hst=hst, mhl=1)  # type: ignore
+            router.process_basic_header(self._make_packet(BasicNH.COMMON_HEADER, common.encode_to_bytes() + bytes(ext)))
         router.process_common_header.assert_not_called()
+        callback.assert_not_called()
 
     def test_security_enabled_accepts_secured_packet(self):
         """NH=SECURED_PACKET must still be forwarded when itsGnSecurity=ENABLED."""
@@ -764,8 +814,10 @@ class TestProcessSecurityHeader(unittest.TestCase):
         router.process_security_header(b"valid_data", bh)
 
         verify_service.verify.assert_called_once()
+        # The Secured Packet is kept so that forwarders relay it unmodified
         router.process_common_header.assert_called_once_with(
-            plain_message, bh.set_nh(BasicNH.COMMON_HEADER))
+            plain_message, bh, secured_body=b"valid_data", sender_ll_address=None,
+            security=verify_service.verify.return_value)
 
 
 class TestGNDataIndicateTSB(unittest.TestCase):
@@ -906,6 +958,7 @@ class TestGNDataRequestGUC(unittest.TestCase):
             gn_addr=dest_addr, latitude=100, longitude=200)
         fake_entry = Mock()
         fake_entry.position_vector = de_lpv
+        fake_entry.ls_pending = False
         router.location_table.get_entry = Mock(return_value=fake_entry)
         router.location_table.get_neighbours = Mock(return_value=[fake_entry])
 
@@ -1335,7 +1388,8 @@ class TestGNLSRequest(unittest.TestCase):
         router.gn_ls_request(sought, extra_req)
         self.assertEqual(link_layer.send.call_count, send_count)
         # Buffer must contain the extra request
-        self.assertIn(extra_req, router._ls_packet_buffers.get(sought, []))
+        buffered = [req for req, _ in router._ls_packet_buffers[sought].flush(router._clock())]
+        self.assertIn(extra_req, buffered)
 
     def test_retransmit_resends_and_increments_counter(self):
         """_ls_retransmit must resend the LS Request and increment the counter."""
@@ -1355,8 +1409,8 @@ class TestGNLSRequest(unittest.TestCase):
         self.assertEqual(router._ls_retransmit_counters.get(sought), 1)
 
     def test_retransmit_gives_up_at_max_retrans(self):
-        """_ls_retransmit must stop and set ls_pending=FALSE when counter reaches maximum."""
-        mib = MIB(itsGnLocationServiceMaxRetrans=2)
+        """At the maximum, the LS is abandoned: buffer discarded and LocTE removed (10.3.7.1.3 b)."""
+        mib = MIB(itsGnLocationServiceMaxRetrans=2, itsGnBeaconServiceRetransmitTimer=0)
         router = Router(mib)
         link_layer = Mock()
         router.link_layer = link_layer
@@ -1370,9 +1424,9 @@ class TestGNLSRequest(unittest.TestCase):
 
         # No extra send should have happened
         self.assertEqual(link_layer.send.call_count, count_before)
-        entry = router.location_table.get_entry(sought)
-        self.assertIsNotNone(entry)
-        self.assertFalse(entry.ls_pending)
+        self.assertIsNone(router.location_table.get_entry(sought))
+        self.assertNotIn(sought, router._ls_packet_buffers)
+        self.assertIsNone(router.next_deadline())
 
     def test_no_locte_triggers_ls_via_gn_data_request_guc(self):
         """gn_data_request_guc must trigger gn_ls_request when no LocTE for destination exists."""
@@ -1540,8 +1594,9 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         # Simulate an ongoing LS for so_addr
         entry = router.location_table.ensure_entry(so_addr)
         entry.ls_pending = True
-        router._ls_packet_buffers[so_addr] = []
+        router._ls_packet_buffers[so_addr] = PacketBuffer(1024)
         router._ls_retransmit_counters[so_addr] = 1
+        router._ls_deadlines[so_addr] = 1000
 
         bh = BasicHeader(version=1, rhl=3)
         ch = CommonHeader(ht=HeaderType.LS,
@@ -1551,6 +1606,9 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         router.gn_data_indicate_ls_reply(body, ch, bh)
 
         self.assertFalse(entry.ls_pending)
+        # TLS stopped and RTCLS reset (steps 9-10)
+        self.assertNotIn(so_addr, router._ls_deadlines)
+        self.assertNotIn(so_addr, router._ls_retransmit_counters)
 
     def test_source_flushes_buffered_requests(self):
         """§10.3.7.1.4 step 7: source must re-process buffered GNDataRequests after LS completes."""
@@ -1574,7 +1632,8 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
         )
         entry = router.location_table.ensure_entry(so_addr)
         entry.ls_pending = True
-        router._ls_packet_buffers[so_addr] = [buffered_req]
+        router._ls_packet_buffers[so_addr] = PacketBuffer(1024)
+        router._ls_packet_buffers[so_addr].push(buffered_req, 68, 60_000, router._clock())
         router._ls_retransmit_counters[so_addr] = 0
 
         # Inject a LocTE with a real position vector so gn_data_request_guc can build GUC packet
@@ -1582,6 +1641,7 @@ class TestGNDataIndicateLSReply(unittest.TestCase):
             gn_addr=so_addr, latitude=100, longitude=200)
         fake_entry = Mock()
         fake_entry.position_vector = so_pv_full
+        fake_entry.ls_pending = True
         router.location_table.get_entry = Mock(return_value=fake_entry)
         router.location_table.get_neighbours = Mock(return_value=[fake_entry])
 
@@ -2652,76 +2712,36 @@ class TestAnnexF(unittest.TestCase):
         expected = (mib.itsGnCbfMinTime + mib.itsGnCbfMaxTime) / 2.0
         self.assertAlmostEqual(to, expected)
 
-    # ── §F.3 gn_area_cbf_forwarding ─────────────────────────────────────────
+    # ── §F.3 area CBF (clock-driven, see also test_gn_forwarding.py) ─────────
 
     def test_cbf_new_packet_buffered_not_sent_immediately(self):
-        """§F.3: new packet → buffered in CBF buffer → link_layer.send NOT called immediately."""
+        """F.3.5: a new packet is buffered in the CBF packet buffer, not sent."""
         router = self._make_router_inside()
         link_layer = Mock()
         router.link_layer = link_layer
         so_pv = LongPositionVector(gn_addr=_make_gn_addr())
         bh, ch, gbc = self._make_gbc_headers(so_pv)
-
-        result = router.gn_area_cbf_forwarding(bh, ch, gbc, b"payload")
-
-        self.assertTrue(result)  # buffered (§F.3 return 0)
+        router.gn_data_forward_gbc(bh, ch, gbc, b"payload")
         link_layer.send.assert_not_called()
-        # Clean up timer
-        key = (gbc.so_pv.gn_addr, gbc.sn)
-        with router._cbf_lock:
-            if key in router._cbf_buffer:
-                router._cbf_buffer.pop(key).cancel()
-
-    def test_cbf_duplicate_cancels_timer_and_discards(self):
-        """§F.3: duplicate arrival → timer cancelled, returns False (discard, -1)."""
-        router = self._make_router_inside()
-        link_layer = Mock()
-        router.link_layer = link_layer
-        so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        bh, ch, gbc = self._make_gbc_headers(so_pv)
-
-        first = router.gn_area_cbf_forwarding(bh, ch, gbc, b"payload")
-        second = router.gn_area_cbf_forwarding(bh, ch, gbc, b"payload")
-
-        self.assertTrue(first)    # first: buffered
-        self.assertFalse(second)  # duplicate: discarded
-        link_layer.send.assert_not_called()
-        # Buffer must be empty after duplicate suppression
-        key = (gbc.so_pv.gn_addr, gbc.sn)
-        with router._cbf_lock:
-            self.assertNotIn(key, router._cbf_buffer)
+        self.assertIn((gbc.so_pv.gn_addr, gbc.sn), router._cbf_buffer)
 
     def test_cbf_timer_expiry_sends_packet(self):
-        """§F.3: when timer fires → link_layer.send is called once."""
-        import threading
-        import unittest.mock
-
-        router = self._make_router_inside()
+        """F.3.5 lines 62-69: on timer expiry the packet is re-broadcast once."""
+        now = [0]
+        mib = MIB(itsGnAreaForwardingAlgorithm=AreaForwardingAlgorithm.CBF)
+        router = Router(mib, clock=lambda: now[0])
+        router.ego_position_vector = LongPositionVector(
+            latitude=self._LAT_INSIDE, longitude=self._LON_INSIDE)
         link_layer = Mock()
         router.link_layer = link_layer
-        so_pv = LongPositionVector(gn_addr=_make_gn_addr())
-        bh, ch, gbc = self._make_gbc_headers(so_pv)
-
-        fired_event = threading.Event()
-
-        def send_and_signal(pkt):
-            fired_event.set()
-
-        link_layer.send.side_effect = send_and_signal
-
-        # Patch Timer to fire after a very short delay (10 ms)
-        real_timer_args = []
-
-        def fast_timer(interval, func, args=()):
-            t = threading.Timer(0.01, func, args)
-            real_timer_args.append(t)
-            return t
-
-        with unittest.mock.patch("flexstack.geonet.router.Timer", side_effect=fast_timer):
-            router.gn_area_cbf_forwarding(bh, ch, gbc, b"payload")
-
-        fired_event.wait(timeout=2.0)
+        bh, ch, gbc = self._make_gbc_headers(LongPositionVector(gn_addr=_make_gn_addr()))
+        bh = bh.set_lt(LT().set_value_in_seconds(10))   # LT = 0 would expire in the buffer
+        router.gn_data_forward_gbc(bh, ch, gbc, b"payload")
+        self.assertEqual(router.next_deadline(), mib.itsGnCbfMaxTime)   # F_DIST = 0
+        now[0] = mib.itsGnCbfMaxTime
+        router.tick()
         link_layer.send.assert_called_once()
+        self.assertEqual(len(router._cbf_buffer), 0)
 
     # ── §F.2 Simple forwarding via gn_data_forward_gbc ──────────────────────
 
@@ -2752,11 +2772,7 @@ class TestAnnexF(unittest.TestCase):
         router.gn_data_forward_gbc(bh, ch, gbc, b"payload")
 
         link_layer.send.assert_not_called()
-        # Clean up timer
-        key = (gbc.so_pv.gn_addr, gbc.sn)
-        with router._cbf_lock:
-            if key in router._cbf_buffer:
-                router._cbf_buffer.pop(key).cancel()
+        self.assertIn((gbc.so_pv.gn_addr, gbc.sn), router._cbf_buffer)
 
     def test_source_always_sends_immediately_regardless_of_cbf(self):
         """§F.3 lines 1-3: source (gn_data_request_gbc) with ego inside area → immediate BCAST."""

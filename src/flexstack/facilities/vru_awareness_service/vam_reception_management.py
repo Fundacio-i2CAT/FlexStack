@@ -10,6 +10,8 @@ from .vru_clustering import VBSClusteringManager
 from ..ca_basic_service.cam_transmission_management import GenerationDeltaTime
 from ...utils.time_service import TimeService
 
+VAM_ITS_AID = 638  # ETSI TS 102 965
+
 
 class VAMReceptionManagement:
     """
@@ -64,6 +66,10 @@ class VAMReceptionManagement:
         btp_indication : BTPDataIndication
             BTP Data Indication.
         """
+        # A secured VAM shall carry the VAM ITS-AID (ETSI TS 103 097 V2.2.1 clause 7.1.3).
+        if btp_indication.gn_its_aid is not None and btp_indication.gn_its_aid != VAM_ITS_AID:
+            self.logging.warning("Secured VAM with ITS-AID %s — discarding", btp_indication.gn_its_aid)
+            return
         vam = self.vam_coder.decode(btp_indication.data)
         generation_delta_time = GenerationDeltaTime(msec=vam["vam"]["generationDeltaTime"])
         utc_timestamp = generation_delta_time.as_timestamp_in_certain_point(

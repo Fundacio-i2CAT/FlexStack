@@ -23,11 +23,15 @@ class TestLT(unittest.TestCase):
         self.assertEqual(lt.multiplier, 1)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
         lt = lt.set_value_in_millis(1000000)
-        self.assertEqual(lt.multiplier, 0)
+        self.assertEqual(lt.multiplier, 10)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
-        lt = lt.set_value_in_millis(10000000)
-        self.assertEqual(lt.multiplier, 0)
+        lt = lt.set_value_in_millis(10000000)       # saturates at 63 x 100 s
+        self.assertEqual(lt.multiplier, 63)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
+        lt = lt.set_value_in_millis(700)            # previously encoded as 0
+        self.assertEqual(lt.get_value_in_millis(), 700)
+        lt = lt.set_value_in_millis(30)
+        self.assertEqual(lt.get_value_in_millis(), 0)
 
     def test_set_value_in_seconds(self):
         lt = LT()
@@ -44,10 +48,10 @@ class TestLT(unittest.TestCase):
         self.assertEqual(lt.multiplier, 1)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
         lt = lt.set_value_in_seconds(1000)
-        self.assertEqual(lt.multiplier, 0)
+        self.assertEqual(lt.multiplier, 10)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
         lt = lt.set_value_in_seconds(10000)
-        self.assertEqual(lt.multiplier, 0)
+        self.assertEqual(lt.multiplier, 63)
         self.assertEqual(lt.base, LTbase.ONE_HUNDRED_SECONDS)
 
     def test_get_value_in_millis(self):

@@ -16,6 +16,8 @@ def _make_crm(with_ldm=False):
 def _make_indication(data=None):
     ind = MagicMock()
     ind.data = data or MagicMock()
+    ind.gn_permissions = None  # unsecured: no SSP from the security entity
+    ind.gn_its_aid = None
     return ind
 
 

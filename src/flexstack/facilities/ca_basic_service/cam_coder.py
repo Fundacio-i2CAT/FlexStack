@@ -25,8 +25,23 @@ from the unaltered ETSI ASN.1 module because the on-wire representation
 is identical: UPER length-determinant followed by the inner type's UPER
 encoding (X.691 §12, open-type encoding).
 """
+import threading
+
 import asn1tools
 from .cam_asn1 import CAM_ASN1_DESCRIPTIONS
+
+_COMPILED = None
+_COMPILE_LOCK = threading.Lock()
+
+
+def _compiled_specification():
+    """Compile CAM-PDU-Descriptions v2.3 + CDD v4.3 once per process."""
+    global _COMPILED  # pylint: disable=global-statement
+    with _COMPILE_LOCK:
+        if _COMPILED is None:
+            _COMPILED = asn1tools.compile_string(CAM_ASN1_DESCRIPTIONS, codec="uper")
+        return _COMPILED
+
 
 # Maps ExtensionContainerId integer values to ASN.1 type names.
 _EXTENSION_CONTAINER_ID_TO_TYPE: dict[int, str] = {
@@ -34,7 +49,7 @@ _EXTENSION_CONTAINER_ID_TO_TYPE: dict[int, str] = {
     2: "EHorizonLocationSharingContainer",
     3: "VeryLowFrequencyContainer",
     4: "PathPredictionContainer",
-    5: "GeneralizedLanePositionsContainer",
+    5: "RoadLanePositionsContainer",  # GeneralizedLanePositionsContainer before v2.3
     6: "VehicleMovementControlContainer",
 }
 
@@ -53,7 +68,7 @@ class CAMCoder:
         """
         Initialize the CAM Coder.
         """
-        self.asn_coder = asn1tools.compile_string(CAM_ASN1_DESCRIPTIONS, codec="uper")
+        self.asn_coder = _compiled_specification()
 
     def encode(self, cam: dict) -> bytes:
         """

@@ -1,12 +1,20 @@
 # pylint: skip-file
-from flexstack.utils.asn1.etsi_its_cdd import ETSI_ITS_CDD_ASN1_DESCRIPTIONS
+"""
+DENM-PDU-Descriptions ASN.1 module, major-version-2 minor-version-3, as
+specified in ETSI TS 103 831 V2.3.1 (2025-11), Annex A (latest version).
 
-DENM_ASN1_DESCRIPTIONS = ETSI_ITS_CDD_ASN1_DESCRIPTIONS+\
+Source: https://forge.etsi.org/rep/ITS/asn1/denm_ts103831/-/raw/v2.3.1/DENM-PDU-Descriptions.asn
+SHA-256 c0fa1aef4cf89606582e6322064cebc9fcae4a8a702aa6d7ff6c7098b1af716f
+(as published in Table A.1 of the specification). Only change: ``WITH
+SUCCESSORS`` is removed from the IMPORTS clause because asn1tools does not
+support it; the module is compiled together with CDD v4.3.
+"""
+from flexstack.utils.asn1.etsi_its_cdd_v4_3 import ETSI_ITS_CDD_V4_3_ASN1_DESCRIPTIONS
+
+DENM_ASN1_DESCRIPTIONS = ETSI_ITS_CDD_V4_3_ASN1_DESCRIPTIONS + \
     """
---! @options: no-fields-header
-
 DENM-PDU-Description {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) denmPduRelease2 (103831) 
-                      major-version-2 (2) minor-version-2 (2)} 
+                      major-version-2 (2) minor-version-3 (3)} 
 
 DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -16,14 +24,15 @@ IMPORTS
  
 ActionId, ActionIdList, CauseCodeV2, ClosedLanes, DangerousGoodsExtended, DeltaReferencePosition, DeltaTimeMilliSecondPositive, DeltaTimeSecond, 
 EnergyStorageType, EventZone, GeneralizedLanePositions, HeightLonCarr, InformationQuality, ItsPduHeader, IvimReferences, LanePosition, 
-LightBarSirenInUse, ItineraryPath, MapReferences, MetaInformation, NumberOfOccupants, ObjectFace, OccupiedLanesWithConfidence, PerceivedObject, 
-Position1d, PosLonCarr, PosCentMass, PositionOfPillars, PositioningSolutionType, PosFrontAx, PositionOfOccupants, PathPredictedList, 
+LightBarSirenInUse, ItineraryPath, MapReferences, MetaInformation, MultiplicativeFactor, NumberOfOccupants, ObjectFace, OccupiedLanesWithConfidence, 
+PerceivedObject, Position1d, PosLonCarr, PosCentMass, PositionOfPillars, PositioningSolutionType, PosFrontAx, PositionOfOccupants, PathPredictedList, 
 RequestResponseIndication, ReferencePosition, RestrictedTypes, RoadConfigurationSectionList, RoadType, StandardLength3b,StandardLength12b, 
 StationType, Speed, SpeedLimit, StationId, StationarySince, TimestampIts, Traces, TracesExtended, TrafficDirection, TrafficRule, TurningRadius, 
 Temperature, VehicleMass, VehicleIdentification, Wgs84Angle, WheelBaseVehicle 
    
 FROM ETSI-ITS-CDD {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) ts (102894) cdd (2) 
-                   major-version-4 (4) minor-version-2 (2)};
+                   major-version-4 (4) minor-version-3 (3)}
+;
 
 /** 
  * This type represents the DENM PDU.
@@ -127,6 +136,10 @@ ManagementContainer ::= SEQUENCE {
  * @field eventEnd: the end position of the event along the road that is affected by the event w.r.t. the component eventPosition of the 
  * Management container. This end position is represented by the length of the event along the road. 
  *
+ * @field eventEndFactor: an optional component that applies to the component eventEnd. It is a factor to be multiplied with the value given in eventEnd.
+ *
+ * @field perceivedEvent: an optional component that, in case of vehicle ITS-S, indicates the nature of the information about the event.
+ *
 */
 SituationContainer ::= SEQUENCE {
     informationQuality InformationQuality,
@@ -135,12 +148,14 @@ SituationContainer ::= SEQUENCE {
     eventZone          EventZone OPTIONAL,
     ...,
 [[  linkedDenms        ActionIdList OPTIONAL,
-    eventEnd           Position1d OPTIONAL ]]   
+    eventEnd           Position1d OPTIONAL ]], -- extension in minor-version-2
+[[  eventEndFactor     MultiplicativeFactor OPTIONAL,
+    perceivedEvent     PerceivedEvent OPTIONAL ]] -- extension in minor-version-3
 }
-  ((WITH COMPONENTS {..., eventZone PRESENT, eventEnd ABSENT}) |
+  ((WITH COMPONENTS {..., eventZone PRESENT, eventEnd ABSENT, eventEndFactor ABSENT}) |
    (WITH COMPONENTS {..., eventZone ABSENT, eventEnd PRESENT}) |
-   (WITH COMPONENTS {..., eventZone ABSENT, eventEnd ABSENT})) 
- 
+   (WITH COMPONENTS {..., eventZone ABSENT, eventEnd ABSENT, eventEndFactor ABSENT})) 
+
 
 
 /** 
@@ -150,7 +165,7 @@ SituationContainer ::= SEQUENCE {
  *
  * @field eventSpeed: optional speed of a detected dynamic event and the confidence of the speed information. 
  *
- * @field eventPositionHeading: the optional heading of a dynamic event and the confidence of the heading information.
+ * @field eventPositionHeading: the optional heading of the event and the confidence of the heading information.
  *
  * @field detectionZonesToEventPosition: the detection zone information approaching the event position, see clause 6.1.3.3.
  *
@@ -182,12 +197,12 @@ LocationContainer ::= SEQUENCE {
     detectionZonesToEventPosition         Traces,
     roadType                              RoadType OPTIONAL,
     ...,
-[[	lanePositions                         GeneralizedLanePositions OPTIONAL,
+[[  lanePositions                         GeneralizedLanePositions OPTIONAL,
     occupiedLanes                         OccupiedLanesWithConfidence OPTIONAL,
     linkedIvims                           IvimReferences OPTIONAL, 
     linkedMapems                          MapReferences OPTIONAL, 
     detectionZonesToSpecifiedEventPoint   TracesExtended OPTIONAL,
-    predictedPaths	          	          PathPredictedList OPTIONAL ]]
+    predictedPaths                        PathPredictedList OPTIONAL ]] -- extension in minor-version-2
 }
 
 /** 
@@ -381,7 +396,7 @@ AlacarteContainer ::= SEQUENCE {
     stationaryVehicle   StationaryVehicleContainer OPTIONAL,
     ...,
 [[  roadConfiguration 	RoadConfigurationContainer OPTIONAL,
-    preCrash            PreCrashContainer OPTIONAL ]]
+    preCrash            PreCrashContainer OPTIONAL ]] -- extension in minor-version-2
 }
 
 /** 
@@ -390,11 +405,18 @@ AlacarteContainer ::= SEQUENCE {
 defaultValidity INTEGER ::= 600
 
 /**
+ * This DE indicates whether a vehicle has perceived an event (e.g. a stationary vehicle using camera sensors) or whether it is itself the cause of the event.
+ * the value shall be set to:
+ * - True - in case the vehicle has perceived the event
+ * - False - in case the vehicle itself is the cause of the event (e.g. vehicle is stationary) or part of the cause (e.g. traffic jam) or is directly exposed to the environmental condition (e.g. adverse weather)
+*/
+PerceivedEvent::= BOOLEAN
+
+/**
   * This indicates the termination type of generated DENM, i.e. if it is a cancellation DENM or a negation DENM
 */
 
 Termination ::= ENUMERATED {isCancellation(0), isNegation (1)}
 
 END
-
 """

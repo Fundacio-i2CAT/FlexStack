@@ -44,16 +44,25 @@ class TestCooperativeAwarenessMessageSecurityHandler(unittest.TestCase):
         self.certificate.as_hashedid8.return_value = b"hashedid8"
         cert_dict = {"version": 3}
         self.certificate.certificate = cert_dict
-        TimeService.time = MagicMock(return_value=100)
+        # patch.object restores TimeService.time afterwards; assigning a mock
+        # directly leaked a fake clock (t = 101 s) into every later test.
+        clock = patch.object(TimeService, "time", MagicMock(return_value=100))
+        clock.start()
+        self.addCleanup(clock.stop)
 
         signer = self.handler.set_up_signer(self.certificate)
         self.assertEqual(signer, ("certificate", [cert_dict]))
 
-        TimeService.time = MagicMock(return_value=101)
+        TimeService.time.return_value = 100.999
         self.handler.last_signer_full_certificate_time = 100
 
         signer = self.handler.set_up_signer(self.certificate)
         self.assertEqual(signer, ("digest", b"hashedid8"))
+
+        # one second after the last inclusion (TS 103 097 clause 7.1.1)
+        TimeService.time.return_value = 101
+        self.assertEqual(self.handler.set_up_signer(self.certificate), ("certificate", [cert_dict]))
+        self.assertEqual(self.handler.last_signer_full_certificate_time, 101)
 
         self.handler.requested_own_certificate = True
 
@@ -81,6 +90,7 @@ class TestSignService(unittest.TestCase):
         """Only AID 36 (CAM/PKI) remains unimplemented via sign_request(); everything
         else is handled by sign_denm() (§7.1.2) or sign_other() (§7.1.3)."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 36
         with self.assertRaises(NotImplementedError):
             self.sign_service.sign_request(request)
@@ -89,6 +99,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_cam(self, mock_coder):
         """Test that sign_cam returns a correct SNSIGNConfirm."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 999
         request.tbs_message = b"test_message"
         mock_coder.encode_to_be_signed_data.return_value = b"encoded_tbsData"
@@ -109,26 +120,61 @@ class TestSignService(unittest.TestCase):
         self.assertEqual(confirm.sec_message, b"encoded_signed_data")
         self.assertEqual(confirm.sec_message_length, len(b"encoded_signed_data"))
 
+    @staticmethod
+    def _at(psid=999, ssp=None, start_offset_s=-60, duration=("hours", 1), region=None, issuer=None):
+        """Mock AT whose validity starts ``start_offset_s`` seconds from now."""
+        now_s = TimeService.timestamp_its() // 1000
+        entry = {"psid": psid}
+        if ssp is not None:
+            entry["ssp"] = ("bitmapSsp", ssp)
+        tbs = {"appPermissions": [entry],
+               "validityPeriod": {"start": now_s + start_offset_s, "duration": duration}}
+        if region is not None:
+            tbs["region"] = region
+        cert = Mock(spec=OwnCertificate)
+        cert.certificate = {"toBeSigned": tbs}
+        cert.issuer = issuer
+        return cert
+
     def test_get_present_at_for_signging(self):
-        """Test that get_present_at_for_signging returns the correct AT from the library."""
-        mock_cert = Mock(spec=OwnCertificate)
-        mock_cert.get_list_of_its_aid.return_value = [999]
+        """The AT whose appPermissions contain the ITS-AID is selected."""
+        mock_cert = self._at(psid=999)
         self.certificate_library.own_certificates = {b"hashid8": mock_cert}
-
-        cert = self.sign_service.get_present_at_for_signging(999)
-
-        self.assertIsNotNone(cert)
-        self.assertEqual(cert, mock_cert)
+        self.assertEqual(self.sign_service.get_present_at_for_signging(999), mock_cert)
 
     def test_get_present_at_for_signging_not_found(self):
-        """Test that get_present_at_for_signging returns None when no matching AT exists."""
-        mock_cert = Mock(spec=OwnCertificate)
-        mock_cert.get_list_of_its_aid.return_value = [36]
-        self.certificate_library.own_certificates = {b"hashid8": mock_cert}
+        """No AT for another ITS-AID."""
+        self.certificate_library.own_certificates = {b"hashid8": self._at(psid=36)}
+        self.assertIsNone(self.sign_service.get_present_at_for_signging(999))
 
-        cert = self.sign_service.get_present_at_for_signging(999)
+    def test_expired_or_future_at_is_not_used(self):
+        """IEEE 1609.2 clause 5.2.3.2.2."""
+        for at in (self._at(start_offset_s=-7200), self._at(start_offset_s=3600)):
+            self.certificate_library.own_certificates = {b"h": at}
+            self.assertIsNone(self.sign_service.get_present_at_for_signging(999))
 
-        self.assertIsNone(cert)
+    def test_region_restriction_of_at_and_issuer(self):
+        """IEEE 1609.2 clause 5.2.3.2.2 (region inherited from the AA)."""
+        rect = ("rectangularRegion", [{"northWest": {"latitude": 420000000, "longitude": 20000000},
+                                       "southEast": {"latitude": 410000000, "longitude": 30000000}}])
+        inside = {"latitude": 415000000, "longitude": 25000000}
+        outside = {"latitude": 400000000, "longitude": 25000000}
+        aa = Mock(spec=OwnCertificate)
+        aa.certificate = {"toBeSigned": {"region": rect,
+                                         "validityPeriod": {"start": 0, "duration": ("years", 60)}}}
+        aa.issuer = None
+        for at in (self._at(region=rect), self._at(issuer=aa)):
+            self.certificate_library.own_certificates = {b"h": at}
+            self.assertIs(self.sign_service.get_present_at_for_signging(999, b"", inside), at)
+            self.assertIsNone(self.sign_service.get_present_at_for_signging(999, b"", outside))
+
+    def test_requested_ssp_must_be_granted(self):
+        """The AT SSP must grant every requested permission bit (version octet ignored)."""
+        self.certificate_library.own_certificates = {b"h": self._at(ssp=bytes([2, 0x02, 0x00]))}
+        self.assertIsNotNone(self.sign_service.get_present_at_for_signging(999, bytes([0, 0x02])))
+        self.assertIsNone(self.sign_service.get_present_at_for_signging(999, bytes([0, 0x01])))
+        self.assertIsNone(self.sign_service.get_present_at_for_signging(999, bytes([0, 0, 0, 0x80])))
+        self.assertIsNotNone(self.sign_service.get_present_at_for_signging(999, b"\x00"))
 
     def test_add_own_certificate(self):
         """Test that add_own_certificate delegates to the certificate library."""
@@ -214,6 +260,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_denm_returns_confirm(self, mock_coder):
         """sign_denm returns a valid SNSIGNConfirm when location is provided."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         request.tbs_message = b"denm_bytes"
         request.generation_location = {
@@ -238,6 +285,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_denm_signer_is_always_certificate(self, mock_coder):
         """§7.1.2: sign_denm always uses 'certificate' signer, never 'digest'."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         request.tbs_message = b"denm_bytes"
         request.generation_location = {"latitude": 0, "longitude": 0, "elevation": 0xF000}
@@ -264,6 +312,7 @@ class TestSignService(unittest.TestCase):
         """§7.1.2: sign_denm embeds generationLocation in headerInfo."""
         loc = {"latitude": 473400000, "longitude": 85500000, "elevation": 0xF000}
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         request.tbs_message = b"denm_bytes"
         request.generation_location = loc
@@ -288,6 +337,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_denm_raises_without_generation_location(self):
         """sign_denm raises ValueError when generation_location is None."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         request.tbs_message = b"denm_bytes"
         request.generation_location = None
@@ -300,6 +350,7 @@ class TestSignService(unittest.TestCase):
         """§7.1.2: headerInfo must not contain inlineP2pcdRequest, expiryTime, etc."""
         loc = {"latitude": 0, "longitude": 0, "elevation": 0xF000}
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         request.tbs_message = b"d"
         request.generation_location = loc
@@ -326,6 +377,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_request_delegates_denm_to_sign_denm(self):
         """sign_request(its_aid=37) delegates to sign_denm."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 37
         self.sign_service.sign_denm = MagicMock(return_value=Mock(spec=SNSIGNConfirm))
 
@@ -338,11 +390,13 @@ class TestSignService(unittest.TestCase):
     def test_sign_other_returns_confirm(self, mock_coder):
         """sign_other returns a valid SNSIGNConfirm for a generic ITS-AID."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 139
         request.tbs_message = b"ivim_bytes"
         mock_coder.encode_to_be_signed_data.return_value = b"tbs"
         mock_coder.encode_etsi_ts_103097_data_signed.return_value = b"signed_other"
         present_at = Mock(spec=OwnCertificate)
+        present_at.certificate = {"version": 3}
         present_at.as_hashedid8.return_value = b"hashedid8"
         present_at.sign_message.return_value = b"sig"
         self.sign_service.get_present_at_for_signging = MagicMock(return_value=present_at)
@@ -356,6 +410,7 @@ class TestSignService(unittest.TestCase):
     def test_sign_other_headerinfo_has_psid_and_generation_time(self, mock_coder):
         """§7.1.3 / §5.2: headerInfo SHALL contain psid and generationTime."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 139
         request.tbs_message = b"ivim_bytes"
         mock_coder.encode_to_be_signed_data.return_value = b"tbs"
@@ -368,6 +423,7 @@ class TestSignService(unittest.TestCase):
 
         mock_coder.encode_etsi_ts_103097_data_signed.side_effect = capture
         present_at = Mock(spec=OwnCertificate)
+        present_at.certificate = {"version": 3}
         present_at.as_hashedid8.return_value = b"hashedid8"
         present_at.sign_message.return_value = b"sig"
         self.sign_service.get_present_at_for_signging = MagicMock(return_value=present_at)
@@ -379,9 +435,10 @@ class TestSignService(unittest.TestCase):
         self.assertIn("generationTime", hi)
 
     @patch('flexstack.security.sign_service.SECURITY_CODER')
-    def test_sign_other_signer_is_digest(self, mock_coder):
-        """§7.1.3: sign_other uses 'digest' signer (hashedId8 of the AT)."""
+    def test_sign_other_signer_certificate_then_digest(self, mock_coder):
+        """§7.1.3: the certificate once per second (own timer), the digest otherwise."""
         request = Mock(spec=SNSIGNRequest)
+        request.permissions = b""
         request.its_aid = 638
         request.tbs_message = b"vru_bytes"
         mock_coder.encode_to_be_signed_data.return_value = b"tbs"
@@ -394,19 +451,25 @@ class TestSignService(unittest.TestCase):
 
         mock_coder.encode_etsi_ts_103097_data_signed.side_effect = capture
         present_at = Mock(spec=OwnCertificate)
+        present_at.certificate = {"version": 3}
         present_at.as_hashedid8.return_value = b"\xaa" * 8
         present_at.sign_message.return_value = b"sig"
         self.sign_service.get_present_at_for_signging = MagicMock(return_value=present_at)
 
         self.sign_service.sign_other(request)
-
-        self.assertEqual(captured["signer"][0], "digest")
-        self.assertEqual(captured["signer"][1], b"\xaa" * 8)
+        self.assertEqual(captured["signer"], ("certificate", [{"version": 3}]))
+        self.assertEqual(self.sign_service.cam_handler.last_signer_full_certificate_time, 0)
+        self.sign_service.sign_other(request)
+        self.assertEqual(captured["signer"], ("digest", b"\xaa" * 8))
+        self.sign_service.other_handler.last_signer_full_certificate_time -= 1.5
+        self.sign_service.sign_other(request)
+        self.assertEqual(captured["signer"][0], "certificate")
 
     def test_sign_request_delegates_other_to_sign_other(self):
         """sign_request delegates any AID other than 36/37 to sign_other()."""
         for aid in [137, 138, 139, 141, 540, 801, 639, 638, 9999]:
             request = Mock(spec=SNSIGNRequest)
+            request.permissions = b""
             request.its_aid = aid
             self.sign_service.sign_other = MagicMock(return_value=Mock(spec=SNSIGNConfirm))
 

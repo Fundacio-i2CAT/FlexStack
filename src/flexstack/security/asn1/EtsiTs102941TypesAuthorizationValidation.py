@@ -1,52 +1,68 @@
 # pylint: skip-file
-ETSI_TS_102_941_TYPES_AUTHORIZATION_VALIDATION_ASN1_DESCRIPTIONS = """
+# ASN.1 module EtsiTs102941TypesAuthorizationValidation of ETSI TS 102 941 V2.2.1, verbatim (apart from whitespace) from
+# https://forge.etsi.org/rep/ITS/asn1/pki_ts102941/-/raw/v2.2.1/EtsiTs102941TypesAuthorizationValidation.asn
+ETSI_TS_102_941_TYPES_AUTHORIZATION_VALIDATION_ASN1_DESCRIPTIONS = r"""
 EtsiTs102941TypesAuthorizationValidation
-{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) version(2)}
+  { itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) authValidation(7) major-version-3(3) minor-version-1(1)}
 
-DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
 
 IMPORTS
 
-  CertificateSubjectAttributes, EcSignature
-FROM EtsiTs102941BaseTypes {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) ts(102941) version(2)}
+EtsiTs103097Certificate
+FROM EtsiTs103097Module
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) secHeaders(103097) core(1) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
 
-  SharedAtRequest
-FROM EtsiTs102941TypesAuthorization {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) ts(102941) version(2)}
+CertificateFormat, CertificateSubjectAttributes,EcSignature, HashedId8, PublicKeys, Version
+FROM EtsiTs102941BaseTypes
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
+
+SharedAtRequest
+FROM EtsiTs102941TypesAuthorization
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) authorization(5) major-version-3(3) minor-version-2(2) }
+WITH SUCCESSORS
 ;
 
--- TS 102 941 v2.2.1 §6.2.3.4 — Authorization Validation (S4: AA → EA)
-
-AuthorizationValidationRequest ::= SEQUENCE {
-  sharedAtRequest  SharedAtRequest,
-  ecSignature      EcSignature,
-  ...
-}
-
-AuthorizationValidationResponse ::= SEQUENCE {
-  requestHash                OCTET STRING (SIZE(16)),
-  responseCode               AuthorizationValidationResponseCode,
-  confirmedSubjectAttributes CertificateSubjectAttributes OPTIONAL
-}
+/************
+-- AuthorizationValidationRequest/Response
+************/
 
 AuthorizationValidationResponseCode ::= ENUMERATED {
-  ok                              (0),
-  cantparse                       (1),
-  badcontenttype                  (2),
-  imnottherecipient               (3),
-  unknownencryptionalgorithm      (4),
-  decryptionfailed                (5),
-  invalidaa                       (6),
-  invalidaasignature              (7),
-  wrongea                         (8),
-  unknownits                      (9),
-  invalidsignature               (10),
-  invalidencryptionkey           (11),
-  deniedpermissions              (12),
-  deniedtoomanycerts             (13),
-  deniedrequest                  (14)
-}
+  ok(0),
+  cantparse, -- valid for any structure
+  badcontenttype, -- not encrypted, not signed, not permissionsverificationrequest
+  imnottherecipient, -- the "recipients" of the outermost encrypted data doesn't include me
+  unknownencryptionalgorithm, -- either kexalg or contentencryptionalgorithm
+  decryptionfailed, -- works for ECIES-HMAC and AES-CCM
+  invalidaa, -- the AA certificate presented is invalid/revoked/whatever
+  invalidaasignature, -- the AA certificate presented can't validate the request signature
+  wrongea, -- the encrypted signature doesn't designate me as the EA
+  unknownits, -- can't retrieve the EC/ITS in my DB
+  invalidsignature, -- signature verification of the request by the EC fails
+  invalidencryptionkey, -- signature is good, but the responseEncryptionKey is bad
+  deniedpermissions, -- requested permissions not granted
+  deniedtoomanycerts, -- parallel limit
+  deniedrequest, -- any other reason?
+  ... }
+
+AuthorizationValidationRequest ::= SEQUENCE {
+  sharedAtRequest               SharedAtRequest,
+  ecSignature                   EcSignature,
+  ...
+  }
+
+AuthorizationValidationResponse ::= SEQUENCE {
+  requestHash                   OCTET STRING (SIZE(16)),
+  responseCode                  AuthorizationValidationResponseCode,
+  confirmedSubjectAttributes    CertificateSubjectAttributes (WITH COMPONENTS{..., certIssuePermissions ABSENT}) OPTIONAL,
+  ...
+  }
+  (WITH COMPONENTS { responseCode (ok), confirmedSubjectAttributes PRESENT }
+  | WITH COMPONENTS { responseCode (ALL EXCEPT ok), confirmedSubjectAttributes ABSENT }
+  )
 
 END
 """

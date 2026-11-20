@@ -11,7 +11,7 @@ import logging
 import time
 from flexstack.linklayer.raw_link_layer import RawLinkLayer
 from flexstack.geonet.router import Router as GNRouter
-from flexstack.geonet.mib import MIB
+from flexstack.geonet.mib import GnIfType, MIB
 from flexstack.geonet.gn_address import GNAddress, M, ST, MID
 from flexstack.btp.router import Router as BTPRouter
 from flexstack.utils.static_location_service import ThreadStaticLocationService, generate_tpv_dict_with_current_timestamp
@@ -98,6 +98,7 @@ def main():
 
     # Instantiate a GN router
     mib = MIB(
+        itsGnIfType=GnIfType.ITS_G5,
         itsGnLocalGnAddr=GNAddress(
             m=M.GN_MULTICAST,
             st=ST.CYCLIST,
@@ -274,6 +275,9 @@ def main():
     )
 
     gn_router.link_layer = link_layer
+    # ETSI TS 103 836-4-2 clause 6.1: over ITS-G5 the MID is the interface MAC address
+    if not gn_router.media_dependent_address_ok():
+        raise SystemExit("itsGnLocalGnAddr MID must be the MAC address of the link layer")
     print("Press Ctrl+C to stop the program.")
     try:
         while True:

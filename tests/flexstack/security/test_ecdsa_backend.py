@@ -80,12 +80,10 @@ class TestPythonECDSABackend(unittest.TestCase):
         self.assertTrue(self.backend.verify_with_pk(b"Hello World", signature, pk_uncomp))
         self.assertFalse(self.backend.verify_with_pk(b"Hello World23", signature, pk_uncomp))
 
-        # Unsupported choices
-        with self.assertRaises(ValueError):
-            self.backend.verify_with_pk(b"data", signature, ("unknownCurve", ()))
-
-        with self.assertRaises(ValueError):
-            self.backend.verify_with_pk(b"data", signature, ("ecdsaNistP256", ("invalidChoice", b"")))
+        # Unsupported choices are not valid signatures
+        self.assertFalse(self.backend.verify_with_pk(b"data", signature, ("unknownCurve", ())))
+        self.assertFalse(self.backend.verify_with_pk(
+            b"data", signature, ("ecdsaNistP256", ("invalidChoice", b""))))
 
     @patch("ecdsa.SigningKey.generate")
     @patch("ecdsa.util.sigdecode_string")
@@ -107,30 +105,27 @@ class TestPythonECDSABackend(unittest.TestCase):
         signing_key.sign.assert_called_once_with(
             data=b"Hello World", hashfunc=hashlib.sha256)
 
-    @patch("ecdsa.SigningKey.generate")
-    @patch("ecdsa.util.sigencode_string")
-    def test_sign_with_sha256_2(self, sigencode_mock, signingkey_generate_mock):
-        # Given
-        signing_key = MagicMock()
-        signing_key.verifying_key = MagicMock()
-        signing_key.verifying_key.verify = MagicMock(return_value=True)
-        signingkey_generate_mock.return_value = signing_key
-        signature = ("ecdsaNistP256Signature", {
-            "rSig": ("x-only", (12).to_bytes(32, byteorder='big')),
-            "sSig": (2).to_bytes(32, byteorder='big')
-        })
-        sigencode_mock.return_value = signature
-        # When
+    def test_sign_and_verify_on_every_curve(self):
+        """Own keys on NIST P-256/P-384 and brainpoolP256r1/P384r1 (the IEEE 1609.2
+        PublicVerificationKey curves): signature choice, sizes and hash follow the
+        curve; a signature verifies with its key only."""
         backend = PythonECDSABackend()
-        backend.create_key()
-        backend.verify(b'whatever', signature, 0)
-        signingkey_generate_mock.assert_called_once()
-        sigencode_mock.assert_called_once()
-        signing_key.verifying_key.verify.assert_called_once_with(
-            signature=signature,
-            data=b'whatever',
-            hashfunc=hashlib.sha256
-        )
+        for algorithm, signature_name, size in (
+                ("nistP256", "ecdsaNistP256Signature", 32),
+                ("brainpoolP256r1", "ecdsaBrainpoolP256r1Signature", 32),
+                ("brainpoolP384r1", "ecdsaBrainpoolP384r1Signature", 48),
+                ("nistP384", "ecdsaNistP384Signature", 48)):
+            with self.subTest(algorithm=algorithm):
+                key = backend.create_key(algorithm)
+                signature = backend.sign(b"data", key)
+                self.assertEqual(signature[0], signature_name)
+                self.assertEqual((len(signature[1]["rSig"][1]), len(signature[1]["sSig"])), (size, size))
+                self.assertTrue(backend.verify(b"data", signature, key))
+                self.assertFalse(backend.verify(b"other", signature, key))
+                public = backend.get_public_key(key)
+                self.assertEqual(len(public[1][1]), size)
+                self.assertTrue(backend.verify_with_pk(b"data", signature, public))
+                self.assertTrue(backend.verify_with_pk(b"data", signature, backend.get_public_key(key, False)))
 
     @patch("ecdsa.ellipticcurve.Point", return_value="something")
     @patch("ecdsa.VerifyingKey.from_public_point")

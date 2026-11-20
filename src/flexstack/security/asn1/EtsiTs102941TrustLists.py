@@ -1,89 +1,148 @@
 # pylint: skip-file
-ETSI_TS_102_941_TRUST_LISTS_ASN1_DESCRIPTIONS = """
+# ASN.1 module EtsiTs102941TrustLists of ETSI TS 102 941 V2.2.1, verbatim (apart from whitespace) from
+# https://forge.etsi.org/rep/ITS/asn1/pki_ts102941/-/raw/v2.2.1/EtsiTs102941TrustLists.asn
+ETSI_TS_102_941_TRUST_LISTS_ASN1_DESCRIPTIONS = r"""
 EtsiTs102941TrustLists
-{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) version(2)}
+  { itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) trustLists(6) major-version-3(3) minor-version-1(1)}
 
-DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
 
 IMPORTS
 
-  Time32, HashedId8
-FROM Ieee1609Dot2BaseTypes {iso(1) identified-organization(3) ieee(111)
-  standards-association-numbered-series-standards(2) wave-stds(1609)
-  dot2(2) base(1) schema(1) major-version-2(2) minor-version-7(7)}
+EtsiTs103097Certificate, EtsiTs103097Data-SignedAndEncrypted, EtsiTs103097Data-Signed
+FROM
+EtsiTs103097Module
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) secHeaders(103097) core(1) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
 
-  EtsiTs103097Certificate
-FROM EtsiTs103097Module {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) secHeaders(103097) core(1) major-version-3(3)
-  minor-version-2(2)}
-
-  Url, CtlSequenceNumber, HashedId10
-FROM EtsiTs102941BaseTypes {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) ts(102941) version(2)}
+HashedId8, Time32, Version --, CertificateAuthorityConstraints
+FROM EtsiTs102941BaseTypes
+{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
 ;
 
--- TS 102 941 v2.2.1 §6.3 — Trust List structures
-
--- Top-level CTL format: full or delta
-CtlFormat ::= CHOICE {
-  fullCtl   ToBeSignedRcaCtl,
-  deltaCtl  ToBeSignedRcaCtl
+/************
+-- CRL
+************/
+ToBeSignedCrl ::= SEQUENCE {
+  version    Version,
+  thisUpdate Time32,
+  nextUpdate Time32,
+  entries SEQUENCE OF CrlEntry,
+  ...
 }
 
--- Full and delta share the same structure (distinguished by context)
-ToBeSignedRcaCtl ::= SEQUENCE {
-  version      INTEGER (1),
-  nextUpdate   Time32,
-  isFullCtl    BOOLEAN,
-  ctlSequence  CtlSequenceNumber,
-  ctlCommands  SEQUENCE OF CtlCommand
+CrlEntry ::= HashedId8
+
+/************
+-- TLM CTL
+************/
+
+ToBeSignedTlmCtl ::= CtlFormat (FullCtl | DeltaCtl) (WITH COMPONENTS {...,
+  ctlCommands ( WITH COMPONENT(
+    ( WITH COMPONENTS {...,
+      add ( WITH COMPONENTS {...,
+        ea ABSENT,
+        aa ABSENT
+      })
+    })
+  ))
+})
+
+/************
+-- RCA CTL
+************/
+
+ToBeSignedRcaCtl ::= CtlFormat (FullCtl | DeltaCtl) ( WITH COMPONENTS {...,
+  ctlCommands ( WITH COMPONENT(
+    ( WITH COMPONENTS {...,
+      add ( WITH COMPONENTS {...,
+        rca ABSENT,
+        tlm ABSENT
+      })
+    })
+  ))
+})
+
+/************
+-- CTL
+************/
+
+FullCtl::= CtlFormat ( WITH COMPONENTS {...,
+  isFullCtl ( TRUE ),
+  ctlCommands ( WITH COMPONENT(
+    ( WITH COMPONENTS {...,
+      delete ABSENT
+    })
+  ))
+})
+
+DeltaCtl::= CtlFormat (WITH COMPONENTS {...,
+  isFullCtl(FALSE)
+})
+
+
+CtlFormat ::= SEQUENCE {
+  version     Version,
+  nextUpdate  Time32,
+  isFullCtl   BOOLEAN,
+  ctlSequence INTEGER (0..255),
+  ctlCommands SEQUENCE OF CtlCommand,
+  ...
 }
 
 CtlCommand ::= CHOICE {
-  add     CtlEntry,
-  delete  CtlDeleteEntry
+  add       CtlEntry,
+  delete  CtlDelete,
+  ...
 }
 
 CtlEntry ::= CHOICE {
-  ea  EaEntry,
-  aa  AaEntry,
-  dc  DcEntry
+  rca   RootCaEntry,
+  ea    EaEntry,
+  aa    AaEntry,
+  dc    DcEntry,
+  tlm   TlmEntry,
+  ...
 }
 
-CtlDeleteEntry ::= CHOICE {
-  ea  HashedId8,
-  aa  HashedId8,
-  dc  HashedId8
+CtlDelete ::= CHOICE {
+  cert  HashedId8,
+  dc    DcDelete,
+  ...
+}
+
+TlmEntry::= SEQUENCE {
+  selfSignedTLMCertificate EtsiTs103097Certificate,
+  successorTo              EtsiTs103097Certificate OPTIONAL,
+  accessPoint              Url
+}
+
+RootCaEntry ::= SEQUENCE {
+  selfsignedRootCa EtsiTs103097Certificate,
+  successorTo      EtsiTs103097Certificate OPTIONAL
 }
 
 EaEntry ::= SEQUENCE {
-  eaCertificate  EtsiTs103097Certificate,
-  aaAccessPoint  Url OPTIONAL,
-  itsAccessPoint Url OPTIONAL
+  eaCertificate     EtsiTs103097Certificate,
+  aaAccessPoint     Url,
+  itsAccessPoint    Url OPTIONAL
 }
 
 AaEntry ::= SEQUENCE {
-  aaCertificate  EtsiTs103097Certificate,
-  itsAccessPoint Url OPTIONAL
+  aaCertificate EtsiTs103097Certificate,
+  accessPoint Url
 }
 
 DcEntry ::= SEQUENCE {
-  url            Url,
-  cert           SEQUENCE OF EtsiTs103097Certificate OPTIONAL
+  url   Url,
+  cert  SEQUENCE OF HashedId8
 }
 
--- CRL structures (TS 102 941 v2.2.1 §6.3.5)
-ToBeSignedCrl ::= SEQUENCE {
-  version     INTEGER (1),
-  thisUpdate  Time32,
-  nextUpdate  Time32,
-  entries     SEQUENCE OF CrlEntry
-}
+DcDelete ::= Url
 
-CrlEntry ::= SEQUENCE {
-  revokedCertificate HashedId10,
-  expiry             Time32
-}
+Url::= IA5String
 
 END
 """

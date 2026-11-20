@@ -6,7 +6,7 @@ from .exceptions import DecodeError
 
 class M(Enum):
     """
-    M field of GNAddress as described in ETSI EN 302 636-4-1 V1.4.1 (2020-01)
+    M field of GNAddress as described in ETSI TS 103 836-4-1 V2.2.1 (2026-04)
 
     ...
 
@@ -34,7 +34,7 @@ class M(Enum):
 
 class ST(Enum):
     """
-    ST field of GNAddress as described in ETSI EN 302 636-4-1 V1.4.1 (2020-01)
+    ST field of GNAddress as described in ETSI TS 103 836-4-1 V2.2.1 (2026-04)
 
     ...
 
@@ -99,7 +99,7 @@ class InvalidMIDLength(Exception):
 
 @dataclass(frozen=True)
 class MID:
-    """MID field of GNAddress as described in ETSI EN 302 636-4-1.
+    """MID field of GNAddress as described in ETSI TS 103 836-4-1 V2.2.1 (2026-04).
 
     Attributes
     ----------
@@ -112,6 +112,25 @@ class MID:
     def __post_init__(self) -> None:
         if len(self.mid) != 6:
             raise InvalidMIDLength("MID must be 6 bytes long")
+
+    @classmethod
+    def from_its_g5_mac(cls, mac_address: bytes) -> "MID":
+        """
+        MID for GN over ITS-G5: the 48-bit MAC address of the ITS-G5 interface
+        (ETSI TS 103 836-4-2 V2.1.1, clause 6.1).
+        """
+        return cls(bytes(mac_address))
+
+    @classmethod
+    def from_lte_v2x_l2_id(cls, l2_id: int) -> "MID":
+        """
+        MID for GN over LTE-V2X: the 24-bit Source Layer 2 ID in octets 2-4 of
+        the GN address, octets 5-7 set to zero (ETSI TS 103 836-4-3 V2.1.1,
+        clause 5.2).
+        """
+        if not 0 <= l2_id < 2**24:
+            raise ValueError("Layer 2 ID must be a 24-bit value")
+        return cls(l2_id.to_bytes(3, "big") + b"\x00\x00\x00")
 
     def encode_to_address(self) -> int:
         """

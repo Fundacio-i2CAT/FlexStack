@@ -1,17 +1,21 @@
 import unittest
 from unittest.mock import MagicMock, patch
+from flexstack.facilities.ca_basic_service import cam_coder as cam_coder_module
 from flexstack.facilities.ca_basic_service.cam_coder import CAMCoder
 
 
 class TestCAMCoder(unittest.TestCase):
     @patch("asn1tools.compile_string")
     def test__init__(self, asn1tools_compile_string_mock):
+        """The specification is compiled once per process and shared."""
         asn1tools_compile_string_mock.return_value = "asn_coder"
-        cam_coder = CAMCoder()
+        with patch.object(cam_coder_module, "_COMPILED", None):
+            first, second = CAMCoder(), CAMCoder()
         asn1tools_compile_string_mock.assert_called_once()
-        self.assertEqual(cam_coder.asn_coder, "asn_coder")
+        self.assertEqual(first.asn_coder, "asn_coder")
+        self.assertIs(first.asn_coder, second.asn_coder)
 
-    @patch("asn1tools.compile_string")
+    @patch("flexstack.facilities.ca_basic_service.cam_coder._compiled_specification")
     def test_encode(self, asn1tools_compile_string_mock):
         asn_coder = MagicMock()
         asn_coder.encode = MagicMock(return_value="encoded_cam")
@@ -22,7 +26,7 @@ class TestCAMCoder(unittest.TestCase):
         cam_coder.asn_coder.encode.assert_called_once_with("CAM", cam)
         self.assertEqual(encoded_cam, "encoded_cam")
 
-    @patch("asn1tools.compile_string")
+    @patch("flexstack.facilities.ca_basic_service.cam_coder._compiled_specification")
     def test_decode(self, asn1tools_compile_string_mock):
         asn_coder = MagicMock()
         asn_coder.decode = MagicMock(return_value="decoded_cam")

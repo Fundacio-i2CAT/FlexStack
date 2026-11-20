@@ -28,10 +28,14 @@ class TestVerifyService(unittest.TestCase):
         """Test successful verification with certificate signer"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -118,10 +122,14 @@ class TestVerifyService(unittest.TestCase):
         """Test successful verification with digest signer"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -204,8 +212,8 @@ class TestVerifyService(unittest.TestCase):
         self.assertEqual(result.certificate_id, b'')
 
     @patch('flexstack.security.verify_service.SECURITY_CODER')
-    def test_verify_with_unknown_signer_type_raises_exception(self, mock_coder):
-        """Test verification raises exception with unknown signer type"""
+    def test_verify_with_unknown_signer_type_is_unsupported(self, mock_coder):
+        """ETSI TS 103 097 clause 6: a signer other than certificate/digest (e.g. 'self') is rejected"""
         # Given
         mock_coder.decode_etsi_ts_103097_data_signed.return_value = {
             "protocolVersion": 3,
@@ -225,20 +233,25 @@ class TestVerifyService(unittest.TestCase):
             message=b"signed_message"
         )
 
-        # When/Then
-        with self.assertRaises(Exception) as context:
-            self.verify_service.verify(request)
-        self.assertEqual(str(context.exception), "Unknown signer type")
+        # When
+        result = self.verify_service.verify(request)
+
+        # Then
+        self.assertEqual(result.report, ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE)
 
     @patch('flexstack.security.verify_service.SECURITY_CODER')
     def test_verify_with_false_signature(self, mock_coder):
         """Test verification returns FALSE_SIGNATURE when signature verification fails"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -282,9 +295,13 @@ class TestVerifyService(unittest.TestCase):
         """Test verification returns INVALID_CERTIFICATE when certificate verification fails"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = False  # Certificate verification fails
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -320,7 +337,10 @@ class TestVerifyService(unittest.TestCase):
         """Test verification returns INVALID_CERTIFICATE when verifyKeyIndicator is not verificationKey"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
+        mock_certificate.verification_key.return_value = None   # key cannot be obtained
         mock_certificate.certificate = {
             "toBeSigned": {
                 # Not verificationKey
@@ -359,10 +379,14 @@ class TestVerifyService(unittest.TestCase):
         """Test §5.2: generationTime MUST be present; absent → INVALID_TIMESTAMP"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -405,10 +429,14 @@ class TestVerifyService(unittest.TestCase):
         """Test §5.2: p2pcdLearningRequest and missingCrlIdentifier SHALL be absent"""
         # Given
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -549,10 +577,14 @@ class TestVerifyService(unittest.TestCase):
             sign_service=sign_service,
         )
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -595,10 +627,14 @@ class TestVerifyService(unittest.TestCase):
             sign_service=sign_service,
         )
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -660,10 +696,14 @@ class TestVerifyService(unittest.TestCase):
     def test_verify_denm_missing_generation_location_returns_incompatible_protocol(self, mock_coder):
         """§7.1.2: DENM without generationLocation → INCOMPATIBLE_PROTOCOL."""
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {}))
             }
         }
@@ -698,10 +738,14 @@ class TestVerifyService(unittest.TestCase):
     def test_verify_denm_with_forbidden_field_returns_incompatible_protocol(self, mock_coder):
         """§7.1.2: DENM with inlineP2pcdRequest present → INCOMPATIBLE_PROTOCOL."""
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {}))
             }
         }
@@ -737,10 +781,14 @@ class TestVerifyService(unittest.TestCase):
     def test_verify_denm_valid_succeeds(self, mock_coder):
         """§7.1.2: valid DENM with certificate signer and generationLocation → SUCCESS."""
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }
@@ -777,11 +825,15 @@ class TestVerifyService(unittest.TestCase):
     def test_verify_non_at_profile_returns_invalid_certificate(self, mock_coder):
         """§7.2.1: cert that fails the AT profile check → INVALID_CERTIFICATE."""
         mock_certificate = MagicMock(spec=Certificate)
+        mock_certificate.issuer = None
+        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.is_authorization_ticket.return_value = False
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
             "toBeSigned": {
+                "appPermissions": [{"psid": 36}, {"psid": 37}],
+                "validityPeriod": {"start": 0, "duration": ("years", 40)},
                 "verifyKeyIndicator": ("verificationKey", ("ecdsaNistP256", {"x": b"x", "y": b"y"}))
             }
         }

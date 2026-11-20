@@ -49,6 +49,8 @@ class CertificateLibrary:
         self.known_authorization_tickets = {}
         self.known_authorization_authorities = {}
         self.known_root_certificates = {}
+        #: HashedId8 of revoked CA certificates (CRL, ETSI TS 102 941 clause 6.3.6)
+        self.revoked: set[bytes] = set()
         self.ecdsa_backend = ecdsa_backend
         # Root certificates
         for root_certificate in root_certificates:
@@ -77,7 +79,9 @@ class CertificateLibrary:
         """
         if certificate.certificate["issuer"][0] == "self":
             return None
-        if certificate.certificate["issuer"][0] == "sha256AndDigest":
+        if certificate.certificate["issuer"][0] in ("sha256AndDigest", "sha384AndDigest"):
+            if certificate.certificate["issuer"][1] in self.revoked:
+                return None
             if (
                 certificate.certificate["issuer"][1]
                 in self.known_root_certificates.keys()
@@ -141,9 +145,59 @@ class CertificateLibrary:
         certificate : Certificate
             The root certificate to add.
         """
+        if certificate.as_hashedid8() in self.revoked:
+            return
         if certificate.verify(self.ecdsa_backend):
             self.known_root_certificates[certificate.as_hashedid8(
             )] = certificate
+
+    def learn_ca_certificate(self, certificate: dict) -> bool:
+        """
+        Add a CA certificate received from a peer (P2PCD, IEEE 1609.2 clause
+        8.2.4) when its issuer is a known root and its signature verifies;
+        returns True when it is (now) known.
+        """
+        candidate = Certificate.from_dict(certificate)
+        if candidate.as_hashedid8() in self.known_authorization_authorities:
+            return True
+        issuer = self.get_issuer_certificate(candidate)
+        if issuer is None or issuer.as_hashedid8() not in self.known_root_certificates:
+            return False
+        self.add_authorization_authority(Certificate.from_dict(certificate, issuer=issuer))
+        return candidate.as_hashedid8() in self.known_authorization_authorities
+
+    def remove_certificate(self, hashedid8: bytes) -> None:
+        """
+        Forget a root or AA certificate (e.g. deleted from a CTL) and every
+        certificate issued under it.
+        """
+        self.known_root_certificates.pop(hashedid8, None)
+        self.known_authorization_authorities.pop(hashedid8, None)
+        self._purge()
+
+    def revoke(self, hashedids8: set[bytes]) -> None:
+        """
+        Apply a CRL: the CA certificates ``hashedids8`` are revoked permanently
+        (ETSI TS 102 941 V2.2.1 clause 6.3.3); they and every certificate
+        issued under them are no longer trusted, and they cannot be re-added.
+        """
+        self.revoked |= set(hashedids8)
+        for hashedid8 in hashedids8:
+            self.known_root_certificates.pop(hashedid8, None)
+            self.known_authorization_authorities.pop(hashedid8, None)
+        self._purge()
+
+    def _purge(self) -> None:
+        """Drop the AAs and ATs whose issuer is no longer known."""
+        def issued_by_known(certificate: Certificate, issuers: dict) -> bool:
+            issuer = certificate.get_issuer_hashedid8()
+            return issuer is not None and issuer not in self.revoked and issuer in issuers
+        self.known_authorization_authorities = {
+            h: c for h, c in self.known_authorization_authorities.items()
+            if issued_by_known(c, self.known_root_certificates)}
+        cas = {**self.known_root_certificates, **self.known_authorization_authorities}
+        self.known_authorization_tickets = {
+            h: c for h, c in self.known_authorization_tickets.items() if issued_by_known(c, cas)}
 
     def add_own_certificate(self, certificate: OwnCertificate) -> None:
         """
@@ -194,7 +248,9 @@ class CertificateLibrary:
         """
         if len(certificates) == 0:
             return None
-        elif len(certificates) == 1:
+        if self.revoked and any(Certificate(c).as_hashedid8() in self.revoked for c in certificates[1:]):
+            return None
+        if len(certificates) == 1:
             temp_certificate = Certificate.from_dict(
                 certificate=certificates[0])
             if (
@@ -210,7 +266,7 @@ class CertificateLibrary:
             ):
                 self.add_authorization_ticket(temp_certificate)
                 return temp_certificate
-        elif len(certificates) == 2:
+        if len(certificates) == 2:
             authorization_authority = Certificate.from_dict(
                 certificate=certificates[1])
             authorization_authority_issuer_hashedid8 = (
@@ -235,7 +291,7 @@ class CertificateLibrary:
                     if authorization_ticket.verify(backend=backend):
                         self.add_authorization_ticket(authorization_ticket)
                         return authorization_ticket
-        elif len(certificates) == 3:
+        if len(certificates) == 3:
             root_certificate = Certificate.from_dict(certificates[-1])
             if root_certificate.as_hashedid8() in self.known_root_certificates.keys():
                 return self.verify_sequence_of_certificates(

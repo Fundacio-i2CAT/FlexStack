@@ -1,84 +1,109 @@
 # pylint: skip-file
-ETSI_TS_102_941_TYPES_AUTHORIZATION_ASN1_DESCRIPTIONS = """
+# ASN.1 module EtsiTs102941TypesAuthorization of ETSI TS 102 941 V2.2.1, verbatim (apart from whitespace) from
+# https://forge.etsi.org/rep/ITS/asn1/pki_ts102941/-/raw/v2.2.1/EtsiTs102941TypesAuthorization.asn
+ETSI_TS_102_941_TYPES_AUTHORIZATION_ASN1_DESCRIPTIONS = r"""
 EtsiTs102941TypesAuthorization
-{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) version(2)}
+  { itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) authorization(5) major-version-3(3) minor-version-3(3)}
 
-DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
 
 IMPORTS
 
-  HashedId8
-FROM Ieee1609Dot2BaseTypes {iso(1) identified-organization(3) ieee(111)
-  standards-association-numbered-series-standards(2) wave-stds(1609)
-  dot2(2) base(1) schema(1) major-version-2(2) minor-version-7(7)}
+EtsiTs103097Certificate,
+EtsiTs103097Data-Signed
+FROM EtsiTs103097Module
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) secHeaders(103097) core(1) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
 
-  EtsiTs103097Certificate
-FROM EtsiTs103097Module {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) secHeaders(103097) core(1) major-version-3(3)
-  minor-version-2(2)}
+CertificateFormat, CertificateSubjectAttributes, EcSignature, HashedId8, PublicKeys, Version
+FROM EtsiTs102941BaseTypes
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) major-version-3(3) minor-version-1(1) }
+WITH SUCCESSORS
 
-  CertificateFormat, PublicKeys, CertificateSubjectAttributes, EcSignature
-FROM EtsiTs102941BaseTypes {itu-t(0) identified-organization(4) etsi(0)
-  itsDomain(5) wg5(5) ts(102941) version(2)}
+EeRaInterfacePdu
+FROM Ieee1609Dot2Dot1EeRaInterface
+{ iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot2(2) extension-standards(255) dot1(1) interfaces(1) ee-ra(11) major-version-3(3) minor-version-1(1)}
+WITH SUCCESSORS
+
+Ieee1609Dot2Data-SignedX509AuthenticatedCertRequest, ScmsPdu-Scoped, SignerSingleX509Cert
+FROM Ieee1609Dot2Dot1Protocol
+{ iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot2(2) extension-standards(255) dot1(1) interfaces(1) protocol(17) major-version-3(3) minor-version-1(1)}
+WITH SUCCESSORS
+
 ;
 
--- TS 102 941 v2.2.1 §6.2.3.3 — Authorization
-
--- Shared portion of the AT request (forwarded by AA to EA for validation)
-SharedAtRequest ::= SEQUENCE {
-  eaId                       HashedId8,
-  keyTag                     OCTET STRING (SIZE(16)),
-  certificateFormat          CertificateFormat,
-  requestedSubjectAttributes CertificateSubjectAttributes
-}
-
--- Inner AT request (encrypted and sent to AA)
-InnerAtRequest ::= SEQUENCE {
-  publicKeys      PublicKeys,
-  hmacKey         OCTET STRING (SIZE(32)),
-  sharedAtRequest SharedAtRequest,
-  ecSignature     EcSignature
-}
-
--- NOTE: InnerAtResponse has NO version field (unlike InnerECResponse).
--- Per TS 102 941 v2.2.1 EtsiTs102941TypesAuthorization ASN.1 module.
-InnerAtResponse ::= SEQUENCE {
-  requestHash  OCTET STRING (SIZE(16)),
-  responseCode AuthorizationResponseCode,
-  certificate  EtsiTs103097Certificate OPTIONAL
-}
+/************
+-- AuthorizationRequest/Response
+************/
 
 AuthorizationResponseCode ::= ENUMERATED {
-  ok                              (0),
-  -- ITS-S → AA failures
-  its-aa-cantparse                (1),
-  its-aa-badcontenttype           (2),
-  its-aa-imnottherecipient        (3),
-  its-aa-unknownencryptionalgorithm (4),
-  its-aa-decryptionfailed         (5),
-  its-aa-keysdontmatch            (6),
-  its-aa-incompleterequest        (7),
-  its-aa-invalidencryptionkey     (8),
-  its-aa-outofsyncrequest         (9),
-  its-aa-unknownea               (10),
-  its-aa-invalidea               (11),
-  its-aa-deniedpermissions       (12),
-  -- AA → EA failures
-  aa-ea-cantreachea              (13),
-  -- EA → AA failures
-  ea-aa-cantparse                (14),
-  ea-aa-badcontenttype           (15),
-  ea-aa-imnottherecipient        (16),
-  ea-aa-unknownencryptionalgorithm (17),
-  ea-aa-decryptionfailed         (18),
-  invalidaa                      (19),
-  invalidaasignature             (20),
-  wrongea                        (21),
-  unknownits                     (22),
-  invalidsignature               (23),
-  invalidencryptionkey           (24),
-  deniedpermissions              (25),
-  deniedtoomanycerts             (26)
+  ok(0),
+  -- ITS->AA
+  its-aa-cantparse, -- valid for any structure
+  its-aa-badcontenttype, -- not encrypted, not signed, not authorizationrequest
+  its-aa-imnottherecipient, -- the "recipients" of the outermost encrypted data doesn't include me
+  its-aa-unknownencryptionalgorithm, -- either kexalg or contentencryptionalgorithm
+  its-aa-decryptionfailed, -- works for ECIES-HMAC and AES-CCM
+  its-aa-keysdontmatch, -- HMAC keyTag verification fails
+  its-aa-incompleterequest, -- some elements are missing
+  its-aa-invalidencryptionkey, -- the responseEncryptionKey is bad
+  its-aa-outofsyncrequest, -- signingTime is outside acceptable limits
+  its-aa-unknownea, -- the EA identified by eaId is unknown to me
+  its-aa-invalidea, -- the EA certificate is revoked
+  its-aa-deniedpermissions, -- I, the AA, deny the requested permissions
+  -- AA->EA
+  aa-ea-cantreachea, -- the EA is unreachable (network error?)
+  -- EA->AA
+  ea-aa-cantparse, -- valid for any structure
+  ea-aa-badcontenttype, -- not encrypted, not signed, not authorizationrequest
+  ea-aa-imnottherecipient, -- the "recipients" of the outermost encrypted data doesn't include me
+  ea-aa-unknownencryptionalgorithm, -- either kexalg or contentencryptionalgorithm
+  ea-aa-decryptionfailed, -- works for ECIES-HMAC and AES-CCM
+  -- TODO: to be continued...
+  invalidaa, -- the AA certificate presented is invalid/revoked/whatever
+  invalidaasignature, -- the AA certificate presented can't validate the request signature
+  wrongea, -- the encrypted signature doesn't designate me as the EA
+  unknownits, -- can't retrieve the EC/ITS in my DB
+  invalidsignature, -- signature verification of the request by the EC fails
+  invalidencryptionkey, -- signature is good, but the key is bad
+  deniedpermissions, -- permissions not granted
+  deniedtoomanycerts, -- parallel limit
+  ... }
+
+
+InnerAtRequest ::= SEQUENCE {
+  publicKeys                    PublicKeys,
+  hmacKey                       OCTET STRING (SIZE(32)),
+  sharedAtRequest               SharedAtRequest,
+  ecSignature                   EcSignature,
+  ...
+  }
+
+SharedAtRequest ::= SEQUENCE {
+  eaId                          HashedId8,
+  keyTag                        OCTET STRING (SIZE(16)),
+  certificateFormat             CertificateFormat,
+  requestedSubjectAttributes    CertificateSubjectAttributes (WITH COMPONENTS{..., certIssuePermissions ABSENT}),
+  ...
+  }
+
+InnerAtResponse ::= SEQUENCE {
+  requestHash                   OCTET STRING (SIZE(16)),
+  responseCode                  AuthorizationResponseCode,
+  certificate                   EtsiTs103097Certificate OPTIONAL,
+  ...
+ }
+  (WITH COMPONENTS { responseCode (ok), certificate PRESENT }
+  | WITH COMPONENTS { responseCode (ALL EXCEPT ok), certificate ABSENT }
+  )
+
+EtsiTs102941ButterflyAuthorizationRequest-X509Signed ::= Ieee1609Dot2Data-SignedX509AuthenticatedCertRequest {
+    ScmsPdu-Scoped {
+        EeRaInterfacePdu (WITH COMPONENTS {
+            eeRaCertRequest})
+        },
+    SignerSingleX509Cert
 }
 
 END

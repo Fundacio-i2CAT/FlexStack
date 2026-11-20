@@ -2,7 +2,7 @@
 Cooperative Awareness Basic Service
 
 This file contains the class for the Cooperative Awareness Basic Service,
-strictly following ETSI TS 103 900 V2.2.1 (2025-02).
+strictly following ETSI TS 103 900 V2.3.1 (2026-05), the latest version.
 """
 from __future__ import annotations
 import logging
@@ -22,10 +22,10 @@ from .cam_ldm_adaptation import CABasicServiceLDM
 
 class CooperativeAwarenessBasicService:
     """
-    Cooperative Awareness Basic Service — ETSI TS 103 900 V2.2.1.
+    Cooperative Awareness Basic Service — ETSI TS 103 900 V2.3.1.
 
     Call :meth:`start` to activate the service and :meth:`stop` to deactivate
-    it in accordance with §6.1.2.
+    it in accordance with §5.3.1 (CA_Activation).
 
     Attributes
     ----------
@@ -79,7 +79,7 @@ class CooperativeAwarenessBasicService:
 
     def start(self) -> None:
         """
-        Activate the CA service (§6.1.2).
+        Activate the CA service (§5.3.1 (CA_Activation)).
 
         Starts the T_CheckCamGen timer in the transmission management.
         """
@@ -88,16 +88,24 @@ class CooperativeAwarenessBasicService:
 
     def stop(self) -> None:
         """
-        Deactivate the CA service (§6.1.2).
+        Deactivate the CA service (§5.3.1 (CA_Activation)).
 
         Stops the T_CheckCamGen timer in the transmission management.
         """
         self.cam_transmission_management.stop()
         self.logging.info("CA Basic Service stopped.")
 
+    def update_in_vehicle_data(self, **changes):
+        """
+        Update the latest in-vehicle data (ETSI TS 103 900 §5.2, §7.1): the
+        next CAM carries the new values. See
+        :meth:`CAMTransmissionManagement.update_in_vehicle_data`.
+        """
+        return self.cam_transmission_management.update_in_vehicle_data(**changes)
+
     def set_t_gen_cam_dcc(self, t_gen_cam_dcc_ms: int) -> None:
         """
-        Set T_GenCam_DCC (§6.1.3) on the transmission management, clamped to
+        Set T_GenCam_DCC (§6.1.2) on the transmission management, clamped to
         [T_GenCamMin, T_GenCamMax].  Intended as a
         :class:`~flexstack.management.dcc_entity.DccEntity` listener target.
         """

@@ -6,7 +6,7 @@ from .position_vector import LongPositionVector, ShortPositionVector
 @dataclass(frozen=True)
 class GUCExtendedHeader:
     """
-    GUC Extended Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.8.2 (Table 11).
+    GUC Extended Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.8.2 (Table 11).
 
     Layout (48 bytes after Basic + Common headers):
         SN         2 octets  (octets 12-13 of full GUC packet)
@@ -44,7 +44,7 @@ class GUCExtendedHeader:
         Parameters
         ----------
         sequence_number : int
-            The current local sequence number (clause 8.3).
+            The current local sequence number (clause 8.4).
         ego_pv : LongPositionVector
             The ego position vector (SO PV field, clause 8.2).
         de_pv : ShortPositionVector

@@ -2,20 +2,22 @@
 CAM Transmission Management
 
 This file implements the CAM Transmission Management required by the CAM Basic Service,
-strictly following ETSI TS 103 900 V2.2.1 (2025-02).
+strictly following ETSI TS 103 900 V2.3.1 (2026-05), the latest version.
 
 Key behavioural changes versus the pre-standard implementation:
-  - Timer-based (T_CheckCamGen) instead of GPS-callback-reactive (§6.1.3, Annex B).
-  - T_GenCam is initialised to T_GenCamMax (not T_GenCamMin) as mandated by §6.1.3.
+  - Timer-based (T_CheckCamGen) instead of GPS-callback-reactive (§6.1.2, Annex B).
+  - T_GenCam is initialised to T_GenCamMax (not T_GenCamMin) as mandated by §6.1.2.
   - Condition 1 (dynamics: heading/position/speed) and Condition 2 (time) are both
     evaluated on every T_CheckCamGen tick.
-  - N_GenCam counter resets T_GenCam to T_GenCamMax after N_GenCam consecutive
-    condition-1 CAMs.
+  - A condition-1 CAM sets T_GenCam to the elapsed time; N_GenCam consecutive
+    condition-2 CAMs reset it to T_GenCamMax; the first CAM keeps T_GenCamMax.
   - Low-Frequency, Special-Vehicle, Very-Low-Frequency and Two-Wheeler extension
-    containers are included according to §6.1.3.
+    containers are included according to §6.1.2.
   - CAM construction failures are handled per Annex B.2.5 (skip, continue timer).
-  - GN max packet lifetime set to 1000 ms per §5.3.4.1.
-  - CA service start/stop correspond to ITS-S activation/deactivation per §6.1.2.
+  - GN max packet lifetime 950 ms, below 1 s (TS 102 868-2 TP/CAM/MSD/PAR/BV-03;
+    single-hop BTP-B/SHB per §6.1.1 and §5.3.4; V2.2.1 §5.3.4.1 allows at most
+    1000 ms, V2.3.1 leaves it to the NTL protocol stack).
+  - CA service start/stop correspond to ITS-S activation/deactivation per §5.3.1 (CA_Activation).
 """
 
 from __future__ import annotations
@@ -26,8 +28,9 @@ import threading
 from math import atan2, cos, radians, sin, sqrt, trunc
 from typing import Optional
 from dateutil import parser
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from .cam_coder import CAMCoder
+from .cam_ssp import ROLE_SPECIAL_CONTAINER, permissions_bitmap
 from ...btp.router import Router as BTPRouter
 from ...btp.service_access_point import (
     BTPDataRequest,
@@ -41,7 +44,7 @@ from ...utils.time_service import ITS_EPOCH_MS, ELAPSED_MILLISECONDS, TimeServic
 from .cam_ldm_adaptation import CABasicServiceLDM
 
 # ---------------------------------------------------------------------------
-# Timing constants (ETSI TS 103 900 V2.2.1 §6.1.3)
+# Timing constants (ETSI TS 103 900 V2.3.1 §6.1.2)
 # ---------------------------------------------------------------------------
 T_GEN_CAM_MIN = 100       # T_GenCamMin [ms]
 T_GEN_CAM_MAX = 1000      # T_GenCamMax [ms]
@@ -50,21 +53,26 @@ T_GEN_CAM_DCC = T_GEN_CAM_MIN    # Default T_GenCam_DCC ∈ [T_GenCamMin, T_GenC
 #                                  until a DCC entity provides a value (see set_t_gen_cam_dcc)
 
 # ---------------------------------------------------------------------------
-# Optional-container intervals (§6.1.3)
+# Optional-container intervals (§6.1.2)
 # ---------------------------------------------------------------------------
 N_GEN_CAM_DEFAULT = 3         # N_GenCam: max consecutive high-dynamic CAMs
 T_GEN_CAM_LF_MS = 500         # Low-frequency container minimum interval [ms]
 T_GEN_CAM_SPECIAL_MS = 500    # Special-vehicle container minimum interval [ms]
 T_GEN_CAM_VLF_MS = 10_000     # Very-low-frequency container minimum interval [ms]
+CAM_PACKET_LIFETIME_S = 0.95  # GN packet lifetime of CAMs [s] (< 1 s, TP/CAM/MSD/PAR/BV-03)
+# Tolerance of the elapsed-time comparisons [ms]: the evaluations are at least
+# T_CheckCamGen apart, but millisecond truncation of the timestamps can make the
+# measured interval 1 ms shorter.
+TIMESTAMP_TOLERANCE_MS = 1
 
 # ---------------------------------------------------------------------------
-# Station types that must include the Two-Wheeler extension container (§6.1.3)
+# Station types that must include the Two-Wheeler extension container (§6.1.2)
 # cyclist(2), moped(3), motorcycle(4)
 # ---------------------------------------------------------------------------
 TWO_WHEELER_STATION_TYPES: frozenset = frozenset({2, 3, 4})
 
 # ---------------------------------------------------------------------------
-# VehicleRole enumeration names (index = integer value, §6.1.3 / CDD)
+# VehicleRole enumeration names (index = integer value, §6.1.2 / CDD)
 # ---------------------------------------------------------------------------
 _VEHICLE_ROLE_NAMES = [
     "default", "publicTransport", "specialTransport", "dangerousGoods",
@@ -103,7 +111,7 @@ class VehicleData:
         Vehicle Width as specified in ETSI TS 102 894-2 V2.3.1 (2024-08).
     vehicle_role : int
         VehicleRole (0=default). Used in the Low-Frequency container and to
-        decide whether a Special-Vehicle container is required (§6.1.3).
+        decide whether a Special-Vehicle container is required (§6.1.2).
     exterior_lights : bytes
         ExteriorLights BIT STRING (SIZE(8)). One byte; bits ordered MSB→LSB
         correspond to lowBeam(0)…parkingLights(7). Default = all off.
@@ -153,6 +161,23 @@ class VehicleData:
         if self.vehicle_role < 0 or self.vehicle_role > 15:
             raise ValueError("vehicle_role must be between 0 and 15")
 
+    def __check_valid_special_vehicle_data(self) -> None:
+        """
+        The special vehicle container must be the one of the vehicle role
+        (TS 103 900 V2.3.1 clauses 7.6 and Annex A), e.g. emergencyContainer for
+        vehicleRole emergency(6).
+        """
+        if self.special_vehicle_data is None:
+            return
+        expected = ROLE_SPECIAL_CONTAINER.get(self.vehicle_role)
+        if expected is None:
+            raise ValueError(
+                f"vehicle_role {self.vehicle_role} has no special vehicle container")
+        if self.special_vehicle_data[0] != expected:
+            raise ValueError(
+                f"vehicle_role {self.vehicle_role} requires {expected}, "
+                f"got {self.special_vehicle_data[0]}")
+
     def __check_valid_exterior_lights(self) -> None:
         if len(self.exterior_lights) < 1:
             raise ValueError("exterior_lights must be at least 1 byte")
@@ -165,6 +190,97 @@ class VehicleData:
         self.__check_valid_vehicle_width()
         self.__check_valid_vehicle_role()
         self.__check_valid_exterior_lights()
+        self.__check_valid_special_vehicle_data()
+
+
+# AccelerationControl BIT STRING (SIZE(7)), ETSI TS 102 894-2 V2.3.1 (CDD)
+ACCELERATION_CONTROL_BITS = (
+    "brakePedalEngaged", "gasPedalEngaged", "emergencyBrakeEngaged",
+    "collisionWarningEngaged", "accEngaged", "cruiseControlEngaged", "speedLimiterEngaged",
+)
+# ExteriorLights BIT STRING (SIZE(8)), ETSI TS 102 894-2 V2.3.1 (CDD)
+EXTERIOR_LIGHTS_BITS = (
+    "lowBeamHeadlightsOn", "highBeamHeadlightsOn", "leftTurnSignalOn", "rightTurnSignalOn",
+    "daytimeRunningLightsOn", "reverseLightOn", "fogLightOn", "parkingLightsOn",
+)
+_CURVATURE_CONFIDENCES = ("onePerMeter-0-00002", "onePerMeter-0-0001", "onePerMeter-0-0005",
+                          "onePerMeter-0-002", "onePerMeter-0-01", "onePerMeter-0-1",
+                          "outOfRange", "unavailable")
+_CURVATURE_MODES = ("yawRateUsed", "yawRateNotUsed", "unavailable")
+_YAW_RATE_CONFIDENCES = ("degSec-000-01", "degSec-000-05", "degSec-000-10", "degSec-001-00",
+                         "degSec-005-00", "degSec-010-00", "degSec-100-00", "outOfRange",
+                         "unavailable")
+
+
+def bits_to_bytes(names: tuple, flags: dict) -> bytes:
+    """
+    Encode named BIT STRING flags (bit 0 = most significant bit of the first
+    octet) into bytes; unknown names raise ValueError.
+    """
+    unknown = set(flags) - set(names)
+    if unknown:
+        raise ValueError(f"Unknown bit names: {sorted(unknown)}")
+    value = 0
+    for position, name in enumerate(names):
+        if flags.get(name):
+            value |= 0x80 >> position if position < 8 else 0
+    return bytes([value])
+
+
+@dataclass(frozen=True)
+class InVehicleData:
+    """
+    Latest in-vehicle data provided to the CA basic service (ETSI TS 103 900
+    V2.3.1 clauses 5.2 and 7.1): the next generated CAM carries these values.
+    ``None`` keeps the static value of :class:`VehicleData` (drive direction,
+    exterior lights) or omits the optional field (accelerationControl).
+
+    Attributes
+    ----------
+    curvature_value : int
+        CurvatureValue (-1023..1023, 1023 = unavailable).
+    curvature_confidence : str
+        CurvatureConfidence.
+    curvature_calculation_mode : str
+        CurvatureCalculationMode.
+    yaw_rate_value : int
+        YawRateValue in 0,01 degree/s (-32766..32767, 32767 = unavailable).
+    yaw_rate_confidence : str
+        YawRateConfidence.
+    drive_direction : str or None
+        DriveDirection ("forward", "backward", "unavailable").
+    acceleration_control : dict or None
+        AccelerationControl flags by name (see ``ACCELERATION_CONTROL_BITS``).
+    exterior_lights : dict or None
+        ExteriorLights flags by name (see ``EXTERIOR_LIGHTS_BITS``).
+    """
+
+    curvature_value: int = 1023
+    curvature_confidence: str = "unavailable"
+    curvature_calculation_mode: str = "unavailable"
+    yaw_rate_value: int = 32767
+    yaw_rate_confidence: str = "unavailable"
+    drive_direction: Optional[str] = None
+    acceleration_control: Optional[dict] = None
+    exterior_lights: Optional[dict] = None
+
+    def __post_init__(self) -> None:
+        if not -1023 <= self.curvature_value <= 1023:
+            raise ValueError("curvature_value out of range (-1023..1023)")
+        if self.curvature_confidence not in _CURVATURE_CONFIDENCES:
+            raise ValueError(f"Invalid curvature_confidence {self.curvature_confidence}")
+        if self.curvature_calculation_mode not in _CURVATURE_MODES:
+            raise ValueError(f"Invalid curvature_calculation_mode {self.curvature_calculation_mode}")
+        if not -32766 <= self.yaw_rate_value <= 32767:
+            raise ValueError("yaw_rate_value out of range (-32766..32767)")
+        if self.yaw_rate_confidence not in _YAW_RATE_CONFIDENCES:
+            raise ValueError(f"Invalid yaw_rate_confidence {self.yaw_rate_confidence}")
+        if self.drive_direction not in (None, "forward", "backward", "unavailable"):
+            raise ValueError(f"Invalid drive_direction {self.drive_direction}")
+        if self.acceleration_control is not None:
+            bits_to_bytes(ACCELERATION_CONTROL_BITS, self.acceleration_control)
+        if self.exterior_lights is not None:
+            bits_to_bytes(EXTERIOR_LIGHTS_BITS, self.exterior_lights)
 
 
 @dataclass(frozen=True)
@@ -618,15 +734,15 @@ class CooperativeAwarenessMessage:
 
 class CAMTransmissionManagement:
     """
-    CAM Transmission Management — ETSI TS 103 900 V2.2.1 §6.1.
+    CAM Transmission Management — ETSI TS 103 900 V2.3.1 §6.1.
 
     Protocol operation is timer-based (T_CheckCamGen) rather than
     GPS-callback-reactive.  Call :meth:`start` to activate the service and
-    :meth:`stop` to deactivate it (§6.1.2).
+    :meth:`stop` to deactivate it (§5.3.1 (CA_Activation)).
 
     The :meth:`location_service_callback` only updates the current position
     cache; the T_CheckCamGen timer evaluates CAM generation conditions on
-    every tick (§6.1.3, Annex B.2.4).
+    every tick (§6.1.2, Annex B.2.4).
 
     Attributes
     ----------
@@ -639,7 +755,7 @@ class CAMTransmissionManagement:
     ca_basic_service_ldm : CABasicServiceLDM or None
         Local Dynamic Map adapter; may be None.
     t_gen_cam : int
-        Current T_GenCam upper bound [ms].  Starts at T_GenCamMax per §6.1.3.
+        Current T_GenCam upper bound [ms].  Starts at T_GenCamMax per §6.1.2.
     t_gen_cam_dcc : int
         T_GenCam_DCC [ms] provided by the management layer (DCC), see
         :meth:`set_t_gen_cam_dcc`.  Defaults to ``T_GEN_CAM_DCC``.
@@ -660,11 +776,11 @@ class CAMTransmissionManagement:
         self.cam_coder = cam_coder
         self.ca_basic_service_ldm = ca_basic_service_ldm
 
-        # §6.1.3 — T_GenCam starts at T_GenCamMax (not T_GenCamMin!)
+        # §6.1.2 — T_GenCam starts at T_GenCamMax (not T_GenCamMin!)
         self.t_gen_cam: int = T_GEN_CAM_MAX
-        # §6.1.3 — T_GenCam_DCC, provided by the management layer (DCC)
+        # §6.1.2 — T_GenCam_DCC, provided by the management layer (DCC)
         self.t_gen_cam_dcc: int = T_GEN_CAM_DCC
-        self._n_gen_cam_counter: int = 0         # consecutive condition-1 CAMs
+        self._n_gen_cam_counter: int = 0         # consecutive condition-2 CAMs
 
         # Dynamics state of the last transmitted CAM
         self._last_cam_time_ms: Optional[int] = None
@@ -679,13 +795,15 @@ class CAMTransmissionManagement:
         self._last_vlf_time_ms: Optional[int] = None
         self._last_special_time_ms: Optional[int] = None
 
-        # Path history for Low-Frequency container (§6.1.3).
+        # Path history for Low-Frequency container (§6.1.2).
         # Stored as list of (lat, lon, time_ms) oldest→newest; max 40 entries.
         self._path_history: list = []
 
         # Current GPS/position data from the location service
         self._current_tpv: Optional[dict] = None
         self._tpv_lock = threading.Lock()
+        # Latest in-vehicle data (§5.2, §7.1), guarded by _tpv_lock
+        self._in_vehicle_data = InVehicleData()
 
         # T_CheckCamGen timer
         self._active: bool = False
@@ -695,11 +813,11 @@ class CAMTransmissionManagement:
         self.last_cam_generation_delta_time: Optional[GenerationDeltaTime] = None
 
     # ------------------------------------------------------------------
-    # Service lifecycle (§6.1.2)
+    # Service lifecycle (§5.3.1 (CA_Activation))
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Activate the CA service.  Starts the T_CheckCamGen timer (§6.1.2)."""
+        """Activate the CA service.  Starts the T_CheckCamGen timer (§5.3.1 (CA_Activation))."""
         if self._active:
             return
         self._active = True
@@ -721,7 +839,7 @@ class CAMTransmissionManagement:
         self._schedule_next_check(initial_delay_s)
 
     def stop(self) -> None:
-        """Deactivate the CA service.  Cancels the T_CheckCamGen timer (§6.1.2)."""
+        """Deactivate the CA service.  Cancels the T_CheckCamGen timer (§5.3.1 (CA_Activation))."""
         self._active = False
         if self._timer is not None:
             self._timer.cancel()
@@ -729,7 +847,7 @@ class CAMTransmissionManagement:
 
     def set_t_gen_cam_dcc(self, t_gen_cam_dcc_ms: int) -> None:
         """
-        Set T_GenCam_DCC (§6.1.3), clamped to [T_GenCamMin, T_GenCamMax].
+        Set T_GenCam_DCC (§6.1.2), clamped to [T_GenCamMin, T_GenCamMax].
 
         Intended as a :class:`~flexstack.management.dcc_entity.DccEntity`
         listener; may be called from the DCC thread while the CA service runs.
@@ -747,7 +865,7 @@ class CAMTransmissionManagement:
 
     def location_service_callback(self, tpv: dict) -> None:
         """
-        Cache the latest position data (§6.1.3).
+        Cache the latest position data (§6.1.2).
 
         This method no longer triggers CAM generation directly.  The
         T_CheckCamGen timer evaluates generation conditions at each tick.
@@ -759,6 +877,48 @@ class CAMTransmissionManagement:
         """
         with self._tpv_lock:
             self._current_tpv = tpv
+
+    def update_in_vehicle_data(self, **changes) -> InVehicleData:
+        """
+        Update the latest in-vehicle data (§5.2, §7.1): the next CAM carries
+        the new values. Keyword arguments are :class:`InVehicleData` fields;
+        invalid values raise ``ValueError`` and leave the data unchanged.
+
+        Returns
+        -------
+        InVehicleData
+            The in-vehicle data now in use.
+        """
+        with self._tpv_lock:
+            self._in_vehicle_data = dataclass_replace(self._in_vehicle_data, **changes)
+            return self._in_vehicle_data
+
+    @property
+    def in_vehicle_data(self) -> InVehicleData:
+        """The latest in-vehicle data."""
+        with self._tpv_lock:
+            return self._in_vehicle_data
+
+    def _exterior_lights(self) -> bytes:
+        lights = self.in_vehicle_data.exterior_lights
+        if lights is None:
+            return self.vehicle_data.exterior_lights
+        return bits_to_bytes(EXTERIOR_LIGHTS_BITS, lights)
+
+    def _apply_in_vehicle_data(self, cam: "CooperativeAwarenessMessage") -> None:
+        """Fill the HF container with the latest in-vehicle data (§7.1)."""
+        data = self.in_vehicle_data
+        hf = cam.cam["cam"]["camParameters"]["highFrequencyContainer"][1]
+        hf["curvature"] = {"curvatureValue": data.curvature_value,
+                           "curvatureConfidence": data.curvature_confidence}
+        hf["curvatureCalculationMode"] = data.curvature_calculation_mode
+        hf["yawRate"] = {"yawRateValue": data.yaw_rate_value,
+                         "yawRateConfidence": data.yaw_rate_confidence}
+        if data.drive_direction is not None:
+            hf["driveDirection"] = data.drive_direction
+        if data.acceleration_control is not None:
+            hf["accelerationControl"] = (
+                bits_to_bytes(ACCELERATION_CONTROL_BITS, data.acceleration_control), 7)
 
     # ------------------------------------------------------------------
     # Timer callbacks (Annex B.2.4)
@@ -798,32 +958,33 @@ class CAMTransmissionManagement:
 
         now_ms = int(TimeService.time() * 1000)
 
-        # First CAM after activation — send immediately (no elapsed constraint)
+        # First CAM after activation — send immediately (no elapsed constraint);
+        # T_GenCam keeps its default T_GenCamMax (condition 0: neither 1 nor 2).
         if self._last_cam_time_ms is None:
-            self._generate_and_send_cam(tpv, now_ms, condition=1)
+            self._generate_and_send_cam(tpv, now_ms, condition=0)
             return
 
-        elapsed_ms = now_ms - self._last_cam_time_ms
+        elapsed_ms = now_ms - self._last_cam_time_ms + TIMESTAMP_TOLERANCE_MS
         t_gen_cam_dcc = self.t_gen_cam_dcc
 
-        # Condition 1 (§6.1.3): elapsed ≥ T_GenCam_DCC  AND  dynamics changed
+        # Condition 1 (§6.1.2): elapsed ≥ T_GenCam_DCC  AND  dynamics changed
         if elapsed_ms >= t_gen_cam_dcc and self._check_dynamics(tpv):
             self._generate_and_send_cam(tpv, now_ms, condition=1)
             return
 
-        # Condition 2 (§6.1.3): elapsed ≥ T_GenCam  AND  elapsed ≥ T_GenCam_DCC
+        # Condition 2 (§6.1.2): elapsed ≥ T_GenCam  AND  elapsed ≥ T_GenCam_DCC
         if elapsed_ms >= self.t_gen_cam and elapsed_ms >= t_gen_cam_dcc:
             self._generate_and_send_cam(tpv, now_ms, condition=2)
 
     # ------------------------------------------------------------------
-    # Dynamics check — §6.1.3 Condition 1
+    # Dynamics check — §6.1.2 Condition 1
     # ------------------------------------------------------------------
 
     def _check_dynamics(self, tpv: dict) -> bool:
         """
         Return True if at least one dynamics threshold is exceeded.
 
-        Thresholds (§6.1.3):
+        Thresholds (§6.1.2):
           * |Δheading| > 4°
           * |Δposition| > 4 m  (haversine)
           * |Δspeed| > 0,5 m/s
@@ -855,7 +1016,7 @@ class CAMTransmissionManagement:
         return False
 
     # ------------------------------------------------------------------
-    # Optional container inclusion rules (§6.1.3)
+    # Optional container inclusion rules (§6.1.2)
     # ------------------------------------------------------------------
 
     def _should_include_lf(self, now_ms: int) -> bool:
@@ -880,7 +1041,7 @@ class CAMTransmissionManagement:
         self, now_ms: int, include_lf: bool, include_special: bool
     ) -> bool:
         """
-        Very-Low-Frequency extension container (§6.1.3):
+        Very-Low-Frequency extension container (§6.1.2):
           - Second CAM after activation (cam_count == 1).
           - After that: ≥ 10 s elapsed AND LF/special containers NOT included.
         """
@@ -912,7 +1073,7 @@ class CAMTransmissionManagement:
         )
         return {
             "vehicleRole": role_name,
-            "exteriorLights": (self.vehicle_data.exterior_lights, 8),
+            "exteriorLights": (self._exterior_lights(), 8),
             "pathHistory": self._get_path_history(tpv),
         }
 
@@ -977,6 +1138,7 @@ class CAMTransmissionManagement:
         cam = CooperativeAwarenessMessage()
         cam.fullfill_with_vehicle_data(self.vehicle_data)
         cam.fullfill_with_tpv_data(tpv)
+        self._apply_in_vehicle_data(cam)
 
         if include_lf:
             cam.cam["cam"]["camParameters"]["lowFrequencyContainer"] = (
@@ -1013,7 +1175,7 @@ class CAMTransmissionManagement:
                                 include_lf, include_special, include_vlf)
 
     def _send_cam(self, cam: CooperativeAwarenessMessage) -> None:
-        """Encode and transmit a CAM PDU via BTP-B/SHB (§5.3.4.1)."""
+        """Encode and transmit a CAM PDU via BTP-B/SHB (§6.1.1, §5.3.4; V2.2.1 §5.3.4.1)."""
         data = self.cam_coder.encode(cam.cam)
         request = BTPDataRequest(
             btp_type=CommonNH.BTP_B,
@@ -1021,9 +1183,15 @@ class CAMTransmissionManagement:
             gn_packet_transport_type=PacketTransportType(),
             communication_profile=CommunicationProfile.UNSPECIFIED,
             traffic_class=TrafficClass(),
-            gn_max_packet_lifetime=1.0,          # §5.3.4.1: max 1000 ms
+            # Lifetime below 1 s (TS 102 868-2 TP/CAM/MSD/PAR/BV-03; TS 103 900
+            # V2.2.1 §5.3.4.1: at most 1000 ms): 950 ms = 19 x 50 ms.
+            gn_max_packet_lifetime=CAM_PACKET_LIFETIME_S,
             security_profile=SecurityProfile.COOPERATIVE_AWARENESS_MESSAGE,
             its_aid=36,
+            # Sender-side SSP check (clause 6.2.2.2): sign only with an AT
+            # granting the protected content of this CAM.
+            security_permissions=permissions_bitmap(
+                cam.cam, lambda data: self.cam_coder.decode_extension_container(1, data)),
             data=data,
             length=len(data),
         )
@@ -1037,7 +1205,7 @@ class CAMTransmissionManagement:
         )
 
     # ------------------------------------------------------------------
-    # Post-transmission state update (§6.1.3 T_GenCam management)
+    # Post-transmission state update (§6.1.2 T_GenCam management)
     # ------------------------------------------------------------------
 
     def _update_send_state(
@@ -1051,17 +1219,18 @@ class CAMTransmissionManagement:
         include_vlf: bool,
     ) -> None:
         """Update all state variables after a successful CAM transmission."""
-        # T_GenCam management (§6.1.3 Annex B.2.4 step 5)
+        # T_GenCam management (§6.1.2): a condition-1 CAM sets T_GenCam to the
+        # time elapsed since the last CAM; after N_GenCam consecutive CAMs due
+        # to condition 2, T_GenCam is set to T_GenCamMax. The first CAM after
+        # activation (condition 0) leaves the default T_GenCamMax.
         if condition == 1:
-            # Set T_GenCam to elapsed time (clamped to [T_GenCamMin, T_GenCamMax])
             self.t_gen_cam = max(T_GEN_CAM_MIN, min(T_GEN_CAM_MAX, elapsed_ms))
+            self._n_gen_cam_counter = 0
+        elif condition == 2:
             self._n_gen_cam_counter += 1
             if self._n_gen_cam_counter >= N_GEN_CAM_DEFAULT:
                 self.t_gen_cam = T_GEN_CAM_MAX
                 self._n_gen_cam_counter = 0
-        else:
-            self._n_gen_cam_counter = 0
-            self.t_gen_cam = T_GEN_CAM_MAX
 
         # Update last-CAM dynamics reference
         self._last_cam_time_ms = now_ms

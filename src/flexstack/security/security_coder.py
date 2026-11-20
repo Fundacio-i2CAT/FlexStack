@@ -5,7 +5,7 @@ from .security_asn1 import SECURITY_ASN1_DESCRIPTIONS
 class SecurityCoder:
     """
     Class for encoding/decoding Security Headers, Certificates and other Security related formats
-    Follows the ETSI TS 103 097 V2.1.1 (2021-10) standard.
+    Follows the ETSI TS 103 097 V2.2.1 (2026-03) standard.
 
     Attributes
     ----------

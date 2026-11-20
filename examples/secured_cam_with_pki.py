@@ -17,24 +17,34 @@ compliant PKI flow:
 
 Prerequisites
 -------------
-- A running **pythonpki** PKI stack (EA + AA).  The quickest way is::
+- An EA and an AA speaking ETSI TS 102 941 V2.2.1 (official ASN.1 modules,
+  Annex C HTTP binding). ``--ea`` / ``--aa`` are their access points: the
+  requests are POSTed to these URLs as given (no path is appended).
+- The canonical key pair of the ITS-S (``--canonical-key``, default
+  ``<certs-dir>/canonical_key.pem``), registered with the EA before the first
+  enrolment (ETSI TS 102 941 V2.2.1 clause 6.1.2). The first run creates it,
+  prints the registration command (pythonpki: ``ea-tool register --its-id ...
+  --public-key <certs-dir>/canonical_key.pub.pem``) and exits with status 2;
+  register it, then run again. An EA refuses an unregistered ITS-S
+  (``unknownits``). The canonical identifier is generated from the public key
+  unless ``--its-id`` gives one. Later runs reuse the saved EC (re-keying
+  requests are signed with it).
 
-      cd pythonpki
-      python -m uvicorn cits_pki.ea.app:app --port 8080 &
-      python -m uvicorn cits_pki.aa.app:app --port 8081
+  The client no longer speaks the earlier pre-standard dialect, so it does not
+  interoperate with PKI servers that still use it.
 
 - The PKI authority certificates exported to files:
     - ``examples/pki_certs/rca.coer`` — Root CA certificate (COER)
     - ``examples/pki_certs/ea.coer``  — EA certificate (COER)
     - ``examples/pki_certs/aa.coer``  — AA certificate (COER)
 
-  These can be obtained from the PKI bootstrap scripts in ``pythonpki/``.
+  They are provided by the operator of the PKI.
 
 Usage
 -----
 ::
 
-    # Basic (default EA=:8080, AA=:8081)
+    # Basic (default EA=http://localhost:8080, AA=http://localhost:8081)
     python examples/secured_cam_with_pki.py
 
     # Custom PKI URLs and cert paths
@@ -64,6 +74,7 @@ Architecture
 References
 ----------
 - ETSI TS 102 941 v2.2.1 §6.2 — PKI protocol flows S2 / S3
+- ETSI TS 103 601 v2.1.1 §5.1 — repetition of the enrolment request
 - ETSI TS 103 097 v2.1.1 — Secured message format
 - ETSI EN 302 636-4-1 — GeoNetworking
 """
@@ -117,7 +128,7 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
 from flexstack.facilities.local_dynamic_map.ldm_constants import CAM
 from flexstack.btp.router import Router as BTPRouter
 from flexstack.geonet.gn_address import GNAddress, M, MID, ST
-from flexstack.geonet.mib import GnSecurity, MIB
+from flexstack.geonet.mib import GnIfType, GnSecurity, MIB
 from flexstack.geonet.router import Router as GNRouter
 from flexstack.linklayer.raw_link_layer import RawLinkLayer
 from flexstack.security.certificate import Certificate, OwnCertificate
@@ -125,7 +136,7 @@ from flexstack.security.certificate_library import CertificateLibrary
 from flexstack.security.ecdsa_backend import PythonECDSABackend
 from flexstack.security.sign_service import SignService
 from flexstack.security.verify_service import VerifyService
-from flexstack.security.pki_client import PkiClient
+from flexstack.security.pki_client import PkiClient, load_or_create_canonical_key
 
 logging.basicConfig(
     level=logging.INFO,
@@ -139,8 +150,9 @@ log = logging.getLogger("cam_pki")
 
 POSITION_COORDINATES = [41.386931, 2.112104]
 
-# Application permissions to request in the AT (CAM + DENM)
-AT_APP_PERMISSIONS = [{"psid": 36}, {"psid": 37}]
+# Application permissions to request in the AT: CAM, DENM and GN-MGMT (141, which
+# signs the secured Beacons, SSP absent: ETSI TS 103 836-4-1 V2.2.1 table 22)
+AT_APP_PERMISSIONS = [{"psid": 36}, {"psid": 37}, {"psid": 141}]
 
 # Default PKI certificate directory relative to this file
 _DEFAULT_PKI_CERTS_DIR = os.path.join(_THIS_DIR, "pki_certs")
@@ -176,7 +188,7 @@ def _load_coer_cert(path: str, issuer: Certificate | None = None) -> Certificate
     """
     if not os.path.isfile(path):
         print(f"Error: certificate file not found: {path}")
-        print("Generate PKI authority certificates first (see pythonpki bootstrap scripts).")
+        print("Obtain the Root CA, EA and AA certificates from the PKI operator first.")
         sys.exit(1)
     raw = open(path, "rb").read()
     return Certificate().decode(raw, issuer=issuer)
@@ -214,7 +226,9 @@ async def _provision_at(
     aa_cert: Certificate,
     certs_dir: str,
     reprovision: bool,
-    station_id: int = STATION_ID,
+    canonical_key_path: str | None = None,
+    its_id: bytes | None = None,
+    transport=None,
 ) -> tuple[OwnCertificate, PythonECDSABackend]:
     """Run PKI provisioning (S3 + S2) and return the AT OwnCertificate.
 
@@ -224,15 +238,21 @@ async def _provision_at(
     Parameters
     ----------
     ea_url, aa_url:
-        PKI service base URLs.
+        EA and AA access points (POSTed as given).
     rca_cert, ea_cert, aa_cert:
         Authority certificates already decoded.
     certs_dir:
         Directory for persisting / loading EC and AT files.
     reprovision:
         If ``True``, always contact the PKI even if cached AT exists.
-    station_id:
-        ITS Station ID (int).
+    canonical_key_path:
+        Canonical private key file (default ``<certs_dir>/canonical_key.pem``),
+        created when absent; the run then stops (``SystemExit(2)``) so that the
+        public key can be registered with the EA.
+    its_id:
+        Canonical identifier (default: generated from the canonical public key).
+    transport:
+        PKI transport (default: HTTP).
 
     Returns
     -------
@@ -240,15 +260,27 @@ async def _provision_at(
         *at_own* — the Authorization Ticket as an ``OwnCertificate``.
         *backend* — the ``PythonECDSABackend`` holding the AT private key.
     """
+    canonical = load_or_create_canonical_key(
+        canonical_key_path or os.path.join(certs_dir, "canonical_key.pem"))
+    its_id = canonical.its_id if its_id is None else its_id
+    if canonical.created:
+        log.warning("Canonical key pair created: %s. Register the ITS-S with the EA, then run again:\n    %s",
+                    canonical.private_path, canonical.registration_command(its_id))
+        raise SystemExit(2)
+    log.info("Canonical identifier (itsId): %s", its_id.hex())
     client = PkiClient(
         ea_url=ea_url,
         aa_url=aa_url,
         ea_cert=ea_cert,
         aa_cert=aa_cert,
         rca_cert=rca_cert,
+        canonical_key_pem=canonical.private_pem,
         certs_dir=certs_dir,
-        its_id=station_id.to_bytes(8, "big"),
+        its_id=its_id,
+        transport=transport,
     )
+    if client.load_ec_from_disk("ec") is not None:
+        log.info("Reusing the EC from disk: %s/ec.{cert,pem}", certs_dir)
 
     # Attempt to reuse a cached AT (avoids unnecessary PKI round-trips)
     if not reprovision:
@@ -408,6 +440,7 @@ def run_its_station(
     )
 
     mib = MIB(
+        itsGnIfType=GnIfType.ITS_G5,
         itsGnLocalGnAddr=GNAddress(
             m=M.GN_MULTICAST,
             st=ST.CYCLIST,
@@ -509,6 +542,9 @@ def run_its_station(
         interface, MAC_ADDRESS, receive_callback=gn_router.gn_data_indicate
     )
     gn_router.link_layer = link_layer
+    # ETSI TS 103 836-4-2 clause 6.1: over ITS-G5 the MID is the interface MAC address
+    if not gn_router.media_dependent_address_ok():
+        raise SystemExit("itsGnLocalGnAddr MID must be the MAC address of the link layer")
     ca_basic_service.start()
     log.info("ITS-S running (stationId=%d) on interface '%s' — press Ctrl+C to stop", station_id, interface)
 
@@ -551,15 +587,15 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ea",
-        default="http://localhost:8080",
+        default="http://localhost:8080/ea/v1/enrolment",
         metavar="URL",
-        help="Enrolment Authority base URL",
+        help="EA access point (POSTed as given, TS 102 941 Annex C)",
     )
     parser.add_argument(
         "--aa",
-        default="http://localhost:8081",
+        default="http://localhost:8081/aa/v1/authorization",
         metavar="URL",
-        help="Authorization Authority base URL",
+        help="AA access point (POSTed as given)",
     )
     parser.add_argument(
         "--rca",
@@ -584,6 +620,19 @@ def _parse_args() -> argparse.Namespace:
         default=_DEFAULT_ISSUED_DIR,
         metavar="DIR",
         help="Directory to store/load issued EC + AT certificate files",
+    )
+    parser.add_argument(
+        "--canonical-key",
+        default=None,
+        metavar="FILE",
+        help="Canonical private key (PKCS#8 PEM), created when absent "
+             "[default: <certs-dir>/canonical_key.pem]",
+    )
+    parser.add_argument(
+        "--its-id",
+        default=None,
+        metavar="HEX",
+        help="Canonical identifier [default: generated from the canonical public key]",
     )
     parser.add_argument(
         "--no-reprovision",
@@ -615,7 +664,8 @@ async def _async_main() -> None:
         aa_cert=aa_cert,
         certs_dir=args.certs_dir,
         reprovision=not args.no_reprovision,
-        station_id=station_id,
+        canonical_key_path=args.canonical_key,
+        its_id=bytes.fromhex(args.its_id) if args.its_id else None,
     )
 
     # 3. Build security stack

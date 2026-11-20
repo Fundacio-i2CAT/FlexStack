@@ -71,6 +71,7 @@ class TestVAMReceptionManagement(unittest.TestCase):
     ):
         btp_indication_mock = MagicMock()
         btp_indication_mock.data = "test"
+        btp_indication_mock.gn_its_aid = None
         self.reception_management.reception_callback(btp_indication_mock)
         self.vru_service_ldm_adaptation.add_provider_data_to_ldm.assert_called_once()
 

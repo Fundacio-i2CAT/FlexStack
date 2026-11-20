@@ -1,47 +1,60 @@
 # pylint: skip-file
 # -------------------------------------------------------------------
-# asn1tools adaptation notes (ETSI TS 103 900 V2.2.1, CAM-PDU-Descriptions)
+# CAM-PDU-Descriptions, major-version-2 minor-version-3, as specified in
+# ETSI TS 103 900 V2.3.1 (2026-05), Annex A (latest version).
+#
+# Source: https://forge.etsi.org/rep/ITS/asn1/cam_ts103900/-/raw/v2.3.1/CAM-PDU-Descriptions.asn
+# SHA-256 4abce4126042b6f702c1f80ff1dfe9f9cc1248950c9f505d68f8b79dac418800
+# (as published in Table A.1 of the specification). Compiled together with
+# the Common Data Dictionary v4.3 (ETSI TS 102 894-2) that it imports.
+#
+# asn1tools adaptation notes
 # -------------------------------------------------------------------
 # 1. "WITH SUCCESSORS" removed from IMPORTS.
-#    The raw ETSI file imports the CDD module with
-#    "... major-version-4 (4) minor-version-2 (2)} WITH SUCCESSORS"
-#    asn1tools raises a ParseError on that keyword.  Removing it has no
+#    asn1tools raises a ParseError on that keyword. Removing it has no
 #    functional impact because the CDD module is compiled in the same
-#    compilation unit (ETSI_ITS_CDD_ASN1_DESCRIPTIONS is prepended).
+#    compilation unit (ETSI_ITS_CDD_V4_3_ASN1_DESCRIPTIONS is prepended).
 #
 # 2. CLASS / information-object-class constructs are *kept unchanged*.
 #    asn1tools supports the CLASS keyword and WITH SYNTAX notation.
 #    The open-type field  EXTENSION-CONTAINER-ID-AND-TYPE.&Type(...)
 #    is treated by asn1tools as raw bytes (opaque UPER octets).
-#    This matches the UPER spec for open types (X.691 §12):
+#    This matches the UPER spec for open types (X.691 Sec. 12):
 #        open_type_encoding = length_determinant || inner_uper_bytes
 #    To encode an extension container, encode the inner type (e.g.
 #    TwoWheelerContainer) to bytes first, then pass those bytes as
 #    containerData.  To decode, take the containerData bytes and decode
 #    them against the appropriate type.  This encoding is fully
 #    wire-interoperable with implementations using unaltered ASN.1.
+#
+# Change from v2.2: GeneralizedLanePositionsContainer is renamed
+# RoadLanePositionsContainer (same ExtensionContainerId 5, same encoding).
 # -------------------------------------------------------------------
-from ...utils.asn1.etsi_its_cdd import ETSI_ITS_CDD_ASN1_DESCRIPTIONS
+from ...utils.asn1.etsi_its_cdd_v4_3 import ETSI_ITS_CDD_V4_3_ASN1_DESCRIPTIONS
 
 CAM_ASN1_DESCRIPTIONS = (
-    ETSI_ITS_CDD_ASN1_DESCRIPTIONS
+    ETSI_ITS_CDD_V4_3_ASN1_DESCRIPTIONS
     + """
-CAM-PDU-Descriptions  {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) camPduRelease2 (103900) major-version-2 (2) minor-version-2 (2)} 
+--! @options: no-fields-header
+
+CAM-PDU-Descriptions  {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) camPduRelease2 (103900) 
+                       major-version-2 (2) minor-version-3 (3)} 
 
 DEFINITIONS AUTOMATIC TAGS ::=
 
 BEGIN
 
 IMPORTS 
-ItsPduHeader, CauseCodeV2, ReferencePosition, AccelerationControl, Curvature, CurvatureCalculationMode, Heading, LanePosition, EmergencyPriority, EmbarkationStatus, Speed, 
-DriveDirection, AccelerationComponent, StationType, ExteriorLights, DangerousGoodsBasic, SpecialTransportType, LightBarSirenInUse, 
-VehicleRole, VehicleLength, VehicleWidth, Path, RoadworksSubCauseCode, ClosedLanes, TrafficRule, SpeedLimit, SteeringWheelAngle, PerformanceClass, YawRate, 
-PtActivation, ProtectedCommunicationZonesRSU, CenDsrcTollingZone, GenerationDeltaTime, BasicContainer, BrakeControl, VehicleHeight2, WiperStatus,
-GeneralizedLanePositions, PathPredictedList, CartesianAngle, Wgs84Angle, StabilityChangeIndication, VruSubProfileBicyclist, VruMovementControl,
+ItsPduHeader, CauseCodeV2, ReferencePosition, AccelerationControl, Curvature, CurvatureCalculationMode, Heading, LanePosition, 
+EmergencyPriority, EmbarkationStatus, Speed, DriveDirection, AccelerationComponent, StationType, ExteriorLights, DangerousGoodsBasic, 
+SpecialTransportType, LightBarSirenInUse, VehicleRole, VehicleLength, VehicleWidth, Path, RoadworksSubCauseCode, ClosedLanes, 
+TrafficRule, SpeedLimit, SteeringWheelAngle, PerformanceClass, YawRate, PtActivation, ProtectedCommunicationZonesRSU, 
+CenDsrcTollingZone, GenerationDeltaTime, BasicContainer, BrakeControl, VehicleHeight2, WiperStatus, GeneralizedLanePositions, 
+PathPredictedList, CartesianAngle, Wgs84Angle, StabilityChangeIndication, VruSubProfileBicyclist, VruMovementControl,
 BasicLaneConfiguration, PolygonalLine, MetaInformation, ConfidenceLevels, VehicleMovementControl
 
--- Adaptation: asn1tools-incompatible clause removed from import below; see Python header.
-FROM ETSI-ITS-CDD {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) 102894 cdd (2) major-version-4 (4) minor-version-2 (2)}
+FROM ETSI-ITS-CDD {itu-t (0) identified-organization (4) etsi (0) itsDomain (5) wg1 (1) 102894 cdd (2) 
+                   major-version-4 (4) minor-version-3 (3)}
 ;
 
 
@@ -393,7 +406,7 @@ twoWheelerContainer ExtensionContainerId ::= 1
 eHorizonLocationSharingContainer ExtensionContainerId ::= 2
 veryLowFrequencyContainer ExtensionContainerId ::= 3
 pathPredictionContainer ExtensionContainerId ::= 4
-generalizedLanePositionsContainer ExtensionContainerId ::= 5
+roadLanePositionsContainer ExtensionContainerId ::= 5
 vehicleMovementControlContainer ExtensionContainerId ::= 6
 
 /**
@@ -404,7 +417,7 @@ ExtensionContainers EXTENSION-CONTAINER-ID-AND-TYPE ::= {
     {EHorizonLocationSharingContainer IDENTIFIED BY eHorizonLocationSharingContainer} |
     {VeryLowFrequencyContainer IDENTIFIED BY veryLowFrequencyContainer} |
     {PathPredictionContainer IDENTIFIED BY pathPredictionContainer} |
-    {GeneralizedLanePositionsContainer IDENTIFIED BY generalizedLanePositionsContainer} |
+    {RoadLanePositionsContainer IDENTIFIED BY roadLanePositionsContainer} |
     {VehicleMovementControlContainer IDENTIFIED BY vehicleMovementControlContainer},
 	...
 }
@@ -539,11 +552,11 @@ PathPredictionContainer ::= SEQUENCE {
 }
 
 /**
-* This type represents the generalized lane positions container.
+* This type represents the road lane positions container.
 *
 * Contains detailed information about the transversal position of the ITS station with respect to the road and potentially about the lane type.
 */
-GeneralizedLanePositionsContainer ::= SEQUENCE {   
+RoadLanePositionsContainer ::= SEQUENCE {   
 	generalizedLanePositions	GeneralizedLanePositions,
 	...
 }

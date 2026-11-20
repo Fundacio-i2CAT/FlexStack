@@ -7,7 +7,7 @@ from .service_access_point import GNDataRequest
 @dataclass(frozen=True)
 class GBCExtendedHeader:
     """
-    GBC Extended Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.8 (Table 14 & Table 36)
+    GBC Extended Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.8 (Table 14 & Table 36)
 
     Attributes
     ----------
