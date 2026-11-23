@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "v2xflexstack"
-version = "0.11.4"
+version = "0.12.0"
 authors = [
   { name = "Jordi Marias-i-Parella", email = "jordi.marias@i2cat.net" },
   { name = "Daniel Ulied Guevara", email = "daniel.ulied@i2cat.net" },
@@ -47,6 +47,8 @@ dependencies = [
   'python-dateutil==2.8.2',
   'tinydb==4.7.1',
   'ecdsa==0.18.0',
+  'cryptography>=42.0.0',
+  'httpx>=0.27.0',
 ]
 
 

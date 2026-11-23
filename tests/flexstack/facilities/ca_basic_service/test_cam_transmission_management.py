@@ -14,6 +14,8 @@ from flexstack.facilities.ca_basic_service.cam_transmission_management import (
     _haversine_m,
 )
 from flexstack.facilities.ca_basic_service.cam_coder import CAMCoder
+from flexstack.btp.service_access_point import CommonNH
+from flexstack.geonet.service_access_point import HeaderType, TopoBroadcastHST
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +177,16 @@ class TestCooperativeAwarenessMessage(unittest.TestCase):
 # TestVehicleData — new fields
 # ---------------------------------------------------------------------------
 
+class TestCamHeader(unittest.TestCase):
+
+    def test_header_protocol_version_and_message_id(self):
+        """TS 103 900 Annex B: CAM header has protocolVersion 2 and messageId 2
+        (TS 103 900 Annex B)."""
+        header = CooperativeAwarenessMessage().cam["header"]
+        self.assertEqual(header["protocolVersion"], 2)
+        self.assertEqual(header["messageId"], 2)
+
+
 class TestVehicleData(unittest.TestCase):
 
     def test_default_new_fields(self):
@@ -228,7 +240,7 @@ class TestHaversine(unittest.TestCase):
 class TestCAMTransmissionManagementInit(unittest.TestCase):
 
     def test_t_gen_cam_starts_at_max(self):
-        """§6.1.3: T_GenCam default = T_GenCamMax."""
+        """§6.1.2: T_GenCam default = T_GenCamMax."""
         ctm, _, _, _ = _make_ctm()
         self.assertEqual(ctm.t_gen_cam, T_GEN_CAM_MAX)
 
@@ -246,7 +258,7 @@ class TestCAMTransmissionManagementInit(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestStartStop — §6.1.2
+# TestStartStop — §5.3.1 (CA_Activation)
 # ---------------------------------------------------------------------------
 
 class TestStartStop(unittest.TestCase):
@@ -318,7 +330,7 @@ class TestStartStop(unittest.TestCase):
 class TestLocationServiceCallback(unittest.TestCase):
 
     def test_callback_updates_current_tpv(self):
-        """location_service_callback only caches the TPV (§6.1.3)."""
+        """location_service_callback only caches the TPV (§6.1.2)."""
         ctm, _, _, _ = _make_ctm()
         tpv = _make_tpv()
         ctm.location_service_callback(tpv)
@@ -346,19 +358,30 @@ class TestSendCam(unittest.TestCase):
         btp_router.btp_data_request.assert_called_once()
 
     def test_send_cam_sets_gn_max_packet_lifetime(self):
-        """§5.3.4.1: GN max packet lifetime shall not exceed 1000 ms."""
+        """GN max packet lifetime below 1 s (V2.2.1 §5.3.4.1: at most 1000 ms)."""
         ctm, btp_router, cam_coder, _ = _make_ctm()
         cam = CooperativeAwarenessMessage()
         ctm._send_cam(cam)
         request = btp_router.btp_data_request.call_args[0][0]
-        self.assertEqual(request.gn_max_packet_lifetime, 1.0)
+        self.assertEqual(request.gn_max_packet_lifetime, 0.95)
 
     def test_send_cam_destination_port_2001(self):
-        """§5.3.4.1: destination port shall be 2001."""
+        """V2.2.1 §5.3.4.1: destination port shall be 2001."""
         ctm, btp_router, _, _ = _make_ctm()
         ctm._send_cam(CooperativeAwarenessMessage())
         request = btp_router.btp_data_request.call_args[0][0]
         self.assertEqual(request.destination_port, 2001)
+
+    def test_send_cam_btp_b_over_shb(self):
+        """V2.2.1 §5.3.4.1: CAM is carried in BTP-B over a GeoNetworking SHB packet
+        (TS 103 900 V2.2.1 clause 5.3.4.1)."""
+        ctm, btp_router, _, _ = _make_ctm()
+        ctm._send_cam(CooperativeAwarenessMessage())
+        request = btp_router.btp_data_request.call_args[0][0]
+        self.assertEqual(request.btp_type, CommonNH.BTP_B)
+        self.assertEqual(request.gn_packet_transport_type.header_type, HeaderType.TSB)
+        self.assertEqual(request.gn_packet_transport_type.header_subtype,
+                         TopoBroadcastHST.SINGLE_HOP)
 
     def test_send_cam_updates_ldm_if_present(self):
         ldm = MagicMock()
@@ -368,7 +391,7 @@ class TestSendCam(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestCheckDynamics — §6.1.3 Condition 1
+# TestCheckDynamics — §6.1.2 Condition 1
 # ---------------------------------------------------------------------------
 
 class TestCheckDynamics(unittest.TestCase):
@@ -425,7 +448,7 @@ class TestCheckDynamics(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestContainerInclusion — §6.1.3 optional containers
+# TestContainerInclusion — §6.1.2 optional containers
 # ---------------------------------------------------------------------------
 
 class TestContainerInclusion(unittest.TestCase):
@@ -680,7 +703,7 @@ class TestAnnexB25ConstructionException(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestTGenCamManagement — §6.1.3 T_GenCam state machine
+# TestTGenCamManagement — §6.1.2 T_GenCam state machine
 # ---------------------------------------------------------------------------
 
 class TestTGenCamManagement(unittest.TestCase):
@@ -701,7 +724,7 @@ class TestTGenCamManagement(unittest.TestCase):
     @patch("flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time",
            return_value=1.5)
     def test_condition1_sets_t_gen_cam_to_elapsed(self, _mock_time):
-        """§6.1.3: condition-1 CAM sets T_GenCam = elapsed time."""
+        """§6.1.2: condition-1 CAM sets T_GenCam = elapsed time."""
         ctm = self._ctm_with_prior_cam(last_cam_time_ms=1000)
         # elapsed = 1500 - 1000 = 500 ms
         ctm._generate_and_send_cam(_make_tpv(), 1500, condition=1)
@@ -710,28 +733,33 @@ class TestTGenCamManagement(unittest.TestCase):
     @patch("flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time",
            return_value=2.0)
     def test_condition2_resets_t_gen_cam_to_max(self, _mock_time):
-        """§6.1.3: condition-2 CAM resets T_GenCam to T_GenCamMax."""
+        """§6.1.2: T_GenCam returns to T_GenCamMax after N_GenCam consecutive
+        condition-2 CAMs, not before."""
         ctm = self._ctm_with_prior_cam(last_cam_time_ms=0)
-        ctm.t_gen_cam = 400  # artificially lowered
-        ctm._generate_and_send_cam(_make_tpv(), 2000, condition=2)
+        ctm.t_gen_cam = 400  # set by a previous condition-1 CAM
+        for count in range(1, N_GEN_CAM_DEFAULT):
+            ctm._generate_and_send_cam(_make_tpv(), 2000 * count, condition=2)
+            self.assertEqual(ctm.t_gen_cam, 400)
+        ctm._generate_and_send_cam(_make_tpv(), 2000 * N_GEN_CAM_DEFAULT, condition=2)
         self.assertEqual(ctm.t_gen_cam, T_GEN_CAM_MAX)
 
     @patch("flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time",
            return_value=2.0)
     def test_n_gen_cam_resets_after_default_consecutive(self, _mock_time):
         """
-        §6.1.3: after N_GenCam consecutive condition-1 CAMs,
-        T_GenCam is reset to T_GenCamMax and the counter is reset.
+        §6.1.2: a condition-1 CAM sets T_GenCam to the elapsed time and restarts
+        the count of consecutive condition-2 CAMs; the first CAM after activation
+        (condition 0) keeps T_GenCamMax.
         """
-        ctm = self._ctm_with_prior_cam(last_cam_time_ms=0)
+        ctm = self._ctm_with_prior_cam(last_cam_time_ms=1700)
         ctm._n_gen_cam_counter = N_GEN_CAM_DEFAULT - 1  # one short of reset
-
-        # Elapsed = 2000 ms (clamped to T_GEN_CAM_MAX)
         ctm._generate_and_send_cam(_make_tpv(), 2000, condition=1)
-
-        # Counter reached N_GenCam → reset
-        self.assertEqual(ctm.t_gen_cam, T_GEN_CAM_MAX)
+        self.assertEqual(ctm.t_gen_cam, 300)
         self.assertEqual(ctm._n_gen_cam_counter, 0)
+        fresh, _, _, _ = _make_ctm()
+        fresh._send_cam = MagicMock()
+        fresh._generate_and_send_cam(_make_tpv(), 2000, condition=0)
+        self.assertEqual(fresh.t_gen_cam, T_GEN_CAM_MAX)
 
     @patch("flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time",
            return_value=2.0)
@@ -744,7 +772,7 @@ class TestTGenCamManagement(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestEvaluateConditions — §6.1.3 conditions integration
+# TestEvaluateConditions — §6.1.2 conditions integration
 # ---------------------------------------------------------------------------
 
 class TestEvaluateConditions(unittest.TestCase):
@@ -785,6 +813,27 @@ class TestEvaluateConditions(unittest.TestCase):
                    return_value=1.001):
             ctm._evaluate_and_maybe_send()
         ctm._send_cam.assert_called_once()
+
+    def test_elapsed_time_tolerance_is_one_millisecond(self):
+        """Millisecond truncation: 999 ms after the last CAM counts as T_GenCam (1000 ms);
+        998 ms does not. Mirrors the Rust test of the same name."""
+        for at_s, sent in ((0.998, False), (0.999, True)):
+            with self.subTest(elapsed_ms=round(at_s * 1000)):
+                ctm, _, _, _ = _make_ctm()
+                ctm._send_cam = MagicMock()
+                ctm._current_tpv = _make_tpv()
+                ctm._last_cam_time_ms = 0
+                ctm._last_cam_heading = 90.0
+                ctm._last_cam_lat = 41.0
+                ctm._last_cam_lon = 2.0
+                ctm._last_cam_speed = 5.0
+                ctm._cam_count = 1
+                ctm._last_lf_time_ms = 0
+                ctm.t_gen_cam = T_GEN_CAM_MAX
+                with patch("flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time",
+                           return_value=at_s):
+                    ctm._evaluate_and_maybe_send()
+                self.assertEqual(ctm._send_cam.call_count, int(sent))
 
     def test_no_cam_before_t_gen_cam_and_no_dynamics(self):
         ctm, _, _, _ = _make_ctm()
@@ -872,7 +921,7 @@ class TestPathHistory(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# TestTGenCamDcc — management-layer (DCC) coupling, §6.1.3
+# TestTGenCamDcc — management-layer (DCC) coupling, §6.1.2
 # ---------------------------------------------------------------------------
 
 _TIME = "flexstack.facilities.ca_basic_service.cam_transmission_management.TimeService.time"

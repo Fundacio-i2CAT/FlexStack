@@ -7,7 +7,8 @@ verify C-ITS (ITS-S) messages between two independent ITS stations:
 - **Root Certificate Authority (Root CA)**: self-signed, grants all issue permissions
   with a chain depth of 2 so it can issue AA certificates.
 - **Authorization Authority (AA)**: issued by the Root CA, grants issue permissions for
-  CAM (psid 36), DENM (psid 37) and VAM (psid 638) with a chain depth of 1 so it can
+  CAM (psid 36), DENM (psid 37), VAM (psid 638) and GN-MGMT (psid 141, secured
+  Beacons) with a chain depth of 1 so it can
   issue AT certificates.
 - **Authorization Ticket 1 (AT1)**: issued by the AA for the first ITS station.
 - **Authorization Ticket 2 (AT2)**: issued by the AA for the second ITS station.
@@ -56,6 +57,9 @@ from flexstack.security.ecdsa_backend import PythonECDSABackend
 PSID_CAM = 36
 PSID_DENM = 37
 PSID_VAM = 638
+# GN-MGMT: signs the secured Beacons and LS Request / Reply of the GeoNetworking router,
+# SSP absent (ETSI TS 103 836-4-1 V2.2.1 tables 22, 24 and 26; ETSI TS 102 965)
+PSID_GN_MGMT = 141
 
 # Duration choice and value for the certificate validity period.
 # Uses the "years" choice of the ETSI TS 103 097 Duration CHOICE type, which accepts
@@ -117,7 +121,7 @@ def _make_aa_tbs() -> dict:
     Return the ToBeSignedCertificate dict for an Authorization Authority.
 
     The AA is issued by the Root CA via :func:`OwnCertificate.initialize_certificate`.
-    It carries explicit issue permissions for CAM, DENM and VAM PSIDs so that only
+    It carries explicit issue permissions for the CAM, DENM, VAM and GN-MGMT PSIDs so that only
     authorization tickets for those services can be issued from this AA.  The
     ``minChainLength`` of 1 means the AA can issue end-entity (AT) certificates.
     """
@@ -134,6 +138,7 @@ def _make_aa_tbs() -> dict:
                         {"psid": PSID_CAM},
                         {"psid": PSID_DENM},
                         {"psid": PSID_VAM},
+                        {"psid": PSID_GN_MGMT},
                     ],
                 ),
                 "minChainLength": 1,
@@ -171,6 +176,7 @@ def _make_at_tbs(index: int) -> dict:
             {"psid": PSID_CAM},
             {"psid": PSID_DENM},
             {"psid": PSID_VAM},
+            {"psid": PSID_GN_MGMT},
         ],
         "verifyKeyIndicator": (
             "verificationKey",

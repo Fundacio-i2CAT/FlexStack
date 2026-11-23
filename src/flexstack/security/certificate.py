@@ -1,12 +1,33 @@
 from __future__ import annotations
 from copy import deepcopy, copy
 from dataclasses import dataclass, field
-from hashlib import sha256
+from hashlib import sha256, sha384
+import secrets
+
+import ecdsa
 
 from .security_coder import SecurityCoder
-from .ecdsa_backend import ECDSABackend
+from .ecdsa_backend import ECDSABackend, hash_for_key, hash_name_for_key, reconstruct_public_key
 
 SECURITY_CODER = SecurityCoder()
+
+_SUPPORTED_SIGNATURES = (
+    "ecdsaNistP256Signature", "ecdsaBrainpoolP256r1Signature",
+    "ecdsaBrainpoolP384r1Signature", "ecdsaNistP384Signature",
+)
+_SUPPORTED_KEYS = ("ecdsaNistP256", "ecdsaBrainpoolP256r1", "ecdsaBrainpoolP384r1", "ecdsaNistP384")
+
+
+def signing_input(data: bytes, signer: bytes, hashfunc=sha256) -> bytes:
+    """
+    Input to the ECDSA signing and verification operations (IEEE Std
+    1609.2-2016, clause 5.3.1, adopted by ETSI TS 103 097 V2.2.1):
+    ``Hash(Data input) || Hash(Signer identifier input)``, which ECDSA hashes
+    again. ``data`` is the COER encoding of the ToBeSignedData or
+    ToBeSignedCertificate; ``signer`` is the canonical COER encoding of the
+    signer's certificate, or ``b""`` for self-signed data.
+    """
+    return hashfunc(data).digest() + hashfunc(signer).digest()
 
 
 @dataclass(frozen=True)
@@ -46,26 +67,53 @@ class Certificate:
     def to_canonical(self) -> Certificate:
         """
         Convert certificate to IEEE 1609.2 / ETSI TS 103 097 canonical form:
-        - Public verification key compressed (compressed-y-0/1).
-        - Signature rSig as x-only.
+        - Every elliptic curve point of toBeSigned compressed
+          (compressed-y-0/1): verification key or reconstruction value, on
+          every curve, and the encryption key (IEEE 1609.2 clause 6.4.3).
+        - Signature rSig as x-only, for every signature algorithm.
         """
         d = deepcopy(self.certificate)
         tbs = d.get("toBeSigned", {})
         vki = tbs.get("verifyKeyIndicator")
-        if vki and vki[0] == "verificationKey" and vki[1][0] == "ecdsaNistP256":
-            key_choice = vki[1][1][0]
-            if key_choice == "uncompressedP256":
-                x = vki[1][1][1]["x"]
-                y = vki[1][1][1]["y"]
-                y_choice = "compressed-y-0" if (y[-1] % 2 == 0) else "compressed-y-1"
-                tbs["verifyKeyIndicator"] = ("verificationKey", ("ecdsaNistP256", (y_choice, x)))
+
+        def compressed(point: tuple) -> tuple:
+            if point[0] in ("uncompressedP256", "uncompressedP384"):
+                y_choice = "compressed-y-0" if point[1]["y"][-1] % 2 == 0 else "compressed-y-1"
+                return (y_choice, point[1]["x"])
+            return point
+        if vki and vki[0] == "verificationKey":
+            tbs["verifyKeyIndicator"] = ("verificationKey", (vki[1][0], compressed(vki[1][1])))
+        elif vki and vki[0] == "reconstructionValue":
+            tbs["verifyKeyIndicator"] = ("reconstructionValue", compressed(vki[1]))
+        encryption_key = tbs.get("encryptionKey")
+        if encryption_key:
+            choice, point = encryption_key["publicKey"]
+            tbs["encryptionKey"] = dict(encryption_key, publicKey=(choice, compressed(point)))
         d["toBeSigned"] = tbs
         sig = d.get("signature")
-        if sig and sig[0] == "ecdsaNistP256Signature":
-            rSig = sig[1]["rSig"]
-            if rSig[0] in ("compressed-y-0", "compressed-y-1"):
-                d["signature"] = ("ecdsaNistP256Signature", {"rSig": ("x-only", rSig[1]), "sSig": sig[1]["sSig"]})
+        if sig:
+            r_sig = sig[1]["rSig"]
+            if r_sig[0] in ("compressed-y-0", "compressed-y-1"):
+                d["signature"] = (sig[0], {"rSig": ("x-only", r_sig[1]), "sSig": sig[1]["sSig"]})
+            elif r_sig[0] in ("uncompressedP256", "uncompressedP384"):
+                d["signature"] = (sig[0], {"rSig": ("x-only", r_sig[1]["x"]), "sSig": sig[1]["sSig"]})
         return Certificate(d, self.issuer)
+
+    def canonical_encoding(self) -> bytes:
+        """
+        COER of the canonical form (:meth:`to_canonical`): the input of the
+        HashedId8 and of the signer hash of every message this certificate
+        signs or verifies (IEEE 1609.2 clauses 5.3.1, 6.4.3). Computed once per
+        certificate (they are not modified after construction; a new
+        ``certificate`` value is detected) instead of once per message, which
+        cost a deep copy and an encoding per signature.
+        """
+        cached = self.__dict__.get("_canonical_encoding")
+        if cached is not None and cached[0] is self.certificate:
+            return cached[1]
+        encoded = SECURITY_CODER.encode_etsi_ts_103097_certificate(self.to_canonical().certificate)
+        object.__setattr__(self, "_canonical_encoding", (self.certificate, encoded))
+        return encoded
 
     def as_hashedid8(self) -> bytes:
         """
@@ -76,10 +124,25 @@ class Certificate:
         bytes
             The certificate as a hashedid8.
         """
-        canon_cert = self.to_canonical()
-        m = sha256()
-        m.update(SECURITY_CODER.encode_etsi_ts_103097_certificate(canon_cert.certificate))
+        m = sha384() if self.hash_name() == "sha384" else sha256()
+        m.update(self.canonical_encoding())
         return m.digest()[-8:]
+
+    def hash_name(self) -> str:
+        """
+        ``sha256`` or ``sha384``: the hash for the curve of the certificate's
+        verification key (:func:`hash_name_for_key`), used for its HashedId8,
+        the hashId of data it signs and the issuer choice of certificates it
+        issues. SHA-256 for implicit certificates.
+        """
+        vki = self.certificate.get("toBeSigned", {}).get("verifyKeyIndicator")
+        if vki is None or vki[0] != "verificationKey":
+            return "sha256"
+        return hash_name_for_key(vki[1])
+
+    def issuer_choice(self) -> str:
+        """IssuerIdentifier choice of a certificate issued by this one."""
+        return "sha384AndDigest" if self.hash_name() == "sha384" else "sha256AndDigest"
 
     def encode(self) -> bytes:
         """
@@ -165,7 +228,7 @@ class Certificate:
         ValueError
             If the issuer type is unknown or the certificate is not initialized.
         """
-        if self.certificate["issuer"][0] == "sha256AndDigest":
+        if self.certificate["issuer"][0] in ("sha256AndDigest", "sha384AndDigest"):
             return self.certificate["issuer"][1]
         if self.certificate["issuer"][0] == "self":
             return None
@@ -211,6 +274,15 @@ class Certificate:
             == "ecdsaNistP256"
         )
 
+    def signature_is_supported(self) -> bool:
+        """True when the signature algorithm is NIST P-256/P-384 or brainpoolP256r1/P384r1."""
+        return self.certificate["signature"][0] in _SUPPORTED_SIGNATURES
+
+    def verification_key_is_supported(self) -> bool:
+        """True when the verification key is NIST P-256/P-384 or brainpoolP256r1/P384r1."""
+        vki = self.certificate["toBeSigned"]["verifyKeyIndicator"]
+        return vki[0] == "verificationKey" and vki[1][0] in _SUPPORTED_KEYS
+
     def certificate_is_self_signed(self) -> bool:
         """
         Check if the certificate is self signed.
@@ -222,7 +294,7 @@ class Certificate:
         """
         return (
             self.certificate["issuer"][0] == "self"
-            and self.certificate["issuer"][1] == "sha256"
+            and self.certificate["issuer"][1] in ("sha256", "sha384")
         )
 
     def certificate_is_issued(self) -> bool:
@@ -235,7 +307,7 @@ class Certificate:
             True if the certificate is issued, False otherwise.
         """
         return (
-            self.certificate["issuer"][0] == "sha256AndDigest"
+            self.certificate["issuer"][0] in ("sha256AndDigest", "sha384AndDigest")
             and len(self.certificate["issuer"][1]) == 8
         )
 
@@ -255,7 +327,8 @@ class Certificate:
         bool
             True if the issuer corresponds to the certificate stated issuer, False otherwise
         """
-        return self.certificate["issuer"][1] == issuer.as_hashedid8()
+        return (self.certificate["issuer"][0] == issuer.issuer_choice()
+                and self.certificate["issuer"][1] == issuer.as_hashedid8())
 
     def certificate_wants_cert_issue_permissions(
         self
@@ -446,18 +519,19 @@ class Certificate:
 
     @staticmethod
     def verify_signature(
-        backend: ECDSABackend, to_be_signed_certificate: dict, signature: dict, verification_key: dict
+        backend: ECDSABackend, to_be_signed_certificate: dict, signature: tuple, verification_key: tuple
     ) -> bool:
         """
-        Verify the signature of a certificate.
+        Verify the signature of a self-signed certificate, computed over
+        Hash(Hash(tbs) || Hash("")) (IEEE 1609.2 clause 5.3.1).
 
         Parameters
         ----------
         to_be_signed_certificate : dict
             The to be signed certificate to be verified.
-        signature : dict
+        signature : tuple
             The signature to be verified.
-        verification_key : dict
+        verification_key : tuple
             The verification key to be used.
 
         Returns
@@ -467,8 +541,8 @@ class Certificate:
         """
         try:
             return backend.verify_with_pk(
-                SECURITY_CODER.encode_ToBeSignedCertificate(
-                    to_be_signed_certificate),
+                signing_input(SECURITY_CODER.encode_ToBeSignedCertificate(to_be_signed_certificate),
+                              b"", hash_for_key(verification_key)),
                 signature,
                 verification_key,
             )
@@ -499,20 +573,15 @@ class Certificate:
             and self.check_corresponding_issuer(self.issuer)
             and self.check_issuer_has_subject_permissions(self.issuer)
         ):
-            if self.signature_is_nist_p256() and self.verification_key_is_nist_p256():
+            if self.signature_is_supported() and self.verification_key_is_supported():
+                # IEEE 1609.2 clause 5.3.1: Hash(Hash(tbs) || Hash(issuer certificate))
+                issuer_key = self.issuer.verification_key()
+                if issuer_key is None:
+                    return False
                 tbs_bytes = SECURITY_CODER.encode_ToBeSignedCertificate(self.certificate["toBeSigned"])
-                if self.certificate.get("issuer", [None])[0] == "sha256AndDigest":
-                    tbs_hash = sha256(tbs_bytes).digest()
-                    issuer_cert_bytes = self.issuer.to_canonical().encode()
-                    issuer_hash = sha256(issuer_cert_bytes).digest()
-                    payload = tbs_hash + issuer_hash
-                else:
-                    payload = tbs_bytes
-                if backend.verify_with_pk(
-                    payload,
-                    self.certificate["signature"],
-                    self.issuer.certificate["toBeSigned"]["verifyKeyIndicator"][1],
-                ):
+                payload = signing_input(tbs_bytes, self.issuer.canonical_encoding(),
+                                        hash_for_key(issuer_key))
+                if backend.verify_with_pk(payload, self.certificate["signature"], issuer_key):
                     return True
         return False
 
@@ -531,14 +600,12 @@ class Certificate:
             True if the certificate is valid, False otherwise.
         """
         if self.certificate_is_self_signed():
-            if self.signature_is_nist_p256(
-            ) and self.verification_key_is_nist_p256():
-                if Certificate.verify_signature(
-                    backend,
-                    self.certificate["toBeSigned"],
-                    self.certificate["signature"],
-                    self.certificate["toBeSigned"]["verifyKeyIndicator"][1],
-                ):
+            if self.signature_is_supported() and self.verification_key_is_supported():
+                # IEEE 1609.2 clause 5.3.1: self-signed, the signer input is the empty string
+                key = self.certificate["toBeSigned"]["verifyKeyIndicator"][1]
+                tbs_bytes = SECURITY_CODER.encode_ToBeSignedCertificate(self.certificate["toBeSigned"])
+                if backend.verify_with_pk(signing_input(tbs_bytes, b"", hash_for_key(key)),
+                                          self.certificate["signature"], key):
                     return True
         return False
 
@@ -563,13 +630,64 @@ class Certificate:
         vki = self.certificate.get("toBeSigned", {}).get("verifyKeyIndicator")
         if cert_type == "explicit" and (vki is None or vki[0] != "verificationKey"):
             return False
-        if cert_type == "implicit" and (vki is None or vki[0] != "reconstructionValue"):
-            return False
+        if cert_type == "implicit":
+            # IEEE 1609.2 clause 6.4.2: an implicit certificate carries a
+            # reconstruction value and no signature (IEEE 1609.2 clause 5.3.2)
+            if vki is None or vki[0] != "reconstructionValue" or "signature" in self.certificate:
+                return False
+            return self.__verify_implicit_certificate()
         if self.issuer is not None and self.certificate_is_issued():
             return self.__verify_issued_certificate(backend)
         if self.certificate_is_self_signed():
             return self.__verify_self_signed_certificate(backend)
         return False
+
+    def __verify_implicit_certificate(self) -> bool:
+        """
+        An implicit certificate has no signature: it is accepted when it is
+        issued by its (known) issuer with the required permissions and its
+        public key can be reconstructed. A wrong certificate yields a wrong key,
+        so data it signs does not verify (SEC 4 section 3.5).
+        """
+        return (
+            self.issuer is not None
+            and self.certificate_is_issued()
+            and self.check_corresponding_issuer(self.issuer)
+            and self.check_issuer_has_subject_permissions(self.issuer)
+            and self.verification_key() is not None
+        )
+
+    def is_implicit(self) -> bool:
+        """True for an implicit certificate (reconstruction value, no signature)."""
+        return self.certificate.get("type") == "implicit"
+
+    def implicit_hash_integer(self) -> int:
+        """
+        e = Hn(Hash(ToBeSignedCertificate) || Hash(issuer certificate)): the
+        leftmost floor(log2 n) = 255 bits of SHA-256 over the 1609.2 hash input
+        (IEEE Std 1609.2-2016 clauses 5.3.2 and 6.4.3; SEC 4 section 2.3).
+        """
+        assert self.issuer is not None
+        tbs = SECURITY_CODER.encode_ToBeSignedCertificate(self.to_canonical().certificate["toBeSigned"])
+        digest = sha256(signing_input(tbs, self.issuer.canonical_encoding())).digest()
+        return int.from_bytes(digest, "big") >> 1
+
+    def verification_key(self) -> tuple | None:
+        """
+        Public verification key of the certificate: the explicit key, or the
+        key reconstructed from the reconstruction value and the issuer key
+        (ECQV, IEEE Std 1609.2-2016 clause 5.3.2). None when not available.
+        """
+        vki = self.certificate.get("toBeSigned", {}).get("verifyKeyIndicator")
+        if vki is None:
+            return None
+        if vki[0] == "verificationKey":
+            return vki[1]
+        if vki[0] == "reconstructionValue" and self.issuer is not None and self.issuer is not self:
+            issuer_key = self.issuer.verification_key()
+            if issuer_key is not None:
+                return reconstruct_public_key(vki[1], issuer_key, self.implicit_hash_integer())
+        return None
 
     def is_authorization_ticket(self) -> bool:
         """
@@ -674,7 +792,7 @@ class Certificate:
             The certificate to be set.
         """
         cert_dict = deepcopy(self.certificate)
-        cert_dict["issuer"] = ("self", "sha256")
+        cert_dict["issuer"] = ("self", self.hash_name())
         return Certificate(
             cert_dict, None
         )
@@ -691,8 +809,7 @@ class Certificate:
             The issuer of the certificate.
         """
         cert_copy = deepcopy(self.certificate)
-        cert_copy["issuer"] = (
-            "sha256AndDigest", issuer.as_hashedid8())
+        cert_copy["issuer"] = (issuer.issuer_choice(), issuer.as_hashedid8())
         return Certificate(
             cert_copy, issuer
         )
@@ -769,7 +886,8 @@ class OwnCertificate(Certificate):
 
     @staticmethod
     def initialize_certificate(
-        backend: ECDSABackend, to_be_signed_certificate: dict, issuer: OwnCertificate | None = None
+        backend: ECDSABackend, to_be_signed_certificate: dict, issuer: OwnCertificate | None = None,
+        algorithm: str = "nistP256", compressed_key: bool = True,
     ) -> OwnCertificate:
         """
         Initializes the certificate.
@@ -780,8 +898,12 @@ class OwnCertificate(Certificate):
             The to be signed certificate to be initialized.
         issuer : OwnCertificate
             The issuer of the certificate. If None, the certificate will be self signed.
+        algorithm : str
+            Curve of the new key pair (an IEEE 1609.2 PublicVerificationKey curve).
+        compressed_key : bool
+            Verification key as a compressed point (default) or uncompressed.
         """
-        key_id = backend.create_key()
+        key_id = backend.create_key(algorithm)
         if OwnCertificate.verify_to_be_signed_certificate(to_be_signed_certificate):
             cert_copy = {
                 "version": 3,
@@ -801,7 +923,7 @@ class OwnCertificate(Certificate):
             }
             cert_copy["toBeSigned"]["verifyKeyIndicator"] = (
                 "verificationKey",
-                backend.get_public_key(key_id),
+                backend.get_public_key(key_id, compressed_key),
             )
             own_cert = Certificate.from_dict(cert_copy, issuer)
             own_cert = OwnCertificate(
@@ -866,7 +988,13 @@ class OwnCertificate(Certificate):
         dict
             The signature of the message.
         """
-        return backend.sign(message, self.key_id)
+        # IEEE 1609.2 clause 5.3.1: the signer identifier input is this certificate
+        return backend.sign(signing_input(message, self.canonical_encoding(), self.hash_function()),
+                            self.key_id)
+
+    def hash_function(self):
+        """Hash function of :meth:`hash_name` (for the 1609.2 signing input)."""
+        return sha384 if self.hash_name() == "sha384" else sha256
 
     def check_enough_min_chain_length_for_issuer(self) -> bool:
         """
@@ -911,17 +1039,42 @@ class OwnCertificate(Certificate):
             certificate.certificate["toBeSigned"]
         )
         issuer_type = certificate.certificate.get("issuer", [None])[0]
-        if issuer_type == "sha256AndDigest":
-            # IEEE 1609.2 §5.3.2 / ETSI TS 103 097:
-            # Digest to sign is SHA-256( SHA-256(tbs_bytes) || SHA-256(issuer_cert_bytes) )
-            tbs_hash = sha256(tbs_bytes).digest()
-            issuer_cert_bytes = self.to_canonical().encode()
-            issuer_hash = sha256(issuer_cert_bytes).digest()
-            payload = tbs_hash + issuer_hash
-            certificate_dict["signature"] = backend.sign(payload, self.key_id)
-        else:
-            certificate_dict["signature"] = backend.sign(tbs_bytes, self.key_id)
+        # IEEE 1609.2 clause 5.3.1: Hash(Hash(tbs) || Hash(issuer certificate)),
+        # with the empty string as signer input for a self-signed certificate.
+        signer = self.canonical_encoding() if issuer_type in ("sha256AndDigest", "sha384AndDigest") else b""
+        certificate_dict["signature"] = backend.sign(signing_input(tbs_bytes, signer, self.hash_function()),
+                                                     self.key_id)
         return Certificate.from_dict(certificate_dict, self)
+
+    def issue_implicit_certificate(  # pylint: disable=too-many-locals
+        self, backend: ECDSABackend, to_be_signed_certificate: dict,
+    ) -> OwnCertificate:
+        """
+        Issue an implicit certificate with ECQV (SEC 4 sections 3.3 to 3.6, as
+        profiled by IEEE Std 1609.2-2016 clause 5.3.2) and return it with the
+        reconstructed private key of its holder. The requester and the CA role
+        are combined here: k_U is the requester key, k the CA ephemeral key,
+        P_U = k_U*G + k*G, r = e*k + d_CA and d_U = e*k_U + r.
+
+        Only a NIST P-256 issuer key held by ``backend`` is supported.
+        """
+        curve = ecdsa.NIST256p
+        n = curve.order
+        k_u = secrets.randbelow(n - 1) + 1
+        k = secrets.randbelow(n - 1) + 1
+        p_u = curve.generator * k_u + curve.generator * k
+        y_choice = "compressed-y-0" if p_u.y() % 2 == 0 else "compressed-y-1"
+        tbs = deepcopy(to_be_signed_certificate)
+        tbs["verifyKeyIndicator"] = ("reconstructionValue", (y_choice, p_u.x().to_bytes(32, "big")))
+        cert = Certificate.from_dict({
+            "version": 3, "type": "implicit", "issuer": ("sha256AndDigest", self.as_hashedid8()),
+            "toBeSigned": tbs,
+        }, self)
+        e = cert.implicit_hash_integer()
+        r = (e * k + backend.private_scalar(self.key_id)) % n  # type: ignore[attr-defined]
+        d_u = (e * k_u + r) % n
+        key_id = backend.import_private_scalar(d_u)  # type: ignore[attr-defined]
+        return OwnCertificate(certificate=cert.certificate, issuer=self, key_id=key_id)
 
     def issue_certificate(
         self, backend: ECDSABackend, certificate: Certificate
@@ -962,7 +1115,7 @@ class OwnCertificate(Certificate):
             The certificate to be set.
         """
         cert_dict = deepcopy(self.certificate)
-        cert_dict["issuer"] = ("self", "sha256")
+        cert_dict["issuer"] = ("self", self.hash_name())
         return OwnCertificate(
             cert_dict, None, self.key_id
         )
@@ -979,8 +1132,7 @@ class OwnCertificate(Certificate):
             The issuer of the certificate.
         """
         cert_copy = deepcopy(self.certificate)
-        cert_copy["issuer"] = (
-            "sha256AndDigest", issuer.as_hashedid8())
+        cert_copy["issuer"] = (issuer.issuer_choice(), issuer.as_hashedid8())
         return OwnCertificate(
             cert_copy, issuer, self.key_id
         )

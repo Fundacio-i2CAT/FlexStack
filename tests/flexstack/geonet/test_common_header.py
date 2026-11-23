@@ -17,6 +17,7 @@ class TestCommonHeader(unittest.TestCase):
             ),
             traffic_class=TrafficClass(),
             length=500,
+            data=bytes(500),        # PL is the length of the payload carried
         )
         ch = CommonHeader.initialize_with_request(request, mib)
         self.assertEqual(ch.nh, CommonNH.BTP_B)

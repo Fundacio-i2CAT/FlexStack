@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import replace as dataclass_replace
 from collections.abc import Callable
 from types import MappingProxyType
 import logging
@@ -6,6 +7,8 @@ import logging
 from .btp_header import BTPAHeader, BTPBHeader
 from .service_access_point import BTPDataIndication, BTPDataRequest
 from ..geonet.common_header import CommonNH
+from ..geonet.service_access_point import HeaderType
+from ..geonet.mib import GnSecurity
 from ..geonet.service_access_point import GNDataIndication, GNDataRequest
 from ..geonet.router import Router as GNRouter
 
@@ -31,6 +34,9 @@ class Router:
         self.indication_callbacks: MappingProxyType[int, Callable[[
             BTPDataIndication], None]] | None = None
         self.gn_router = gn_router
+        # Ports whose service accepts unsecured packets although itsGnSecurity is
+        # ENABLED (the CRL / CTL broadcast, ETSI TS 103 601 V2.1.1 clause 5.4.2).
+        self.unsecured_ports: set[int] = set()
 
         self.logging.info("BTP Router Initialized!")
 
@@ -42,7 +48,7 @@ class Router:
             dict(self.pre_indication_callbacks))
 
     def register_indication_callback_btp(
-        self, port: int, callback: Callable[[BTPDataIndication], None]
+        self, port: int, callback: Callable[[BTPDataIndication], None], *, accept_unsecured: bool = False
     ) -> None:
         """
         Registers a callback for a given port.
@@ -53,10 +59,16 @@ class Router:
             Port to register the callback for.
         callback : Callable[[BTPDataIndication], None]
             Callback to register.
+        accept_unsecured : bool
+            Deliver unsecured packets to this port although ``itsGnSecurity`` is
+            ENABLED (a service whose payload authenticates itself). Otherwise an
+            unsecured packet is discarded when GN security is enabled.
         """
         if self.indication_callbacks is not None:
             raise RuntimeError("Cannot register callbacks after freezing")
         self.pre_indication_callbacks[port] = callback
+        if accept_unsecured:
+            self.unsecured_ports.add(port)
         self.logging.info("Indication callback registered")
 
     def btp_data_request(self, request: BTPDataRequest) -> None:
@@ -78,6 +90,9 @@ class Router:
                 upper_protocol_entity=request.btp_type,
                 packet_transport_type=request.gn_packet_transport_type,
                 area=request.gn_area,
+                # EN 302 636-5-1 table 6: Destination address (GeoUnicast).
+                destination=(request.gn_destination_address
+                             if request.gn_packet_transport_type.header_type == HeaderType.GEOUNICAST else None),
                 communication_profile=request.communication_profile,
                 traffic_class=request.traffic_class,
                 security_profile=request.security_profile,
@@ -101,6 +116,9 @@ class Router:
                 upper_protocol_entity=request.btp_type,
                 packet_transport_type=request.gn_packet_transport_type,
                 area=request.gn_area,
+                # EN 302 636-5-1 table 6: Destination address (GeoUnicast).
+                destination=(request.gn_destination_address
+                             if request.gn_packet_transport_type.header_type == HeaderType.GEOUNICAST else None),
                 communication_profile=request.communication_profile,
                 traffic_class=request.traffic_class,
                 security_profile=request.security_profile,
@@ -133,13 +151,7 @@ class Router:
             destination_port=header.destination_port,
             destination_port_info=header.destination_port_info
         )
-        if self.indication_callbacks is not None:
-            callback = self.indication_callbacks.get(
-                indication.destination_port)
-            if callback:
-                callback(indication)
-        else:
-            raise RuntimeError("Indication callbacks not frozen")
+        self._deliver(indication)
 
     def btp_a_data_indication(self, gn_data_indication: GNDataIndication) -> None:
         """
@@ -153,24 +165,28 @@ class Router:
         base = BTPDataIndication.initialize_with_gn_data_indication(
             gn_data_indication)
         header = BTPAHeader.decode(gn_data_indication.data)
-        indication = BTPDataIndication(
+        indication = dataclass_replace(
+            base,
             source_port=header.source_port,
             destination_port=header.destination_port,
             destination_port_info=0,
-            gn_packet_transport_type=base.gn_packet_transport_type,
-            gn_destination_address=base.gn_destination_address,
-            gn_source_position_vector=base.gn_source_position_vector,
-            gn_traffic_class=base.gn_traffic_class,
-            length=base.length,
-            data=base.data,
         )
-        if self.indication_callbacks is not None:
-            callback = self.indication_callbacks.get(
-                indication.destination_port)
-            if callback:
-                callback(indication)
-        else:
+        self._deliver(indication)
+
+    def _deliver(self, indication: BTPDataIndication) -> None:
+        """Hand ``indication`` to the service of its destination port. With
+        ``itsGnSecurity`` ENABLED an unsecured packet (no security report) reaches
+        only a port registered with ``accept_unsecured``."""
+        if self.indication_callbacks is None:
             raise RuntimeError("Indication callbacks not frozen")
+        if (indication.gn_security_report is None
+                and self.gn_router.mib.itsGnSecurity == GnSecurity.ENABLED
+                and indication.destination_port not in self.unsecured_ports):
+            self.logging.debug("Unsecured packet to port %d discarded", indication.destination_port)
+            return
+        callback = self.indication_callbacks.get(indication.destination_port)
+        if callback:
+            callback(indication)
 
     def btp_data_indication(self, gn_data_indication: GNDataIndication) -> None:
         """

@@ -9,7 +9,7 @@ from ..security.security_profiles import SecurityProfile
 
 class CommonNH(Enum):
     """
-    Common Next Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7
+    Common Next Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7
 
     Attributes
     ----------
@@ -31,7 +31,7 @@ class CommonNH(Enum):
 
 class HeaderType(Enum):
     """
-    Header Type class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7.4
+    Header Type class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7.4
 
     Attributes
     ----------
@@ -62,7 +62,7 @@ class HeaderType(Enum):
 
 class HeaderSubType(Enum):
     """
-    Common Header Subtype class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    Common Header Subtype class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04).
     Section 9.7.5
     """
 
@@ -72,7 +72,7 @@ class HeaderSubType(Enum):
 class GeoAnycastHST(Enum):
     """
     Geographically-Scoped Anycast (GAC) Header Subtype class. As specified in
-    ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7.4
+    ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7.4
 
     Attributes
     ----------
@@ -92,7 +92,7 @@ class GeoAnycastHST(Enum):
 class GeoBroadcastHST(Enum):
     """
     Geographically-Scoped broadcast (GBC) Header Subtype class.
-    As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04).
     Section 9.7.4
 
     Attributes
@@ -112,7 +112,7 @@ class GeoBroadcastHST(Enum):
 
 class TopoBroadcastHST(Enum):
     """
-    Topologically-scoped broadcast (TSB) Header Subtype class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    Topologically-scoped broadcast (TSB) Header Subtype class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04).
     Section 9.7.4
 
     Attributes
@@ -129,7 +129,7 @@ class TopoBroadcastHST(Enum):
 
 class LocationServiceHST(Enum):
     """
-    Location Service Header Subtype class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7.4
+    Location Service Header Subtype class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7.4
 
     Attributes
     ----------
@@ -146,7 +146,7 @@ class LocationServiceHST(Enum):
 @dataclass(frozen=True)
 class TrafficClass:
     """
-    Common Traffic class class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7.5
+    Common Traffic class class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7.5
 
     Attributes
     ----------
@@ -254,9 +254,9 @@ class TrafficClass:
 @dataclass(frozen=True)
 class PacketTransportType:
     """
-    Packet Transport Type class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J2
-    Uses the Header Type and Header Subtype fields from the Common Header. As specified in ETSI EN 302 636-4-1 V1.4.1
-    (2020-01). Section 9.7.4 Table 9
+    Packet Transport Type class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J2
+    Uses the Header Type and Header Subtype fields from the Common Header. As specified in ETSI TS 103 836-4-1
+    V2.2.1 (2026-04). Section 9.7.4
 
     Attributes
     ----------
@@ -314,7 +314,7 @@ class PacketTransportType:
 
 class CommunicationProfile(Enum):
     """
-    Communication Profile class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J2
+    Communication Profile class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J2
 
     Attributes
     ----------
@@ -382,7 +382,7 @@ class Area:
 @dataclass(frozen=True)
 class GNDataRequest:
     """
-    GN Data Request class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J2.2
+    GN Data Request class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J2.2
 
 
     Attributes
@@ -492,7 +492,7 @@ class GNDataRequest:
 
 class ResultCode(Enum):
     """
-    Result Code class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J3
+    Result Code class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J3
 
     Attributes
     ----------
@@ -524,7 +524,7 @@ class ResultCode(Enum):
 @dataclass(frozen=True)
 class GNDataConfirm:
     """
-    GN Data Confirm class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J3
+    GN Data Confirm class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J3
 
     Attributes
     ----------
@@ -539,7 +539,7 @@ class GNDataConfirm:
 @dataclass(frozen=True)
 class GNDataIndication:
     """
-    GN Data Indication class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex J4
+    GN Data Indication class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex J4
 
     Attributes
     ----------
@@ -549,6 +549,8 @@ class GNDataIndication:
         Packet Transport Type.
     destination_area : Area or None
         Destination geographical area (GBC/GAC only). Optional per Annex J4.
+    destination : GNAddress or None
+        Destination address of a GeoUnicast, as generated by the source (Annex J4).
     source_position_vector : LongPositionVector
         Source Position Vector.
     traffic_class : TrafficClass
@@ -557,6 +559,15 @@ class GNDataIndication:
         Remaining lifetime of the packet in seconds. Optional per Annex J4.
     remaining_hop_limit : int or None
         Remaining hop limit of the packet. Optional per Annex J4.
+    security_report : int or None
+        Report of the security verification (ReportVerify value) of a secured
+        packet; None for an unsecured packet (Table 38).
+    certificate_id : bytes or None
+        HashedId8 of the signer's authorization ticket (Table 38).
+    its_aid : int or None
+        ITS-AID (PSID) of the secured packet (Table 38).
+    security_permissions : bytes or None
+        SSP of the signer's authorization ticket for that ITS-AID (Table 38).
     length : int
         Length of the payload.
     data : bytes
@@ -567,11 +578,16 @@ class GNDataIndication:
     packet_transport_type: PacketTransportType = field(
         default_factory=PacketTransportType)
     destination_area: Optional[Any] = None
+    destination: Optional[GNAddress] = None
     source_position_vector: LongPositionVector = field(
         default_factory=LongPositionVector)
     traffic_class: TrafficClass = field(default_factory=TrafficClass)
     remaining_packet_lifetime: Optional[float] = None
     remaining_hop_limit: Optional[int] = None
+    security_report: Optional[int] = None
+    certificate_id: Optional[bytes] = None
+    its_aid: Optional[int] = None
+    security_permissions: Optional[bytes] = None
     length: int = 0
     data: bytes = b""
 
@@ -588,6 +604,7 @@ class GNDataIndication:
             "upper_protocol_entity": self.upper_protocol_entity.value,
             "packet_transport_type": self.packet_transport_type.to_dict(),
             "destination_area": self.destination_area.to_dict() if self.destination_area is not None else None,
+            "destination": b64encode(self.destination.encode()).decode("utf-8") if self.destination is not None else None,
             "source_position_vector": b64encode(
                 self.source_position_vector.encode()
             ).decode("utf-8"),
@@ -596,6 +613,12 @@ class GNDataIndication:
             ),
             "remaining_packet_lifetime": self.remaining_packet_lifetime,
             "remaining_hop_limit": self.remaining_hop_limit,
+            "security_report": self.security_report,
+            "certificate_id": b64encode(self.certificate_id).decode("utf-8")
+            if self.certificate_id is not None else None,
+            "its_aid": self.its_aid,
+            "security_permissions": b64encode(self.security_permissions).decode("utf-8")
+            if self.security_permissions is not None else None,
             "length": self.length,
             "data": b64encode(self.data).decode("utf-8"),
         }
@@ -625,16 +648,24 @@ class GNDataIndication:
         )
         remaining_packet_lifetime = gn_data_indication.get("remaining_packet_lifetime")
         remaining_hop_limit = gn_data_indication.get("remaining_hop_limit")
+        certificate_id = gn_data_indication.get("certificate_id")
+        permissions = gn_data_indication.get("security_permissions")
         length = gn_data_indication["length"]
         data = b64decode(gn_data_indication["data"])
         return cls(
             upper_protocol_entity=upper_protocol_entity,
             packet_transport_type=packet_transport_type,
             destination_area=destination_area,
+            destination=(GNAddress.decode(b64decode(gn_data_indication["destination"]))
+                         if gn_data_indication.get("destination") is not None else None),
             source_position_vector=source_position_vector,
             traffic_class=traffic_class,
             remaining_packet_lifetime=remaining_packet_lifetime,
             remaining_hop_limit=remaining_hop_limit,
+            security_report=gn_data_indication.get("security_report"),
+            certificate_id=b64decode(certificate_id) if certificate_id is not None else None,
+            its_aid=gn_data_indication.get("its_aid"),
+            security_permissions=b64decode(permissions) if permissions is not None else None,
             length=length,
             data=data,
         )

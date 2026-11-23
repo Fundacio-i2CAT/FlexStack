@@ -57,7 +57,7 @@ class PythonCV2XLinkLayer(LinkLayer):
         """
         del self.link_layer
 
-    def send(self, packet: bytes) -> None:
+    def send(self, packet: bytes, destination: bytes | None = None) -> None:
         """
         Sends a packet via C-V2X.
 
@@ -65,7 +65,11 @@ class PythonCV2XLinkLayer(LinkLayer):
         ----------
         packet : bytes
             Packet to send.
+        destination : bytes | None
+            Ignored: the C-V2X library only transmits with the broadcast
+            Destination Layer 2 ID.
         """
+        del destination
         self.link_layer.send(b"\x03" + packet)
 
     def receive_process(

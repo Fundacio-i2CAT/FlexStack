@@ -132,7 +132,7 @@ class TestLocationTableTSB(unittest.TestCase):
             mid=MID(b"\xaa\xbb\xcc\xdd\x22\x33"),
         )
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_new_entry_is_neighbour_set_to_false(self, mock_time):
         """Step 5b: IS_NEIGHBOUR must be FALSE for a newly created TSB LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -147,7 +147,7 @@ class TestLocationTableTSB(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertFalse(entry.is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_existing_entry_is_neighbour_unchanged(self, mock_time):
         """NOTE 1: IS_NEIGHBOUR flag remains unchanged for an existing TSB LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -166,7 +166,7 @@ class TestLocationTableTSB(unittest.TestCase):
 
         self.assertTrue(table.get_entry(addr).is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_duplicate_tsb_packet_raises(self, mock_time):
         """DPD (annex A.2): same SN received twice must raise DuplicatedPacketException."""
         mock_time.return_value = self._TIMESTAMP
@@ -195,7 +195,7 @@ class TestLocationTableGUC(unittest.TestCase):
         de_spv = ShortPositionVector(gn_addr=de_gn_addr)
         return GUCExtendedHeader(sn=sn, so_pv=so_lpv, de_pv=de_spv)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_new_entry_is_neighbour_set_to_false(self, mock_time):
         """IS_NEIGHBOUR must be FALSE for a newly created GUC LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -211,7 +211,7 @@ class TestLocationTableGUC(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertFalse(entry.is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_existing_entry_is_neighbour_unchanged(self, mock_time):
         """NOTE 2: IS_NEIGHBOUR flag remains unchanged for an existing GUC LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -230,7 +230,7 @@ class TestLocationTableGUC(unittest.TestCase):
 
         self.assertTrue(table.get_entry(so_addr).is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_duplicate_guc_packet_raises(self, mock_time):
         """DPD (annex A.2): same SN received twice must raise DuplicatedPacketException."""
         mock_time.return_value = self._TIMESTAMP
@@ -262,7 +262,7 @@ class TestLocationTableGAC(unittest.TestCase):
             latitude=413872756, longitude=21122668, a=100, b=100, angle=0
         )
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_new_entry_is_neighbour_set_to_false(self, mock_time):
         """Step 5b: IS_NEIGHBOUR must be FALSE for a newly created GAC LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -277,7 +277,7 @@ class TestLocationTableGAC(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertFalse(entry.is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_existing_entry_is_neighbour_unchanged(self, mock_time):
         """NOTE 1: IS_NEIGHBOUR flag must remain unchanged for an existing GAC LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -295,7 +295,7 @@ class TestLocationTableGAC(unittest.TestCase):
 
         self.assertTrue(table.get_entry(addr).is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_duplicate_gac_packet_raises(self, mock_time):
         """DPD (annex A.2): same SN received twice must raise DuplicatedPacketException."""
         mock_time.return_value = self._TIMESTAMP
@@ -332,7 +332,7 @@ class TestLocationTableLS(unittest.TestCase):
         de_pv = ShortPositionVector(gn_addr=de_addr)
         return LSReplyExtendedHeader(sn=2, so_pv=so_lpv, de_pv=de_pv)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_ensure_entry_creates_new(self, mock_time):
         """ensure_entry must create a new LocTE if none exists for the address."""
         mock_time.return_value = self._TIMESTAMP
@@ -345,7 +345,7 @@ class TestLocationTableLS(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertIs(table.get_entry(addr), entry)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_ensure_entry_returns_existing(self, mock_time):
         """ensure_entry must return the existing LocTE if one already exists."""
         mock_time.return_value = self._TIMESTAMP
@@ -356,7 +356,7 @@ class TestLocationTableLS(unittest.TestCase):
         second = table.ensure_entry(addr)
         self.assertIs(first, second)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_ls_request_new_entry_is_neighbour_false(self, mock_time):
         """Step 5b: IS_NEIGHBOUR must be FALSE for a newly created LS Request LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -371,7 +371,7 @@ class TestLocationTableLS(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertFalse(entry.is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_ls_request_existing_entry_is_neighbour_unchanged(self, mock_time):
         """NOTE: IS_NEIGHBOUR flag must remain unchanged for an existing LS Request LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -390,7 +390,7 @@ class TestLocationTableLS(unittest.TestCase):
         table.new_ls_request_packet(header2, b"payload2")
         self.assertTrue(table.get_entry(addr).is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_ls_reply_new_entry_is_neighbour_false(self, mock_time):
         """IS_NEIGHBOUR must be FALSE for a newly created LS Reply LocTE."""
         mock_time.return_value = self._TIMESTAMP
@@ -406,7 +406,7 @@ class TestLocationTableLS(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertFalse(entry.is_neighbour)
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_duplicate_ls_request_raises(self, mock_time):
         """DPD (annex A.2): same SN received twice must raise DuplicatedPacketException."""
         mock_time.return_value = self._TIMESTAMP
@@ -477,7 +477,7 @@ class TestAnnexC(unittest.TestCase):
 
     # ── §C.2 refresh_table lifetime ─────────────────────────────────────────
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_locte_not_expired_within_lifetime(self, mock_time):
         """§C.2: LocTE must survive until itsGnLifetimeLocTE seconds have elapsed."""
         mock_time.return_value = self._TIMESTAMP
@@ -494,7 +494,7 @@ class TestAnnexC(unittest.TestCase):
         table.refresh_table()
         self.assertIsNotNone(table.get_entry(gn_addr))
 
-    @patch("flexstack.geonet.location_table.TimeService.time")
+    @patch("flexstack.utils.time_service.TimeService.time")
     def test_locte_expired_after_lifetime(self, mock_time):
         """§C.2: LocTE must be removed after itsGnLifetimeLocTE (20 s) have elapsed."""
         mock_time.return_value = self._TIMESTAMP
@@ -504,13 +504,58 @@ class TestAnnexC(unittest.TestCase):
         pv = LongPositionVector(gn_addr=gn_addr).set_tst_in_normal_timestamp_seconds(
             self._TIMESTAMP)
         tsb = TSBExtendedHeader(sn=1, so_pv=pv)
+        now = [0]
+        table = LocationTable(mib, clock=lambda: now[0])
         table.new_tsb_packet(tsb, b"payload")
-
-        # Advance time past the lifetime window (21 s > 20 s)
-        mock_time.return_value = self._TIMESTAMP + 21
-        table.refresh_table()
+        # §8.2.3: soft state, itsGnLifetimeLocTE (20 s) after the last update on the local clock
+        now[0] = 20_000
+        self.assertIsNotNone(table.get_entry(gn_addr))
+        now[0] = 20_001
         self.assertIsNone(table.get_entry(gn_addr))
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLocationTableRefresh(unittest.TestCase):
+    """LocT maintenance (ETSI TS 103 836-4-1 V2.2.1); mirrors the Rust location_table tests."""
+
+    @staticmethod
+    def _lpv(n, seconds):
+        from flexstack.geonet.position_vector import TST
+        return LongPositionVector(gn_addr=GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, n]))),
+                                  tst=TST.set_in_normal_timestamp_seconds(seconds), pai=True)
+
+    def test_refresh_keeps_ls_pending_placeholder(self):
+        table = LocationTable(MIB())
+        sought = GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, 7])))
+        table.ensure_entry(sought).ls_pending = True
+        table.refresh_table()
+        self.assertIsNotNone(table.get_entry(sought))
+
+    def test_lifetime_follows_local_clock_not_sender_tst(self):
+        """§8.2.3: the LocTE lifetime runs on the local clock from the last update, whatever
+        the sender's TST (a sender clock 60 s behind or 0.5 s ahead)."""
+        from flexstack.utils.time_service import TimeService
+        now = [0]
+        table = LocationTable(MIB(), clock=lambda: now[0])
+        ahead = self._lpv(1, TimeService.time() + 0.5)
+        behind = self._lpv(2, TimeService.time() - 60)
+        table.new_shb_packet(ahead, b"")
+        table.new_shb_packet(behind, b"")
+        self.assertIsNotNone(table.get_entry(ahead.gn_addr))
+        self.assertIsNotNone(table.get_entry(behind.gn_addr))
+        now[0] = 20_001
+        self.assertIsNone(table.get_entry(ahead.gn_addr))
+        self.assertIsNone(table.get_entry(behind.gn_addr))
+
+    def test_entry_by_mid_and_removal(self):
+        from flexstack.utils.time_service import TimeService
+        table = LocationTable(MIB())
+        pv = self._lpv(3, TimeService.time())
+        table.new_shb_packet(pv, b"")
+        self.assertIsNotNone(table.get_entry_by_mid(bytes([2, 0, 0, 0, 0, 3])))
+        self.assertIsNone(table.get_entry_by_mid(bytes([2, 0, 0, 0, 0, 4])))
+        table.remove_entry(pv.gn_addr)
+        self.assertIsNone(table.get_entry(pv.gn_addr))

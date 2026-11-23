@@ -8,7 +8,7 @@ from .mib import MIB
 
 class BasicNH(Enum):
     """
-    Next Header field class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6.3
+    Next Header field class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.6.3
 
     Attributes
     ----------
@@ -27,7 +27,7 @@ class BasicNH(Enum):
 
 class LTbase(Enum):
     """
-    Lifetime base class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6.4
+    Lifetime base class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.6.4
 
     Attributes
     ----------
@@ -50,7 +50,7 @@ class LTbase(Enum):
 @dataclass(frozen=True)
 class LT:
     """
-    Lifetime class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6.4
+    Lifetime class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.6.4
 
     The Lifetime (LT) field shall indicate the maximum tolerable time a packet may be buffered until it reaches
     its destination.
@@ -78,30 +78,22 @@ class LT:
         value : int
             Lifetime in milliseconds.
         """
-        if value < 50:
-            multiplier = 0
-            base = LTbase.FIFTY_MILLISECONDS
-        elif value < 100:
-            multiplier = 1
-            base = LTbase.FIFTY_MILLISECONDS
-        elif value < 500:
-            multiplier = int(value / 50 % 64)
-            base = LTbase.FIFTY_MILLISECONDS
-        elif value < 1000:
-            multiplier = 0
-            base = LTbase.ONE_SECOND
-        elif value < 10000:
-            multiplier = int(value / 1000 % 64)
-            base = LTbase.ONE_SECOND
-        elif value < 100000:
-            multiplier = int(value / 10000 % 64)
+        # The largest base not greater than the value is used and the
+        # multiplier (6 bits) is rounded down, so that the encoded lifetime
+        # never exceeds the requested one; values beyond 63 x 100 s saturate.
+        value = max(0, int(value))
+        if value >= 100000:
+            multiplier = min(value // 100000, 63)
+            base = LTbase.ONE_HUNDRED_SECONDS
+        elif value >= 10000:
+            multiplier = value // 10000
             base = LTbase.TEN_SECONDS
-        elif value < 1000000:
-            multiplier = int(value / 100000 % 64)
-            base = LTbase.ONE_HUNDRED_SECONDS
+        elif value >= 1000:
+            multiplier = value // 1000
+            base = LTbase.ONE_SECOND
         else:
-            multiplier = 0
-            base = LTbase.ONE_HUNDRED_SECONDS
+            multiplier = value // 50
+            base = LTbase.FIFTY_MILLISECONDS
 
         return LT(multiplier=multiplier, base=base)
 
@@ -172,7 +164,7 @@ class LT:
 @dataclass(frozen=True)
 class BasicHeader:
     """
-    Basic Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.6
+    Basic Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.6
 
     Attributes
     ----------
@@ -214,8 +206,8 @@ class BasicHeader:
         Initialize the Basic Header from MIB, optional max packet lifetime, and RHL.
 
         Uses max_packet_lifetime when provided, otherwise falls back to
-        itsGnDefaultPacketLifetime. As specified in ETSI EN 302 636-4-1
-        V1.4.1 (2020-01). Section 10.3.2 (LT field).
+        itsGnDefaultPacketLifetime. As specified in ETSI TS 103 836-4-1
+        V2.2.1 (2026-04). Section 10.3.2 (LT field).
 
         Parameters
         ----------

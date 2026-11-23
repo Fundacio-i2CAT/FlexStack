@@ -103,7 +103,7 @@ from flexstack.facilities.local_dynamic_map.ldm_classes import (
 from flexstack.facilities.local_dynamic_map.factory import LDMFactory
 from flexstack.btp.router import Router as BTPRouter
 from flexstack.geonet.gn_address import GNAddress, M, ST, MID
-from flexstack.geonet.mib import MIB, GnSecurity
+from flexstack.geonet.mib import GnIfType, GnSecurity, MIB
 from flexstack.geonet.router import Router as GNRouter
 from flexstack.linklayer.raw_link_layer import RawLinkLayer
 from flexstack.security.certificate import Certificate, OwnCertificate
@@ -359,6 +359,7 @@ def main() -> None:
 
     # Instantiate a GN router with security enabled
     mib = MIB(
+        itsGnIfType=GnIfType.ITS_G5,
         itsGnLocalGnAddr=GNAddress(
             m=M.GN_MULTICAST,
             st=ST.PEDESTRIAN,
@@ -461,6 +462,9 @@ def main() -> None:
         "lo", MAC_ADDRESS, receive_callback=gn_router.gn_data_indicate
     )
     gn_router.link_layer = link_layer
+    # ETSI TS 103 836-4-2 clause 6.1: over ITS-G5 the MID is the interface MAC address
+    if not gn_router.media_dependent_address_ok():
+        raise SystemExit("itsGnLocalGnAddr MID must be the MAC address of the link layer")
 
     try:
         while True:

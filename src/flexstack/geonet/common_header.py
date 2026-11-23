@@ -18,7 +18,7 @@ from .mib import MIB
 @dataclass(frozen=True)
 class CommonHeader:
     """
-    Common Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.7
+    Common Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.7
 
     Attributes
     ----------
@@ -71,7 +71,8 @@ class CommonHeader:
         hst = request.packet_transport_type.header_subtype
         tc = request.traffic_class
         flags = mib.itsGnIsMobile.value << 7
-        pl = request.length
+        # PL: length of the payload carried after the GN headers (clause 9.7.4)
+        pl = len(request.data)
         if ht == HeaderType.TSB and hst == TopoBroadcastHST.SINGLE_HOP:
             mhl = 1
         else:
@@ -174,4 +175,4 @@ class CommonHeader:
         ht = HeaderType.BEACON
         hst = HeaderSubType.UNSPECIFIED
         tc = TrafficClass()
-        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=mib.itsGnIsMobile.value, pl=0, mhl=1)
+        return cls(nh=nh, reserved=0, ht=ht, hst=hst, tc=tc, flags=mib.itsGnIsMobile.value << 7, pl=0, mhl=1)

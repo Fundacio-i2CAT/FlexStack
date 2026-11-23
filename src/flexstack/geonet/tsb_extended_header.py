@@ -7,7 +7,7 @@ from .service_access_point import GNDataRequest
 @dataclass(frozen=True)
 class TSBExtendedHeader:
     """
-    TSB Extended Header class. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.8.3 (Table 12).
+    TSB Extended Header class. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.8.3 (Table 12).
 
     Layout (28 bytes):
         SN         2 octets  (octets 12-13 of full TSB packet)
@@ -43,7 +43,7 @@ class TSBExtendedHeader:
         request : GNDataRequest
             The GN Data Request (unused for TSB but kept for API symmetry).
         sequence_number : int
-            The current local sequence number (clause 8.3).
+            The current local sequence number (clause 8.4).
         ego_pv : LongPositionVector
             The ego position vector.
         """

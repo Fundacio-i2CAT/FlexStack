@@ -1,4 +1,6 @@
 import unittest
+
+from flexstack.geonet.gn_address import MID, GNAddress
 import json
 
 from flexstack.geonet.service_access_point import (
@@ -190,14 +192,25 @@ class TestGNDataIndication(unittest.TestCase):
                 "upper_protocol_entity": 0,
                 "packet_transport_type": {"header_type": 5, "header_subtype": 0},
                 "destination_area": None,
+                "destination": None,
                 "source_position_vector": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 "traffic_class": "AA==",
                 "remaining_packet_lifetime": None,
                 "remaining_hop_limit": None,
+                "security_report": None,
+                "certificate_id": None,
+                "its_aid": None,
+                "security_permissions": None,
                 "length": 0,
                 "data": "",
             },
         )
+
+    def test_destination_round_trip(self):
+        """The GeoUnicast Destination of Annex J4 survives to_dict / from_dict."""
+        destination = GNAddress(mid=MID(bytes([2, 0, 0, 0, 0, 7])))
+        decoded = GNDataIndication.from_dict(GNDataIndication(destination=destination).to_dict())
+        self.assertEqual(decoded.destination, destination)
 
     def test_from_dict(self):
         gn_data_indication = GNDataIndication(

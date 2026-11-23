@@ -13,7 +13,7 @@ from .gn_address import GNAddress
 @dataclass(frozen=True)
 class TST:
     """
-    Timestamp class.  ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.5.2
+    Timestamp class.  ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.5.2
 
     Expresses the time in milliseconds at which
     the latitude and longitude of the ITS-S were
@@ -122,7 +122,7 @@ class TST:
     def __gt__(self, __o: object) -> bool:
         """
         Greater than operator.
-        Uses the ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex C.2
+        Uses the ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex C.2
 
         Parameters
         ----------
@@ -253,7 +253,7 @@ class TST:
 @dataclass(frozen=True)
 class LongPositionVector:
     """
-    Long Position Vector class.  ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.5.2
+    Long Position Vector class.  ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.5.2
 
     Attributes
     ----------
@@ -459,8 +459,10 @@ class LongPositionVector:
             s=int(tpv_data["speed"] * 100),
             h=int(tpv_data["track"] * 10),
         )
+        # TST in ms of the sensor acquisition time (clause 9.5.2.2): keep the
+        # fraction of a second of the TPV time.
         lpv = lpv.set_tst_in_normal_timestamp_seconds(
-            int(parser.parse(tpv_data["time"]).timestamp())
+            parser.parse(tpv_data["time"]).timestamp()
         )
         return lpv
 
@@ -575,7 +577,7 @@ class LongPositionVector:
 @dataclass(frozen=True)
 class ShortPositionVector:
     """
-    Short Position Vector class.  ETSI EN 302 636-4-1 V1.4.1 (2020-01). Section 9.5.2
+    Short Position Vector class.  ETSI TS 103 836-4-1 V2.2.1 (2026-04). Section 9.5.2
 
     Attributes
     ----------

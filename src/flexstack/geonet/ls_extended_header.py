@@ -7,7 +7,7 @@ from .gn_address import GNAddress
 @dataclass(frozen=True)
 class LSRequestExtendedHeader:
     """
-    LS Request Extended Header. §9.8.7 Table 16 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    LS Request Extended Header. §9.8.7 Table 16 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
 
     Layout (36 bytes, after Basic + Common headers):
         SN               2 octets  (octets 12-13 of full LS Request packet)
@@ -45,7 +45,7 @@ class LSRequestExtendedHeader:
         Parameters
         ----------
         sequence_number : int
-            Local sequence number (clause 8.3).
+            Local sequence number (clause 8.4).
         ego_pv : LongPositionVector
             Ego position vector (SO PV field, clause 8.2).
         request_gn_addr : GNAddress
@@ -91,7 +91,7 @@ class LSRequestExtendedHeader:
 @dataclass(frozen=True)
 class LSReplyExtendedHeader:
     """
-    LS Reply Extended Header. §9.8.8 Table 17 of ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    LS Reply Extended Header. §9.8.8 Table 17 of ETSI TS 103 836-4-1 V2.2.1 (2026-04).
 
     Layout (48 bytes, after Basic + Common headers):
         SN        2 octets  (octets 12-13)  Sequence number
@@ -131,7 +131,7 @@ class LSReplyExtendedHeader:
         Parameters
         ----------
         sequence_number : int
-            Local sequence number (clause 8.3).
+            Local sequence number (clause 8.4).
         ego_pv : LongPositionVector
             Ego position vector of the replier (SO PV field, table 25).
         de_pv : ShortPositionVector

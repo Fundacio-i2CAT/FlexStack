@@ -2,7 +2,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock, patch
 import unittest
 from flexstack.security.security_coder import SecurityCoder
-from flexstack.security.certificate import Certificate, OwnCertificate
+from flexstack.security.certificate import Certificate, OwnCertificate, signing_input
 from flexstack.security.ecdsa_backend import PythonECDSABackend
 
 
@@ -229,7 +229,10 @@ class TestCertificate(unittest.TestCase):
         issuer = MagicMock()
         issuer.as_hashedid8 = MagicMock(return_value=(
             0xa495991b7852b855).to_bytes(8, byteorder='big'))
+        issuer.issuer_choice = MagicMock(return_value="sha256AndDigest")
         self.assertTrue(cert.check_corresponding_issuer(issuer))
+        issuer.issuer_choice = MagicMock(return_value="sha384AndDigest")    # digest of another hash
+        self.assertFalse(cert.check_corresponding_issuer(issuer))
 
     def test_certificate_wants_cert_issue_permissions(self):
         cert = Certificate.as_clear_certificate()
@@ -288,15 +291,15 @@ class TestCertificate(unittest.TestCase):
         backend = MagicMock()
         backend.verify_with_pk = MagicMock(return_value=True)
         tobesigned_certificate = {"something": "something"}
-        signature = {'sign': 'sign'}
-        verification_key = {'verificationKey': 'verificationKey'}
+        signature = ("ecdsaNistP256Signature", {'sign': 'sign'})
+        verification_key = ("ecdsaNistP256", ("compressed-y-0", b"\x00" * 32))
         with patch('flexstack.security.certificate.SECURITY_CODER') as mock_coder:
             mock_coder.encode_ToBeSignedCertificate = MagicMock(
                 return_value=b'encoded')
             self.assertTrue(Certificate.verify_signature(
                 backend, tobesigned_certificate, signature, verification_key))
             backend.verify_with_pk.assert_called_once_with(
-                b'encoded', signature, verification_key)
+                signing_input(b'encoded', b''), signature, verification_key)
 
     def test_set_issuer_as_self(self):
         cert = Certificate.as_clear_certificate()
@@ -308,6 +311,7 @@ class TestCertificate(unittest.TestCase):
         issuer = MagicMock()
         issuer.as_hashedid8 = MagicMock(
             return_value=b'\xa9\xdb3\xac\x7fr\xb1\x0b')
+        issuer.issuer_choice = MagicMock(return_value="sha256AndDigest")
         new_cert = cert.set_issuer(issuer)
         self.assertEqual(
             new_cert.certificate['issuer'], ("sha256AndDigest", b'\xa9\xdb3\xac\x7fr\xb1\x0b'))
@@ -468,6 +472,42 @@ class TestCertificate(unittest.TestCase):
             tbs_extras={"encryptionKey": {"supportedSymmAlg": "aes128Ccm", "publicKey": ("eciesNistP256", ("x-only", b'\x00' * 32))}},
         )
         self.assertFalse(cert.is_subordinate_ca_certificate())
+
+
+class TestCanonicalForm(unittest.TestCase):
+    """IEEE 1609.2 clause 6.4.3: a certificate is hashed with every point of
+    toBeSigned compressed and the signature r as x-only, on every curve."""
+
+    def test_uncompressed_points_hash_as_compressed(self):
+        backend = PythonECDSABackend()
+        for algorithm, signature in (("nistP256", "ecdsaNistP256Signature"),
+                                     ("brainpoolP256r1", "ecdsaBrainpoolP256r1Signature"),
+                                     ("brainpoolP384r1", "ecdsaBrainpoolP384r1Signature"),
+                                     ("nistP384", "ecdsaNistP384Signature")):
+            with self.subTest(algorithm=algorithm):
+                key = backend.create_key(algorithm)
+                encryption = backend.create_key("nistP256")
+                size = 48 if "384" in algorithm else 32
+
+                def certificate(compressed, r_choice):
+                    x = backend.get_public_key(key, compressed)
+                    r_point = backend.get_public_key(key, True)[1]     # only the encoding matters
+                    r_sig = ("x-only", r_point[1]) if r_choice == "x-only" else r_point
+                    return Certificate.from_dict({
+                        "version": 3, "type": "explicit", "issuer": ("self", "sha256"),
+                        "toBeSigned": {
+                            "id": ("none", None), "cracaId": b"\x00\x00\x00", "crlSeries": 0,
+                            "validityPeriod": {"start": 0, "duration": ("hours", 1)},
+                            "appPermissions": [{"psid": 36}],
+                            "encryptionKey": {"supportedSymmAlg": "aes128Ccm", "publicKey": (
+                                "eciesNistP256", backend.get_public_key(encryption, compressed)[1])},
+                            "verifyKeyIndicator": ("verificationKey", x)},
+                        "signature": (signature, {"rSig": r_sig, "sSig": b"\x01" * size})})
+                reference = certificate(True, "x-only")
+                self.assertEqual(certificate(False, "x-only").as_hashedid8(), reference.as_hashedid8())
+                self.assertEqual(certificate(False, "point").as_hashedid8(), reference.as_hashedid8())
+                self.assertEqual(certificate(True, "point").as_hashedid8(), reference.as_hashedid8())
+                self.assertEqual(certificate(False, "point").to_canonical().certificate, reference.certificate)
 
 
 class TestOwnCertificate(unittest.TestCase):
@@ -656,9 +696,11 @@ class TestOwnCertificate(unittest.TestCase):
         message = b"Hello world"
         # When
         signature = own_certificate.sign_message(self.backend, message)
-        # Then
+        # Then: IEEE 1609.2 clause 5.3.1 input Hash(message) || Hash(signer certificate)
         self.assertTrue(self.backend.verify(
-            message, signature, own_certificate.key_id))
+            signing_input(message, own_certificate.to_canonical().encode()),
+            signature, own_certificate.key_id))
+        self.assertFalse(self.backend.verify(message, signature, own_certificate.key_id))
 
     def test_issued_certificate_digest_verification(self):
         """

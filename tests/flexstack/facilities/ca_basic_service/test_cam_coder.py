@@ -1,17 +1,21 @@
 import unittest
 from unittest.mock import MagicMock, patch
+from flexstack.facilities.ca_basic_service import cam_coder as cam_coder_module
 from flexstack.facilities.ca_basic_service.cam_coder import CAMCoder
 
 
 class TestCAMCoder(unittest.TestCase):
     @patch("asn1tools.compile_string")
     def test__init__(self, asn1tools_compile_string_mock):
+        """The specification is compiled once per process and shared."""
         asn1tools_compile_string_mock.return_value = "asn_coder"
-        cam_coder = CAMCoder()
+        with patch.object(cam_coder_module, "_COMPILED", None):
+            first, second = CAMCoder(), CAMCoder()
         asn1tools_compile_string_mock.assert_called_once()
-        self.assertEqual(cam_coder.asn_coder, "asn_coder")
+        self.assertEqual(first.asn_coder, "asn_coder")
+        self.assertIs(first.asn_coder, second.asn_coder)
 
-    @patch("asn1tools.compile_string")
+    @patch("flexstack.facilities.ca_basic_service.cam_coder._compiled_specification")
     def test_encode(self, asn1tools_compile_string_mock):
         asn_coder = MagicMock()
         asn_coder.encode = MagicMock(return_value="encoded_cam")
@@ -22,7 +26,7 @@ class TestCAMCoder(unittest.TestCase):
         cam_coder.asn_coder.encode.assert_called_once_with("CAM", cam)
         self.assertEqual(encoded_cam, "encoded_cam")
 
-    @patch("asn1tools.compile_string")
+    @patch("flexstack.facilities.ca_basic_service.cam_coder._compiled_specification")
     def test_decode(self, asn1tools_compile_string_mock):
         asn_coder = MagicMock()
         asn_coder.decode = MagicMock(return_value="decoded_cam")
@@ -44,6 +48,22 @@ class TestCAMCoderExtensionContainers(unittest.TestCase):
     ASN.1 encoder would produce), and must round-trip through
     decode_extension_container unchanged.
     """
+
+    # Frozen vector, also in RustFlexstack (cam_coder::tests::
+    # cam_with_extension_container_matches_x691): a CAM with a
+    # VeryLowFrequencyContainer as extension container (CamParameters extension
+    # addition, X.691 clause 19.9 open type holding WrappedExtensionContainers
+    # 01 00 80 00).
+    FROZEN_VLF_CAM = bytes.fromhex(
+        "0202000000012f208059ca0227ed929df5e0c80c8001b7743e003dffc1f47e3fe9ed0737feebfff600410040200000")
+
+    def test_frozen_cam_with_extension_container(self):
+        coder = CAMCoder()
+        cam = coder.decode(self.FROZEN_VLF_CAM)
+        self.assertEqual(cam["cam"]["camParameters"]["extensionContainers"],
+                         [{"containerId": 3, "containerData": b"\x00"}])
+        self.assertEqual(coder.encode(cam), self.FROZEN_VLF_CAM)
+        self.assertEqual(coder.decode_extension_container(3, b"\x00"), {})
 
     @classmethod
     def setUpClass(cls):

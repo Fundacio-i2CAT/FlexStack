@@ -1,13 +1,14 @@
+from __future__ import annotations
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .gn_address import GNAddress
+from .gn_address import MID, GNAddress
 
 
 class LocalGnAddrConfMethod(Enum):
     """
-    LocalGnAddrConfMethod. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    LocalGnAddrConfMethod. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -25,7 +26,7 @@ class LocalGnAddrConfMethod(Enum):
 
 class GnIsMobile(Enum):
     """
-    GnIsMobile. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    GnIsMobile. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -41,7 +42,7 @@ class GnIsMobile(Enum):
 
 class GnIfType(Enum):
     """
-    GnIfType. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    GnIfType. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -60,7 +61,7 @@ class GnIfType(Enum):
 
 class GnSecurity(Enum):
     """
-    GnSecurity. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    GnSecurity. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -76,7 +77,7 @@ class GnSecurity(Enum):
 
 class SnDecapResultHandling(Enum):
     """
-    SnDecapResultHandling. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    SnDecapResultHandling. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -92,7 +93,7 @@ class SnDecapResultHandling(Enum):
 
 class NonAreaForwardingAlgorithm(Enum):
     """
-    NonAreaForwardingAlgorithm. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    NonAreaForwardingAlgorithm. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -100,15 +101,18 @@ class NonAreaForwardingAlgorithm(Enum):
         The forwarding algorithm is unspecified
     GREEDY (1) :
         Default forwarding algorithm outside target area
+    CBF (2) :
+        Non-area contention-based forwarding (ETSI TS 103 836-4-1 V2.2.1, clause E.3)
     """
 
     UNSPECIFIED = 0
     GREEDY = 1
+    CBF = 2
 
 
 class AreaForwardingAlgorithm(Enum):
     """
-    AreaForwardingAlgorithm. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01). Annex H.
+    AreaForwardingAlgorithm. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04). Annex H.
 
     Attributes
     ----------
@@ -128,7 +132,7 @@ class AreaForwardingAlgorithm(Enum):
 @dataclass(frozen=True)
 class MIB:
     # pylint: disable=too-many-instance-attributes, invalid-name
-    """Management Information Base (MIB) for GeoNetworking. As specified in ETSI EN 302 636-4-1 V1.4.1 (2020-01).
+    """Management Information Base (MIB) for GeoNetworking. As specified in ETSI TS 103 836-4-1 V2.2.1 (2026-04).
     Annex H.
 
     Attributes
@@ -220,7 +224,7 @@ class MIB:
     itsGnLocationServiceMaxRetrans: int = 10
     itsGnLocationServiceRetransmitTimer: int = 1000
     itsGnLocationServicePacketBufferSize: int = 1024
-    itsGnBeaconServiceRetransmitTimer: int = 0
+    itsGnBeaconServiceRetransmitTimer: int = 3000
     itsGnBeaconServiceMaxJitter: Optional[float] = None
     itsGnDefaultHopLimit: int = 10
     itsGnDPLLength: int = 8
@@ -245,3 +249,20 @@ class MIB:
         # compute dependent default
         if self.itsGnBeaconServiceMaxJitter is None:
             object.__setattr__(self, "itsGnBeaconServiceMaxJitter", self.itsGnBeaconServiceRetransmitTimer / 4)
+
+    def media_dependent_address_ok(self, link_layer_mid: MID | None = None) -> bool:
+        """
+        Whether itsGnLocalGnAddr follows the media-dependent rule of
+        itsGnIfType: ITS-G5, MID = MAC address of the interface (ETSI TS
+        103 836-4-2 V2.1.1 clause 6.1); LTE-V2X, MID = 24-bit Source Layer 2
+        ID followed by three zero octets (ETSI TS 103 836-4-3 V2.1.1 clause
+        5.2). ``link_layer_mid`` is the MID reported by the link layer; when it
+        is unknown only the LTE-V2X zero octets are checked. Always True for
+        an unspecified interface type.
+        """
+        if self.itsGnIfType == GnIfType.UNSPECIFIED:
+            return True
+        mid = self.itsGnLocalGnAddr.mid
+        if self.itsGnIfType == GnIfType.LTE_V2X and mid.mid[3:] != b"\x00\x00\x00":
+            return False
+        return link_layer_mid is None or link_layer_mid == mid

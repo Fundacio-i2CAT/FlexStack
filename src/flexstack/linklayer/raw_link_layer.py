@@ -3,12 +3,16 @@ import socket
 import platform
 from collections.abc import Callable
 import threading
+from typing import TYPE_CHECKING
 from .exceptions import (
     WindowsNotSupportedException,
     InvalidMACAddressException,
     PacketTooLongException,
 )
 from .link_layer import LinkLayer
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..geonet.gn_address import MID
 
 
 def raise_exception_if_windows(func):
@@ -83,13 +87,18 @@ class RawLinkLayer(LinkLayer):
         self.receiving_thread = threading.Thread(target=self.receive, daemon=True)
         self.receiving_thread.start()
 
+    def media_dependent_mid(self) -> MID:
+        """MID of GN over ITS-G5: the MAC address of the interface (TS 103 836-4-2 clause 6.1)."""
+        from ..geonet.gn_address import MID  # pylint: disable=import-outside-toplevel
+        return MID.from_its_g5_mac(self.mac_address)
+
     def __del__(self) -> None:
         """
         Close the socket.
         """
         self.sock.close()
 
-    def send(self, packet: bytes) -> None:
+    def send(self, packet: bytes, destination: bytes | None = None) -> None:
         """
         Send a packet to the LL.
 
@@ -97,8 +106,11 @@ class RawLinkLayer(LinkLayer):
         ----------
         packet : bytes
             Packet to send.
+        destination : bytes | None
+            Destination MAC address (next hop of a unicast forwarding step);
+            the broadcast address when None.
         """
-        dest = b"\xff\xff\xff\xff\xff\xff"
+        dest = bytes(destination) if destination is not None else b"\xff\xff\xff\xff\xff\xff"
         ethertype = b"\x89\x47"
         packet = dest + self.mac_address + ethertype + packet
         if len(packet) > 1500:
@@ -114,12 +126,12 @@ class RawLinkLayer(LinkLayer):
                 m = self.sock.recv(1500)
                 try:
                     if m[0:6] == self.mac_address:
-                        self.receive_callback(m[14:])
+                        self.deliver(m[14:], m[6:12])
                     elif (
                         m[0:6] == b"\xff\xff\xff\xff\xff\xff"
                         and m[6:12] != self.mac_address
                     ):
-                        self.receive_callback(m[14:])
+                        self.deliver(m[14:], m[6:12])
                 except NotImplementedError as e:
                     print("Error decoding packet: " + str(e))
             except OSError:

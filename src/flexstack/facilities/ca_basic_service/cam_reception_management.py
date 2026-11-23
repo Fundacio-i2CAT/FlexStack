@@ -2,7 +2,7 @@
 CA Reception Management.
 
 This file contains the class for the CA Reception Management,
-strictly following ETSI TS 103 900 V2.2.1 (2025-02).
+strictly following ETSI TS 103 900 V2.3.1 (2026-05), the latest version.
 
 Key standard-compliance additions:
   - Decoding exceptions are caught and logged; the LDM/applications are NOT
@@ -17,14 +17,17 @@ from typing import Callable
 from .cam_transmission_management import GenerationDeltaTime
 from .cam_ldm_adaptation import CABasicServiceLDM
 from .cam_coder import CAMCoder
+from .cam_ssp import ssp_consistent
 from ...btp.service_access_point import BTPDataIndication
 from ...btp.router import Router as BTPRouter
 from ...utils.time_service import TimeService
 
+CAM_ITS_AID = 36  # ETSI TS 102 965
+
 
 class CAMReceptionManagement:
     """
-    CAM Reception Management — ETSI TS 103 900 V2.2.1 §6.2 / Annex B.3.
+    CAM Reception Management — ETSI TS 103 900 V2.3.1 (2026-05) §5.3.1 / Annex B.3.
 
     Attributes
     ----------
@@ -54,7 +57,7 @@ class CAMReceptionManagement:
 
     def add_application_callback(self, callback: Callable[[dict], None]) -> None:
         """
-        Register an application callback (IF.CAM — §6.2).
+        Register an application callback (CA_DataProvision — §5.3.1).
 
         The callback receives the decoded CAM dict (with an added
         ``utc_timestamp`` key) whenever a valid CAM is received.
@@ -78,12 +81,26 @@ class CAMReceptionManagement:
         btp_indication : BTPDataIndication
             BTP Data Indication carrying the raw CAM payload.
         """
+        # ETSI TS 103 097 V2.2.1 clause 7.1.1: a
+        # secured CAM shall carry the CAM ITS-AID.
+        if btp_indication.gn_its_aid is not None and btp_indication.gn_its_aid != CAM_ITS_AID:
+            self.logging.warning("Secured CAM with ITS-AID %s — discarding", btp_indication.gn_its_aid)
+            return
         try:
             cam = self.cam_coder.decode(btp_indication.data)
         except Exception:
             self.logging.exception(
                 "CAM decoding failed (Annex B.3.3.1) — discarding packet"
             )
+            return
+
+        # Security constraints (TS 103 900 V2.3.1 clause 6.2.2): a CAM whose
+        # protected content is not permitted by the signer's SSP is invalid.
+        if not ssp_consistent(
+            btp_indication.gn_permissions, cam,
+            lambda data: self.cam_coder.decode_extension_container(1, data),
+        ):
+            self.logging.warning("CAM content not permitted by the signer's SSP — discarding")
             return
 
         generation_delta_time = GenerationDeltaTime(

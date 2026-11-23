@@ -126,6 +126,7 @@ class TestBTPDataIndication(TestCase):
                 "gn_permissions": None,
                 "gn_traffic_class": "AA==",
                 "gn_remaining_packet_lifetime": None,
+                "gn_destination_area": None,
                 "length": 0,
                 "data": "",
             },

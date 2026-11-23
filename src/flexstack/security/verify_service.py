@@ -1,9 +1,82 @@
+"""
+Verification of received secured messages (ETSI TS 103 097 V2.2.1 (2026-03),
+clauses 5 and 7; IEEE Std 1609.2-2016, clauses 5.2.3.2.2 and 5.3.1).
+
+Checks, in order (the first failing one gives the report):
+
+1. decodable EtsiTs103097Data-Signed with protocolVersion 3 (clause 5.1);
+2. signer identifier: certificate (exactly one) or digest; DENMs always use
+   a certificate (clause 7.1.2);
+3. the signer certificate is a known, valid authorization ticket;
+4. headerInfo: generationTime present, p2pcdLearningRequest and
+   missingCrlIdentifier absent (clause 5.2); CAM (clause 7.1.1) and DENM
+   (clause 7.1.2) profiles;
+5. the PSID is in the appPermissions of the AT (the SSP is returned);
+6. the generationTime lies in the validity period of the AT chain;
+7. the generationLocation, when present, lies in the region of the AT chain;
+8. the signature, over Hash(Hash(tbsData) || Hash(AT)) (1609.2 clause 5.3.1),
+   with an algorithm matching the verification key.
+
+Mirrors ``rustflexstack::security::verify_service``.
+"""
+
 from __future__ import annotations
+from typing import Callable
 
 from .sn_sap import ReportVerify, SNVERIFYRequest, SNVERIFYConfirm
 from .sign_service import ECDSABackend, SignService
-from .certificate import SECURITY_CODER
+from .certificate import SECURITY_CODER, Certificate, signing_input
 from .certificate_library import CertificateLibrary
+from .ecdsa_backend import hash_for_key
+from .header_extensions import decode_requests
+from .validity import app_permission, location_permitted, valid_at
+
+PSID_CAM = 36
+PSID_DENM = 37
+PROTOCOL_VERSION = 3
+# Clause 7.1.1: headerInfo fields a CAM shall not contain (besides those of clause 5.2).
+_CAM_FORBIDDEN = ("generationLocation", "expiryTime", "encryptionKey")
+# Clause 7.1.2: headerInfo fields a DENM shall not contain.
+_DENM_FORBIDDEN = ("expiryTime", "encryptionKey", "inlineP2pcdRequest", "requestedCertificate")
+
+
+def _psid_bytes(psid: int) -> bytes:
+    return psid.to_bytes((psid.bit_length() + 7) // 8 or 1, "big")
+
+
+def _confirm(report: ReportVerify, certificate: Certificate | None = None, psid: int | None = None,
+             permissions: bytes = b"", plain_message: bytes = b"") -> SNVERIFYConfirm:
+    its_aid = _psid_bytes(psid) if psid is not None else b""
+    return SNVERIFYConfirm(
+        report=report,
+        certificate_id=certificate.as_hashedid8() if certificate is not None else b"",
+        its_aid=its_aid,
+        its_aid_length=len(its_aid),
+        permissions=permissions,
+        plain_message=plain_message,
+    )
+
+
+def received_tbs_data(message: bytes, signed_data: dict) -> bytes | None:
+    """
+    The tbsData octets of a received Ieee1609Dot2Data signedData:
+    protocolVersion (1 octet), the Ieee1609Dot2Content tag of signedData
+    (0x81), hashId (1 octet), then tbsData, signer and signature (SignedData
+    has no extension marker). ``None`` when the message does not end with the
+    encodings of its signer and signature. Mirrors ``received_tbs_data`` in
+    RustFlexstack.
+    """
+    if len(message) < 3 or message[1] != 0x81:
+        return None
+    coder = SECURITY_CODER.asn_coder
+    try:
+        tail = coder.encode("SignerIdentifier", signed_data["signer"]) + \
+            coder.encode("Signature", signed_data["signature"])
+    except Exception:  # pylint: disable=broad-except
+        return None
+    if len(message) < 3 + len(tail) or not message.endswith(tail):
+        return None
+    return message[3:len(message) - len(tail)]
 
 
 class VerifyService:
@@ -32,10 +105,13 @@ class VerifyService:
         self.backend: ECDSABackend = backend
         self.certificate_library: CertificateLibrary = certificate_library
         self.sign_service: SignService | None = sign_service
+        # Receiver of the P2P CRL / CTL requests of a verified message (ETSI TS 103
+        # 601 V2.1.1 clause 5.3): called with the requests and the signing AT.
+        self.trust_list_listener: Callable[[list[tuple[int, dict]], Certificate], None] | None = None
 
-    def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:
+    def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:  # pylint: disable=too-many-return-statements,too-many-branches,too-many-locals,too-many-statements
         """
-        Verify the signature of a message
+        Verify a received secured message.
 
         Parameters
         ----------
@@ -45,167 +121,108 @@ class VerifyService:
         Returns
         -------
         SNVERIFYConfirm
-            Confirmation of the verification of the signature of a message.
+            Report, signer certificate id, ITS-AID, SSP of the signer for that
+            ITS-AID and, on success, the plain message.
         """
-        sec_header_decoded = SECURITY_CODER.decode_etsi_ts_103097_data_signed(
-            request.message
-        )
-        signed_data = sec_header_decoded["content"][1]
-        data = SECURITY_CODER.encode_to_be_signed_data(signed_data["tbsData"])
+        # 1. Decoding and protocol version (clause 5.1)
+        try:
+            message = SECURITY_CODER.decode_etsi_ts_103097_data_signed(request.message)
+            signed_data = message["content"][1]
+            tbs_bytes = SECURITY_CODER.encode_to_be_signed_data(signed_data["tbsData"])
+        except Exception:  # pylint: disable=broad-except
+            return _confirm(ReportVerify.INCOMPATIBLE_PROTOCOL)
+        inner = signed_data["tbsData"].get("payload", {}).get("data", {})
+        if message.get("protocolVersion") != PROTOCOL_VERSION or (
+                inner and inner.get("protocolVersion") != PROTOCOL_VERSION):
+            return _confirm(ReportVerify.INCOMPATIBLE_PROTOCOL)
+        header_info = signed_data["tbsData"].get("headerInfo", {})
+        psid: int = header_info.get("psid", 0)
         signer = signed_data["signer"]
-        # Determine the message profile early so per-profile signer constraints can be
-        # checked before attempting certificate lookup.
-        _header_info_early = signed_data["tbsData"].get("headerInfo", {})
-        _psid_early: int = _header_info_early.get("psid", 0)
-        # §7.1.2: DENMs (psid 37) SHALL use signer choice 'certificate', never 'digest'.
-        if _psid_early == 37 and signer[0] != "certificate":
-            return SNVERIFYConfirm(
-                report=ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE,
-                certificate_id=b'',
-                its_aid=b'',
-                its_aid_length=0,
-                permissions=b'',
-            )
-        authorization_ticket = None
+        # P2PCD response (IEEE 1609.2 clause 8.2.4, TS 103 097 clause 7.1.1): a
+        # requested CA certificate is learned when it verifies under a known
+        # issuer, before the chain of this message is checked (the answering
+        # CAM may be signed by an AT of that CA).
+        if "requestedCertificate" in header_info:
+            self.certificate_library.learn_ca_certificate(header_info["requestedCertificate"])
+
+        # 2-3. Signer identifier and authorization ticket
+        if psid == PSID_DENM and signer[0] != "certificate":
+            return _confirm(ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE, psid=psid)
         if signer[0] == "certificate":
-            # §5.2: certificate choice constrained to exactly one entry
-            if len(signer[1]) != 1:
-                return SNVERIFYConfirm(
-                    report=ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE,
-                    certificate_id=b'',
-                    its_aid=b'',
-                    its_aid_length=0,
-                    permissions=b'',
-                )
-            authorization_ticket = (
-                self.certificate_library.verify_sequence_of_certificates(
-                    signer[1], self.backend
-                )
-            )
-            if not authorization_ticket:
+            if len(signer[1]) != 1:      # clause 5.2: exactly one certificate
+                return _confirm(ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE, psid=psid)
+            at = self.certificate_library.verify_sequence_of_certificates(signer[1], self.backend)
+            if not at:
                 if self.sign_service is not None:
-                    cert_dict = signer[1][0]
-                    issuer = cert_dict.get("issuer", ("self", None))
+                    issuer = signer[1][0].get("issuer", ("self", None))
                     if issuer[0] in ("sha256AndDigest", "sha384AndDigest") and issuer[1] is not None:
                         self.sign_service.notify_unknown_at(issuer[1])
-                return SNVERIFYConfirm(
-                    report=ReportVerify.INCONSISTENT_CHAIN,
-                    certificate_id=b'',
-                    its_aid=b'',
-                    its_aid_length=0,
-                    permissions=b'',
-                )
+                return _confirm(ReportVerify.INCONSISTENT_CHAIN, psid=psid)
         elif signer[0] == "digest":
-            authorization_ticket = (
-                self.certificate_library.get_authorization_ticket_by_hashedid8(
-                    signer[1]
-                )
-            )
-            if not authorization_ticket:
+            at = self.certificate_library.get_authorization_ticket_by_hashedid8(signer[1])
+            if not at:
                 if self.sign_service is not None:
                     self.sign_service.notify_unknown_at(signer[1])
-                return SNVERIFYConfirm(
-                    report=ReportVerify.SIGNER_CERTIFICATE_NOT_FOUND,
-                    certificate_id=b'',
-                    its_aid=b'',
-                    its_aid_length=0,
-                    permissions=b'',
-                )
-        else:
-            raise Exception("Unknown signer type")
-        if (
-            authorization_ticket is not None and authorization_ticket.certificate is not None
-            and authorization_ticket.verify(self.backend)
-            and authorization_ticket.is_authorization_ticket()
-            and authorization_ticket.certificate["toBeSigned"]["verifyKeyIndicator"][0]
-            == "verificationKey"
-        ):
-            header_info = signed_data["tbsData"].get("headerInfo", {})
-            # §5.2: generationTime SHALL always be present
-            if "generationTime" not in header_info:
-                return SNVERIFYConfirm(
-                    report=ReportVerify.INVALID_TIMESTAMP,
-                    certificate_id=authorization_ticket.as_hashedid8(),
-                    its_aid=b'',
-                    its_aid_length=0,
-                    permissions=b'',
-                )
-            # §5.2: p2pcdLearningRequest and missingCrlIdentifier SHALL always be absent
-            if "p2pcdLearningRequest" in header_info or "missingCrlIdentifier" in header_info:
-                return SNVERIFYConfirm(
-                    report=ReportVerify.INCOMPATIBLE_PROTOCOL,
-                    certificate_id=authorization_ticket.as_hashedid8(),
-                    its_aid=b'',
-                    its_aid_length=0,
-                    permissions=b'',
-                )
-            psid: int = header_info.get("psid", 0)
-            # §7.1.2: DENM-specific headerInfo constraints
-            if psid == 37:
-                # generationLocation SHALL be present
-                if "generationLocation" not in header_info:
-                    return SNVERIFYConfirm(
-                        report=ReportVerify.INCOMPATIBLE_PROTOCOL,
-                        certificate_id=authorization_ticket.as_hashedid8(),
-                        its_aid=b'',
-                        its_aid_length=0,
-                        permissions=b'',
-                    )
-                # All other optional headerInfo fields SHALL be absent
-                _denm_forbidden = {
-                    "expiryTime", "encryptionKey",
-                    "inlineP2pcdRequest", "requestedCertificate",
-                }
-                for _field in _denm_forbidden:
-                    if _field in header_info:
-                        return SNVERIFYConfirm(
-                            report=ReportVerify.INCOMPATIBLE_PROTOCOL,
-                            certificate_id=authorization_ticket.as_hashedid8(),
-                            its_aid=b'',
-                            its_aid_length=0,
-                            permissions=b'',
-                        )
-            its_aid_bytes = psid.to_bytes(
-                (psid.bit_length() + 7) // 8 or 1, "big")
-            verification_key = authorization_ticket.certificate["toBeSigned"]["verifyKeyIndicator"][
-                1
-            ]
-            verify = self.backend.verify_with_pk(
-                data=data,
-                signature=signed_data["signature"],
-                pk=verification_key,
-            )
-            if verify:
-                plain_message = signed_data["tbsData"]["payload"]["data"]["content"][1]
-                if self.sign_service is not None:
-                    if "inlineP2pcdRequest" in header_info:
-                        self.sign_service.notify_inline_p2pcd_request(
-                            header_info["inlineP2pcdRequest"]
-                        )
-                    if "requestedCertificate" in header_info:
-                        self.sign_service.notify_received_ca_certificate(
-                            header_info["requestedCertificate"]
-                        )
-                return SNVERIFYConfirm(
-                    report=ReportVerify.SUCCESS,
-                    certificate_id=authorization_ticket.as_hashedid8(),
-                    its_aid=its_aid_bytes,
-                    its_aid_length=len(its_aid_bytes),
-                    permissions=b'',
-                    plain_message=plain_message,
-                )
-            else:
-                return SNVERIFYConfirm(
-                    report=ReportVerify.FALSE_SIGNATURE,
-                    certificate_id=authorization_ticket.as_hashedid8(),
-                    its_aid=its_aid_bytes,
-                    its_aid_length=len(its_aid_bytes),
-                    permissions=b'',
-                )
-        return SNVERIFYConfirm(
-            report=ReportVerify.INVALID_CERTIFICATE,
-            certificate_id=b'',
-            its_aid=b'',
-            its_aid_length=0,
-            permissions=b'',
-        )
+                return _confirm(ReportVerify.SIGNER_CERTIFICATE_NOT_FOUND, psid=psid)
+        else:                            # 'self' is not allowed (clause 5.2)
+            return _confirm(ReportVerify.UNSUPPORTED_SIGNER_IDENTIFIER_TYPE, psid=psid)
+        # Verification key: explicit, or reconstructed from an implicit AT
+        # (IEEE 1609.2 clause 5.3.2)
+        key = at.verification_key() if at.certificate else None
+        if key is None or not at.verify(self.backend) or not at.is_authorization_ticket():
+            return _confirm(ReportVerify.INVALID_CERTIFICATE, psid=psid)
+
+        # 4. headerInfo (clauses 5.2, 7.1.1, 7.1.2)
+        if "generationTime" not in header_info:
+            return _confirm(ReportVerify.INVALID_TIMESTAMP, at, psid)
+        if "p2pcdLearningRequest" in header_info or "missingCrlIdentifier" in header_info:
+            return _confirm(ReportVerify.INCOMPATIBLE_PROTOCOL, at, psid)
+        if psid == PSID_CAM and any(f in header_info for f in _CAM_FORBIDDEN):
+            return _confirm(ReportVerify.INCOMPATIBLE_PROTOCOL, at, psid)
+        if psid == PSID_DENM and ("generationLocation" not in header_info
+                                  or any(f in header_info for f in _DENM_FORBIDDEN)):
+            return _confirm(ReportVerify.INCOMPATIBLE_PROTOCOL, at, psid)
+
+        # 5. PSID permitted by the AT (IEEE 1609.2 clause 5.2.3.2.2)
+        permitted, ssp = app_permission(at.certificate["toBeSigned"], psid)
+        if not permitted:
+            return _confirm(ReportVerify.INVALID_CERTIFICATE, at, psid)
+
+        # 6-7. Time and region consistency with the certificate chain
+        if not valid_at(at, header_info["generationTime"]):
+            return _confirm(ReportVerify.INVALID_TIMESTAMP, at, psid)
+        location = header_info.get("generationLocation")
+        if location is not None and not location_permitted(
+                at, location["latitude"], location["longitude"]):
+            return _confirm(ReportVerify.INVALID_MOBILITY_DATA, at, psid)
+
+        # 8. Signature over Hash(Hash(tbsData) || Hash(AT)) (IEEE 1609.2 clause 5.3.1)
+        at_canonical = at.canonical_encoding()
+        payload = signing_input(tbs_bytes, at_canonical, hash_for_key(key))
+        if not self.backend.verify_with_pk(data=payload, signature=signed_data["signature"], pk=key):
+            # The signer encoded tbsData with its own ASN.1 version: another
+            # number of HeaderInfo extension additions gives another extension
+            # presence bitmap (X.696 clause 16.4), e.g. IEEE 1609.2-2016
+            # modules. The signature covers the octets the signer encoded
+            # (clause 6.3.4), so they are verified as received.
+            received = received_tbs_data(request.message, signed_data)
+            if received is None or received == tbs_bytes or not self.backend.verify_with_pk(
+                    data=signing_input(received, at_canonical, hash_for_key(key)),
+                    signature=signed_data["signature"], pk=key):
+                return _confirm(ReportVerify.FALSE_SIGNATURE, at, psid)
+
+        if self.sign_service is not None:
+            # An AT received as certificate signer is now known: it is no
+            # longer requested in inlineP2pcdRequest (clause 7.1.1).
+            if signer[0] == "certificate":
+                self.sign_service.notify_known_at(at.as_hashedid8())
+            if "inlineP2pcdRequest" in header_info:
+                self.sign_service.notify_inline_p2pcd_request(header_info["inlineP2pcdRequest"])
+            if "requestedCertificate" in header_info:
+                self.sign_service.notify_received_ca_certificate(header_info["requestedCertificate"])
+        listener = self.trust_list_listener
+        if listener is not None and "contributedExtensions" in header_info:
+            requests = decode_requests(header_info["contributedExtensions"])
+            if requests:
+                listener(requests, at)
+        return _confirm(ReportVerify.SUCCESS, at, psid, ssp or b"", inner["content"][1])

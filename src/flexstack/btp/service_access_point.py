@@ -1,5 +1,5 @@
 from base64 import b64encode, b64decode
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from typing import Optional
 from ..geonet.gn_address import GNAddress
 from ..geonet.service_access_point import (
@@ -203,11 +203,17 @@ class BTPDataIndication:
         GN Certificate Id. Optional; identifier of the certificate used by
         the sender.
     gn_permissions : bytes or None
-        GN Permissions. Optional; permissions from the sender's certificate.
+        GN Permissions. Optional; permissions (SSP) from the sender's certificate.
+    gn_its_aid : int or None
+        ITS-AID (PSID) of a secured packet, which the receiving facility checks
+        against its own ITS-AID (e.g. ETSI TS 103 097 clause 7.1.1).
     gn_traffic_class : TrafficClass
         GN Traffic Class.
     gn_remaining_packet_lifetime : float or None
         GN Remaining Packet Lifetime in seconds. Optional.
+    gn_destination_area : Area or None
+        Destination area of a GeoBroadcast / GeoAnycast packet (the geographical
+        "GN destination address" of ETSI TS 103 836-5-1); None otherwise.
     length : int
         Length of the payload.
     data : bytes
@@ -225,8 +231,10 @@ class BTPDataIndication:
     gn_security_report: Optional[bytes] = None
     gn_certificate_id: Optional[bytes] = None
     gn_permissions: Optional[bytes] = None
+    gn_its_aid: Optional[int] = None
     gn_traffic_class: TrafficClass = field(default_factory=TrafficClass)
     gn_remaining_packet_lifetime: Optional[float] = None
+    gn_destination_area: Optional[Area] = None
     length: int = 0
     data: bytes = b""
 
@@ -241,10 +249,20 @@ class BTPDataIndication:
             GNDataIndication to construct from.
         """
         payload = gn_data_indication.data[4:]
+        report = gn_data_indication.security_report
         return cls(
             gn_packet_transport_type=gn_data_indication.packet_transport_type,
+            # EN 302 636-5-1 table 7: GN-Data.indication parameter Destination (GeoUnicast).
+            gn_destination_address=(gn_data_indication.destination if gn_data_indication.destination is not None
+                                    else GNAddress()),
             gn_source_position_vector=gn_data_indication.source_position_vector,
+            gn_security_report=bytes([report]) if report is not None else None,
+            gn_certificate_id=gn_data_indication.certificate_id,
+            gn_permissions=gn_data_indication.security_permissions,
+            gn_its_aid=gn_data_indication.its_aid,
             gn_traffic_class=gn_data_indication.traffic_class,
+            gn_remaining_packet_lifetime=gn_data_indication.remaining_packet_lifetime,
+            gn_destination_area=gn_data_indication.destination_area,
             length=len(payload),
             data=payload,
         )
@@ -265,21 +283,8 @@ class BTPDataIndication:
         BTPDataIndication
             New BTPDataIndication with updated destination port and info.
         """
-        return BTPDataIndication(
-            source_port=self.source_port,
-            destination_port=destination_port,
-            destination_port_info=destination_port_info,
-            gn_packet_transport_type=self.gn_packet_transport_type,
-            gn_destination_address=self.gn_destination_address,
-            gn_source_position_vector=self.gn_source_position_vector,
-            gn_security_report=self.gn_security_report,
-            gn_certificate_id=self.gn_certificate_id,
-            gn_permissions=self.gn_permissions,
-            gn_traffic_class=self.gn_traffic_class,
-            gn_remaining_packet_lifetime=self.gn_remaining_packet_lifetime,
-            length=self.length,
-            data=self.data,
-        )
+        return dataclass_replace(
+            self, destination_port=destination_port, destination_port_info=destination_port_info)
 
     def to_dict(self) -> dict:
         """
@@ -308,6 +313,8 @@ class BTPDataIndication:
                 self.gn_traffic_class.encode_to_bytes()
             ).decode("utf-8"),
             "gn_remaining_packet_lifetime": self.gn_remaining_packet_lifetime,
+            "gn_destination_area": self.gn_destination_area.to_dict()
+            if self.gn_destination_area is not None else None,
             "length": self.length,
             "data": b64encode(self.data).decode("utf-8"),
         }
@@ -352,6 +359,8 @@ class BTPDataIndication:
         permissions_b64 = data.get("gn_permissions")
         gn_permissions = b64decode(permissions_b64) if permissions_b64 is not None else None
         gn_remaining_packet_lifetime = data.get("gn_remaining_packet_lifetime")
+        area_dict = data.get("gn_destination_area")
+        gn_destination_area = Area.from_dict(area_dict) if area_dict is not None else None
         length = data.get("length", 0)
         data_b64 = data.get("data")
         payload = b64decode(data_b64) if data_b64 else b""
@@ -367,6 +376,7 @@ class BTPDataIndication:
             gn_permissions=gn_permissions,
             gn_traffic_class=gn_traffic_class,
             gn_remaining_packet_lifetime=gn_remaining_packet_lifetime,
+            gn_destination_area=gn_destination_area,
             length=length,
             data=payload,
         )

@@ -14,10 +14,8 @@ Singleton
 """
 from __future__ import annotations
 
-import asn1tools
-
 from flexstack.security.pki_asn1 import PKI_ASN1_DESCRIPTIONS
-from flexstack.security.security_coder import SecurityCoder
+from flexstack.security.security_coder import SecurityCoder, compile_canonical
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +35,7 @@ class PkiCoder(SecurityCoder):
 
     def __init__(self) -> None:
         # pylint: disable=super-init-not-called
-        self.asn_coder = asn1tools.compile_string(PKI_ASN1_DESCRIPTIONS, codec="oer")
+        self.asn_coder = compile_canonical(PKI_ASN1_DESCRIPTIONS)
 
     # ------------------------------------------------------------------
     # Generic Ieee1609Dot2Data  (covers signed + encrypted variants)
@@ -85,12 +83,12 @@ class PkiCoder(SecurityCoder):
     # ------------------------------------------------------------------
 
     def encode_inner_ec_request(self, data: dict) -> bytes:
-        """Encode ``InnerECRequest``."""
-        return self.asn_coder.encode("InnerECRequest", data)
+        """Encode ``InnerEcRequest`` (ETSI TS 102 941 V2.2.1)."""
+        return self.asn_coder.encode("InnerEcRequest", data)
 
     def decode_inner_ec_response(self, raw: bytes) -> dict:
-        """Decode ``InnerECResponse`` → ``{"version": 1, "responseCode": ..., "certificate": ...}``."""
-        return self.asn_coder.decode("InnerECResponse", raw)
+        """Decode ``InnerEcResponse`` → ``{"requestHash": ..., "responseCode": ..., "certificate": ...}``."""
+        return self.asn_coder.decode("InnerEcResponse", raw)
 
     # ------------------------------------------------------------------
     # Authorization

@@ -15,6 +15,9 @@ Provided implementations:
   interfaces from the nl80211 channel survey counters
   (``iw dev <iface> survey dump``).
 
+:func:`nl80211_tx_power_dbm` reads the transmit power of such an interface
+(``iw dev <iface> info``), e.g. for the DCC-MCO field of DCC_NET.
+
 Mirrors ``rustflexstack::management::cbr``.
 """
 
@@ -211,3 +214,27 @@ class Nl80211SurveyCbr(CbrProvider):
         if sample is None:
             return None
         return self.ingest(sample)
+
+
+def parse_tx_power_dbm(text: str) -> Optional[float]:
+    """Transmit power in dBm from the output of ``iw dev <iface> info`` (``txpower 20.00 dBm``)."""
+    for raw in text.splitlines():
+        parts = raw.split()
+        if len(parts) >= 3 and parts[0] == "txpower" and parts[2] == "dBm":
+            try:
+                return float(parts[1])
+            except ValueError:
+                return None
+    return None
+
+
+def nl80211_tx_power_dbm(iface: str) -> Optional[float]:
+    """Transmit power of a Linux wireless interface (``iw dev <iface> info``), if reported."""
+    try:
+        out = subprocess.run(["iw", "dev", iface, "info"], capture_output=True, text=True,
+                             check=False, timeout=1.0)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    return parse_tx_power_dbm(out.stdout)
