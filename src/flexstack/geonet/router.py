@@ -185,6 +185,9 @@ class Router:
         self.location_table = LocationTable(mib, clock=lambda: self._clock())
         self.sign_service: SignService | None = sign_service
         self.verify_service: VerifyService | None = verify_service
+        # Called with (secured message, SN-VERIFY.confirm) for every received
+        # secured packet, verified or not (see set_verify_observer).
+        self.verify_observer: Callable[[bytes, SNVERIFYConfirm], None] | None = None
         self.indication_callback = None
         # Called with the new GN address after a duplicate address (clause
         # 10.2.1.5 step 3), e.g. to set the ITS-G5 interface MAC to the new MID.
@@ -2111,6 +2114,17 @@ class Router:
         if self.indication_callback and indication is not None:
             self.indication_callback(indication)
 
+    def set_verify_observer(self, observer: Callable[[bytes, SNVERIFYConfirm], None]) -> None:
+        """
+        Call ``observer`` with the outcome of every verification of a received
+        secured packet (SN-VERIFY.confirm, ETSI TS 102 723-8), whatever the
+        report: the secured message (Ieee1609Dot2Data after the Basic Header)
+        and the confirm. For logging and test instrumentation; it does not change
+        the processing of the packet. Mirrors ``Router::set_verify_observer``
+        in RustFlexstack.
+        """
+        self.verify_observer = observer
+
     def process_security_header(
         self, packet: bytes, basic_header: BasicHeader, sender_ll_address: bytes | None = None
     ) -> None:
@@ -2126,6 +2140,8 @@ class Router:
                 message_length=len(packet),
             )
         )
+        if self.verify_observer is not None:
+            self.verify_observer(packet, verify_confirm)
         if verify_confirm.report != ReportVerify.SUCCESS:
             print(
                 f"Secured packet verification failed: {verify_confirm.report}")

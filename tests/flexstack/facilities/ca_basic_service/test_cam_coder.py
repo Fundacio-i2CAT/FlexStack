@@ -49,6 +49,22 @@ class TestCAMCoderExtensionContainers(unittest.TestCase):
     decode_extension_container unchanged.
     """
 
+    # Frozen vector, also in RustFlexstack (cam_coder::tests::
+    # cam_with_extension_container_matches_x691): a CAM with a
+    # VeryLowFrequencyContainer as extension container (CamParameters extension
+    # addition, X.691 clause 19.9 open type holding WrappedExtensionContainers
+    # 01 00 80 00).
+    FROZEN_VLF_CAM = bytes.fromhex(
+        "0202000000012f208059ca0227ed929df5e0c80c8001b7743e003dffc1f47e3fe9ed0737feebfff600410040200000")
+
+    def test_frozen_cam_with_extension_container(self):
+        coder = CAMCoder()
+        cam = coder.decode(self.FROZEN_VLF_CAM)
+        self.assertEqual(cam["cam"]["camParameters"]["extensionContainers"],
+                         [{"containerId": 3, "containerData": b"\x00"}])
+        self.assertEqual(coder.encode(cam), self.FROZEN_VLF_CAM)
+        self.assertEqual(coder.decode_extension_container(3, b"\x00"), {})
+
     @classmethod
     def setUpClass(cls):
         # Use the real coder – these are integration / wire-compat tests.

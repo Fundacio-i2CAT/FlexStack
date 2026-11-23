@@ -29,7 +29,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -123,7 +123,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -245,7 +245,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -296,7 +296,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = False  # Certificate verification fails
         mock_certificate.certificate = {
             "toBeSigned": {
@@ -338,7 +338,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.verification_key.return_value = None   # key cannot be obtained
         mock_certificate.certificate = {
@@ -380,7 +380,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -430,7 +430,7 @@ class TestVerifyService(unittest.TestCase):
         # Given
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -578,7 +578,7 @@ class TestVerifyService(unittest.TestCase):
         )
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -628,7 +628,7 @@ class TestVerifyService(unittest.TestCase):
         )
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -697,7 +697,7 @@ class TestVerifyService(unittest.TestCase):
         """§7.1.2: DENM without generationLocation → INCOMPATIBLE_PROTOCOL."""
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -739,7 +739,7 @@ class TestVerifyService(unittest.TestCase):
         """§7.1.2: DENM with inlineP2pcdRequest present → INCOMPATIBLE_PROTOCOL."""
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -782,7 +782,7 @@ class TestVerifyService(unittest.TestCase):
         """§7.1.2: valid DENM with certificate signer and generationLocation → SUCCESS."""
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
         mock_certificate.certificate = {
@@ -826,7 +826,7 @@ class TestVerifyService(unittest.TestCase):
         """§7.2.1: cert that fails the AT profile check → INVALID_CERTIFICATE."""
         mock_certificate = MagicMock(spec=Certificate)
         mock_certificate.issuer = None
-        mock_certificate.to_canonical.return_value.encode.return_value = b"at"
+        mock_certificate.canonical_encoding.return_value = b"at"
         mock_certificate.verify.return_value = True
         mock_certificate.is_authorization_ticket.return_value = False
         mock_certificate.as_hashedid8.return_value = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
@@ -862,3 +862,68 @@ class TestVerifyService(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestTbsDataOfAnotherAsn1Version(unittest.TestCase):
+    """
+    IEEE 1609.2 clause 6.3.4: the signature covers the tbsData octets the signer
+    encoded. Frozen vector, also in RustFlexstack (verify_service::
+    security_checks::tbs_data_of_another_asn1_version_verified_as_received): a
+    CAM signed by Vanetza (commit 3b9a544, IEEE 1609.2-2016 ASN.1 with 2
+    HeaderInfo extension additions) carrying an inlineP2pcdRequest, captured in
+    the signed interop matrix (FlexStackBenchmarking/interop), and the Root CA
+    and AA of that run. Vanetza encodes the extension presence bitmap with 2 bits
+    (02 06 80); this stack's ASN.1 has 4 (02 04 80).
+    """
+
+    ROOT = bytes.fromhex(
+        "800300810008810f696e7465726f702d726f6f742d636100000000002b0d1cdd860001010180810102808082c5c5cf6fa9"
+        "f7e3ccd67d16a5aab17ee1727ebf4ab1ee2f0ce3d90076f2a629318080ed258011549d01048319db4848c0a550c169d17d"
+        "2a0d7204fe4768064afbbcd7e2c6c2ae5dce3db11cc3ae7f636a888c8cf811470d7c767dbd64083a418c8dea")
+    AA = bytes.fromhex(
+        "80030080d3dd2cb18f37f08508810a696e7465726f702d616100000000002b0d1cdd860001010100800104800124818001"
+        "258180018d818002027e818080835db6d0c1c41584004070f700aa23cb2688273c9a04811e6dfa1c26ce95e1d545808086"
+        "ad69ddbaad6d2eb2f14ff9c479b51995dc7dc7203f234576dc98324af55adb2e80f61000922868dcaad628afb8fc539ff4"
+        "7196bb1ead45550220f0a3e50775")
+    CAM = bytes.fromhex(
+        "0381004003805120500080002d01008000aa05e7e4cd642b6fc60418ab2b97014b2570800000000000000007d100000202"
+        "00000003c6e50059ca02930d929eee1ffffffc23b7743e0000000000003fe9ed0737feebfff600c00124000290e9aca0f1"
+        "530206800501011ad738810101800300803c82cf6a9b7294cb108300000000002b0d1cdd860001010480012481040303ff"
+        "ff80012581060502ffffffff00018d0002027e808082b7cd8f1efe5880b4779bf967150bdb36b31cb690da293eea789f37"
+        "7241dcff78808005c8c38854e7b3f7e2ed55fdbbe7dcebe3c3baaf990e8f9cd38074f583e69651093804732abbb13c2043"
+        "2d042d06edf02a7e12fd87ed7fc3c5dfc336182370e080805fd37ee613809ec114e8ac105725784c363164d5928f8c577b"
+        "94089d81fb6e818c4f30264948f7134f93b06950fad28992206a26474bd57e3a7ff4b70fc8b3e2")
+
+    def _service(self):
+        from flexstack.security.certificate_library import CertificateLibrary
+        from flexstack.security.ecdsa_backend import PythonECDSABackend
+        backend = PythonECDSABackend()
+        root = Certificate().decode(self.ROOT, issuer=None)
+        aa = Certificate().decode(self.AA, issuer=root)
+        return VerifyService(backend=backend, certificate_library=CertificateLibrary(
+            ecdsa_backend=backend, root_certificates=[root], aa_certificates=[aa], at_certificates=[]))
+
+    @staticmethod
+    def _request(message):
+        return SNVERIFYRequest(sec_header_length=0, sec_header=b"", message_length=len(message), message=message)
+
+    def test_verified_as_received(self):
+        from flexstack.security.certificate import SECURITY_CODER
+        from flexstack.security.verify_service import received_tbs_data
+        signed = SECURITY_CODER.decode_etsi_ts_103097_data_signed(self.CAM)["content"][1]
+        received = received_tbs_data(self.CAM, signed)
+        self.assertNotEqual(received, SECURITY_CODER.encode_to_be_signed_data(signed["tbsData"]))
+        self.assertIn(bytes.fromhex("020680"), received)            # 2-bit bitmap
+        confirm = self._service().verify(self._request(self.CAM))
+        self.assertEqual(confirm.report, ReportVerify.SUCCESS)
+
+    def test_altered_octet_refused(self):
+        altered = bytearray(self.CAM)
+        altered[60] ^= 0x01
+        self.assertNotEqual(self._service().verify(self._request(bytes(altered))).report, ReportVerify.SUCCESS)
+
+    def test_received_tbs_data_needs_signed_data_layout(self):
+        from flexstack.security.verify_service import received_tbs_data
+        self.assertIsNone(received_tbs_data(b"\x03\x80\x00", {"signer": ("digest", b"\x00" * 8)}))
+        bad_signature = {"signer": ("digest", b"\x00" * 8), "signature": ("x", None)}
+        self.assertIsNone(received_tbs_data(b"\x03\x81\x00\x01", bad_signature))

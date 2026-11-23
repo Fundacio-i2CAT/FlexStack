@@ -57,6 +57,28 @@ def _confirm(report: ReportVerify, certificate: Certificate | None = None, psid:
     )
 
 
+def received_tbs_data(message: bytes, signed_data: dict) -> bytes | None:
+    """
+    The tbsData octets of a received Ieee1609Dot2Data signedData:
+    protocolVersion (1 octet), the Ieee1609Dot2Content tag of signedData
+    (0x81), hashId (1 octet), then tbsData, signer and signature (SignedData
+    has no extension marker). ``None`` when the message does not end with the
+    encodings of its signer and signature. Mirrors ``received_tbs_data`` in
+    RustFlexstack.
+    """
+    if len(message) < 3 or message[1] != 0x81:
+        return None
+    coder = SECURITY_CODER.asn_coder
+    try:
+        tail = coder.encode("SignerIdentifier", signed_data["signer"]) + \
+            coder.encode("Signature", signed_data["signature"])
+    except Exception:  # pylint: disable=broad-except
+        return None
+    if len(message) < 3 + len(tail) or not message.endswith(tail):
+        return None
+    return message[3:len(message) - len(tail)]
+
+
 class VerifyService:
     """
     Class to verify the signature of a message
@@ -87,7 +109,7 @@ class VerifyService:
         # 601 V2.1.1 clause 5.3): called with the requests and the signing AT.
         self.trust_list_listener: Callable[[list[tuple[int, dict]], Certificate], None] | None = None
 
-    def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:  # pylint: disable=too-many-return-statements,too-many-branches,too-many-locals
+    def verify(self, request: SNVERIFYRequest) -> SNVERIFYConfirm:  # pylint: disable=too-many-return-statements,too-many-branches,too-many-locals,too-many-statements
         """
         Verify a received secured message.
 
@@ -175,9 +197,19 @@ class VerifyService:
             return _confirm(ReportVerify.INVALID_MOBILITY_DATA, at, psid)
 
         # 8. Signature over Hash(Hash(tbsData) || Hash(AT)) (IEEE 1609.2 clause 5.3.1)
-        payload = signing_input(tbs_bytes, at.to_canonical().encode(), hash_for_key(key))
+        at_canonical = at.canonical_encoding()
+        payload = signing_input(tbs_bytes, at_canonical, hash_for_key(key))
         if not self.backend.verify_with_pk(data=payload, signature=signed_data["signature"], pk=key):
-            return _confirm(ReportVerify.FALSE_SIGNATURE, at, psid)
+            # The signer encoded tbsData with its own ASN.1 version: another
+            # number of HeaderInfo extension additions gives another extension
+            # presence bitmap (X.696 clause 16.4), e.g. IEEE 1609.2-2016
+            # modules. The signature covers the octets the signer encoded
+            # (clause 6.3.4), so they are verified as received.
+            received = received_tbs_data(request.message, signed_data)
+            if received is None or received == tbs_bytes or not self.backend.verify_with_pk(
+                    data=signing_input(received, at_canonical, hash_for_key(key)),
+                    signature=signed_data["signature"], pk=key):
+                return _confirm(ReportVerify.FALSE_SIGNATURE, at, psid)
 
         if self.sign_service is not None:
             # An AT received as certificate signer is now known: it is no

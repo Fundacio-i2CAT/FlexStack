@@ -130,7 +130,7 @@ class TrustStore:  # pylint: disable=too-many-instance-attributes
             raise TrustListError("invalidsignature", "no verification key for the issuer")
         hashfunc = hashlib.sha384 if hash_name_for_key(key) == "sha384" else hashlib.sha256
         tbs = encode("ToBeSignedData", signed["tbsData"])
-        if not self.backend.verify_with_pk(signing_input(tbs, issuer.to_canonical().encode(), hashfunc),
+        if not self.backend.verify_with_pk(signing_input(tbs, issuer.canonical_encoding(), hashfunc),
                                            signed["signature"], key):
             raise TrustListError("invalidsignature", "the signature does not verify")
 

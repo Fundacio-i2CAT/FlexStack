@@ -140,7 +140,7 @@ def sign(backend: ECDSABackend, key_id: int, payload: dict, now: float,
     if signer is None:
         signer_id, signer_bytes = ("self", None), b""
     else:
-        signer_id, signer_bytes = ("digest", signer.as_hashedid8()), signer.to_canonical().encode()
+        signer_id, signer_bytes = ("digest", signer.as_hashedid8()), signer.canonical_encoding()
     signature = backend.sign(signing_input(tbs_bytes, signer_bytes, hashfunc), key_id)
     return {"protocolVersion": 3, "content": ("signedData", {
         "hashId": hash_name, "tbsData": tbs, "signer": signer_id, "signature": signature})}
@@ -167,7 +167,7 @@ def read_signed(data: dict, signer: Certificate, backend: ECDSABackend) -> bytes
         raise PkiProtocolError("invalidsignature", "no verification key for the authority certificate")
     hashfunc = hashlib.sha384 if hash_name_for_key(key) == "sha384" else hashlib.sha256
     tbs_bytes = encode("ToBeSignedData", signed["tbsData"])
-    if not backend.verify_with_pk(signing_input(tbs_bytes, signer.to_canonical().encode(), hashfunc),
+    if not backend.verify_with_pk(signing_input(tbs_bytes, signer.canonical_encoding(), hashfunc),
                                   signed["signature"], key):
         raise PkiProtocolError("invalidsignature", "response signature does not verify")
     content = signed["tbsData"]["payload"].get("data", {}).get("content", ("", b""))
@@ -215,7 +215,7 @@ def encrypt_to(certificate: Certificate, plaintext: bytes) -> tuple[dict, bytes]
     recipient = _point(choice, point)
     ephemeral = ec.generate_private_key(_ECIES_CURVES[choice]())
     shared = ephemeral.exchange(ec.ECDH(), recipient)
-    p1 = hashlib.sha256(certificate.to_canonical().encode()).digest()
+    p1 = hashlib.sha256(certificate.canonical_encoding()).digest()
     keys = _kdf2(shared, p1, 16 + 32)
     session_key, nonce = os.urandom(16), os.urandom(12)
     c = bytes(a ^ b for a, b in zip(session_key, keys[:16]))

@@ -340,6 +340,8 @@ def build_security_stack(
         at_certificates=[at_own],
     )
     cert_library.add_own_certificate(at_own)
+    if at_own.as_hashedid8() not in cert_library.own_certificates:
+        raise SystemExit("The AT was not accepted: its AA certificate does not verify with the Root CA certificate, or the AT does not verify with the AA")
 
     sign_service = SignService(backend=backend, certificate_library=cert_library)
     verify_service = VerifyService(

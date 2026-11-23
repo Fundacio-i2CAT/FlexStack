@@ -99,6 +99,22 @@ class Certificate:
                 d["signature"] = (sig[0], {"rSig": ("x-only", r_sig[1]["x"]), "sSig": sig[1]["sSig"]})
         return Certificate(d, self.issuer)
 
+    def canonical_encoding(self) -> bytes:
+        """
+        COER of the canonical form (:meth:`to_canonical`): the input of the
+        HashedId8 and of the signer hash of every message this certificate
+        signs or verifies (IEEE 1609.2 clauses 5.3.1, 6.4.3). Computed once per
+        certificate (they are not modified after construction; a new
+        ``certificate`` value is detected) instead of once per message, which
+        cost a deep copy and an encoding per signature.
+        """
+        cached = self.__dict__.get("_canonical_encoding")
+        if cached is not None and cached[0] is self.certificate:
+            return cached[1]
+        encoded = SECURITY_CODER.encode_etsi_ts_103097_certificate(self.to_canonical().certificate)
+        object.__setattr__(self, "_canonical_encoding", (self.certificate, encoded))
+        return encoded
+
     def as_hashedid8(self) -> bytes:
         """
         Return the certificate as a canonical hashedid8.
@@ -108,9 +124,8 @@ class Certificate:
         bytes
             The certificate as a hashedid8.
         """
-        canon_cert = self.to_canonical()
         m = sha384() if self.hash_name() == "sha384" else sha256()
-        m.update(SECURITY_CODER.encode_etsi_ts_103097_certificate(canon_cert.certificate))
+        m.update(self.canonical_encoding())
         return m.digest()[-8:]
 
     def hash_name(self) -> str:
@@ -564,7 +579,7 @@ class Certificate:
                 if issuer_key is None:
                     return False
                 tbs_bytes = SECURITY_CODER.encode_ToBeSignedCertificate(self.certificate["toBeSigned"])
-                payload = signing_input(tbs_bytes, self.issuer.to_canonical().encode(),
+                payload = signing_input(tbs_bytes, self.issuer.canonical_encoding(),
                                         hash_for_key(issuer_key))
                 if backend.verify_with_pk(payload, self.certificate["signature"], issuer_key):
                     return True
@@ -654,7 +669,7 @@ class Certificate:
         """
         assert self.issuer is not None
         tbs = SECURITY_CODER.encode_ToBeSignedCertificate(self.to_canonical().certificate["toBeSigned"])
-        digest = sha256(signing_input(tbs, self.issuer.to_canonical().encode())).digest()
+        digest = sha256(signing_input(tbs, self.issuer.canonical_encoding())).digest()
         return int.from_bytes(digest, "big") >> 1
 
     def verification_key(self) -> tuple | None:
@@ -974,7 +989,7 @@ class OwnCertificate(Certificate):
             The signature of the message.
         """
         # IEEE 1609.2 clause 5.3.1: the signer identifier input is this certificate
-        return backend.sign(signing_input(message, self.to_canonical().encode(), self.hash_function()),
+        return backend.sign(signing_input(message, self.canonical_encoding(), self.hash_function()),
                             self.key_id)
 
     def hash_function(self):
@@ -1026,7 +1041,7 @@ class OwnCertificate(Certificate):
         issuer_type = certificate.certificate.get("issuer", [None])[0]
         # IEEE 1609.2 clause 5.3.1: Hash(Hash(tbs) || Hash(issuer certificate)),
         # with the empty string as signer input for a self-signed certificate.
-        signer = self.to_canonical().encode() if issuer_type in ("sha256AndDigest", "sha384AndDigest") else b""
+        signer = self.canonical_encoding() if issuer_type in ("sha256AndDigest", "sha384AndDigest") else b""
         certificate_dict["signature"] = backend.sign(signing_input(tbs_bytes, signer, self.hash_function()),
                                                      self.key_id)
         return Certificate.from_dict(certificate_dict, self)

@@ -76,6 +76,19 @@ class TestExampleProvisioning(unittest.TestCase):
         self.provision(its_id=b"\x01" * 8)
         self.assertEqual(self.pki.enrolments[0].inner["itsId"], b"\x01" * 8)
 
+    def test_security_stack_refuses_an_at_it_cannot_verify(self):
+        with self.assertRaises(SystemExit):
+            self.provision()
+        key = self.example.load_or_create_canonical_key(self.dir / "canonical_key.pem")
+        self.pki.register(key.its_id, _registered_key(key.public_pem))
+        at, backend = self.provision()
+        sign, _ = self.example.build_security_stack(at, backend, self.pki.root, self.pki.aa.own)
+        self.assertIn(at.as_hashedid8(), sign.certificate_library.own_certificates)
+        other = TsPki()                                   # another Root CA and AA
+        with self.assertRaises(SystemExit) as refused:
+            self.example.build_security_stack(at, backend, other.root, other.aa.own)
+        self.assertIn("AT was not accepted", str(refused.exception.code))
+
 
 if __name__ == "__main__":
     unittest.main()
